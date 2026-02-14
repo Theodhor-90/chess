@@ -1,0 +1,13 @@
+{
+  "name": "chess",
+  "version": "0.0.1",
+  "description": "Online chess platform",
+  "type": "module",
+  "scripts": {
+    "pipeline": "node pipeline/orchestrator.mjs",
+    "pipeline:dryrun": "node pipeline/orchestrator.mjs \"Create a hello world Express server with a GET /health endpoint that returns { status: ok }, and unit tests using Jest.\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
