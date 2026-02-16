@@ -11,12 +11,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cookie": "^10.0.1",
     "@chess/shared": "workspace:*",
     "better-sqlite3": "^12.6.2",
+    "bcrypt": "^5.1.1",
     "drizzle-orm": "^0.45.1",
-    "fastify": "^5.7.4"
+    "fastify": "^5.7.4",
+    "fastify-plugin": "^5.0.1"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "drizzle-kit": "^0.31.9",

@@ -2,9 +2,12 @@ import Fastify from "fastify";
 import type { HealthResponse } from "@chess/shared";
 import { db } from "./db/index.js";
 import { sql } from "drizzle-orm";
+import { authenticationPlugin } from "./auth/plugin.js";
 
 export function buildApp() {
   const app = Fastify({ logger: false });
+
+  app.register(authenticationPlugin);
 
   app.get<{ Reply: HealthResponse }>("/health", async (_req, reply) => {
     db.run(sql`SELECT 1`);
