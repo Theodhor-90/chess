@@ -1,0 +1,7 @@
+dist/
+node_modules/
+coverage/
+.pipeline/
+pipeline/logs/
+pnpm-lock.yaml
+.claude/

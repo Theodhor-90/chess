@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["approved", "needs_revision"]
+    },
+    "feedback": {
+      "type": "string",
+      "description": "Empty string if approved. Specific, actionable feedback if needs_revision."
+    }
+  },
+  "required": ["verdict", "feedback"],
+  "additionalProperties": false
+}

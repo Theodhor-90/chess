@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["approved", "needs_revision"]
+    },
+    "feedback": {
+      "type": "string",
+      "description": "Brief summary if approved. Specific issues with file paths if needs_revision."
+    },
+    "issues": {
+      "type": "array",
+      "description": "Present only when needs_revision. Each issue identifies a file and what needs to change.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file": { "type": "string" },
+          "description": { "type": "string" }
+        },
+        "required": ["file", "description"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["verdict", "feedback"],
+  "additionalProperties": false
+}
