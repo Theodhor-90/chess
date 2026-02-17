@@ -234,6 +234,40 @@ function mockCliCall(cli: string, prompt: string, isDecision: boolean): CliResul
     return { raw: JSON.stringify(decision), decision };
   }
 
+  // Keep dry-run planning flows compatible with plan pre-flight validation.
+  if (cli === "claude" && prompt.includes("You are the Planning Agent")) {
+    return {
+      raw: [
+        "# Mock Plan",
+        "",
+        "## File Structure",
+        "- Mock file changes",
+        "",
+        "## Dependencies",
+        "- No dependency changes",
+        "",
+        "## Implementation Details",
+        "- Mock implementation details",
+        "",
+        "## API Contracts",
+        "- No API changes",
+        "",
+        "## Test Plan",
+        "- Mock test notes",
+        "",
+        "## Implementation Order",
+        "1. Mock step",
+        "",
+        "## Verification Commands",
+        "```bash",
+        "pnpm build",
+        "pnpm typecheck",
+        "pnpm test",
+        "```",
+      ].join("\n"),
+    };
+  }
+
   return { raw: `Mock ${cli} response for dry-run testing.` };
 }
 

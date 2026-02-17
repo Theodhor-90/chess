@@ -1,5 +1,5 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
-import App from "../src/App.js";
+import { App } from "../src/App.js";
 import Board from "../src/components/Board.js";
 import type { HealthResponse } from "@chess/shared";
 
