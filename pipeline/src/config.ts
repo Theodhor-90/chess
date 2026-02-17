@@ -3,7 +3,7 @@
 export const CONFIG = {
   maxPlanIterations: 3,
   maxImplIterations: 3,
-  timeoutMs: 15 * 60_000, // 10 minutes per CLI call
+  timeoutMs: 20 * 60_000, // 20 minutes per CLI call
 
   claude: {
     bin: "claude",
