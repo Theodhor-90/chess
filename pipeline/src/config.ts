@@ -23,7 +23,7 @@ export const CONFIG = {
     planRefine: { tools: ["Read", "Glob", "Grep"] },
     implement: { sandbox: "workspace-write" as const },
     implementFix: { sandbox: "workspace-write" as const },
-    review: { sandbox: "read-only" as const },
+    review: { sandbox: "workspace-write" as const },
   },
 };
 

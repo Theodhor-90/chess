@@ -2,12 +2,7 @@ import fp from "fastify-plugin";
 import bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import type {
-  RegisterRequest,
-  LoginRequest,
-  AuthResponse,
-  ErrorResponse,
-} from "@chess/shared";
+import type { RegisterRequest, LoginRequest, AuthResponse, ErrorResponse } from "@chess/shared";
 import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
 import { createSession, destroySession } from "./session.js";
@@ -40,11 +35,7 @@ async function authRoutes(app: FastifyInstance) {
       const { email, password } = request.body;
 
       // Check email uniqueness
-      const existing = db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.email, email))
-        .get();
+      const existing = db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
 
       if (existing) {
         return reply.code(409).send({ error: "Email already taken" });
@@ -105,27 +96,24 @@ async function authRoutes(app: FastifyInstance) {
   );
 
   // POST /api/auth/logout
-  app.post(
-    "/api/auth/logout",
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const signedCookie = request.cookies.sessionId;
-      if (signedCookie) {
-        const unsigned = request.unsignCookie(signedCookie);
-        if (unsigned.valid && unsigned.value) {
-          destroySession(unsigned.value);
-        }
+  app.post("/api/auth/logout", async (request: FastifyRequest, reply: FastifyReply) => {
+    const signedCookie = request.cookies.sessionId;
+    if (signedCookie) {
+      const unsigned = request.unsignCookie(signedCookie);
+      if (unsigned.valid && unsigned.value) {
+        destroySession(unsigned.value);
       }
+    }
 
-      reply.clearCookie("sessionId", {
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax" as const,
-        signed: true,
-      });
+    reply.clearCookie("sessionId", {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax" as const,
+      signed: true,
+    });
 
-      return reply.code(200).send({ ok: true });
-    },
-  );
+    return reply.code(200).send({ ok: true });
+  });
 
   // GET /api/auth/me
   app.get<{ Reply: AuthResponse | ErrorResponse }>(
