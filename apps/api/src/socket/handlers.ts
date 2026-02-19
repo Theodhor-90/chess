@@ -12,6 +12,7 @@ import type { TypedSocketServer } from "./index.js";
 import * as gameService from "../game/service.js";
 import { GameError } from "../game/errors.js";
 import { getUserSockets } from "./connections.js";
+import { startClock, stopClock, switchClock, getClockState } from "../game/clock.js";
 
 type TypedSocket = Socket<
   ClientToServerEvents,
@@ -20,7 +21,12 @@ type TypedSocket = Socket<
   ServerSocketData
 >;
 
-function buildClockState(game: GameState): ClockState {
+function buildClockStateForGame(game: GameState): ClockState {
+  const activeClock = getClockState(game.id);
+  if (activeClock) {
+    return activeClock;
+  }
+  // Fallback: no active clock (game not started or already ended)
   return {
     white: game.clock.initialTime * 1000,
     black: game.clock.initialTime * 1000,
@@ -56,6 +62,24 @@ function isOpponentInRoom(
 }
 
 export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket): void {
+  function onTick(gameId: number, clockState: ClockState): void {
+    io.to(`game:${gameId}`).emit("clockUpdate", clockState);
+  }
+
+  function onTimeout(gameId: number, timedOutColor: PlayerColor, clockState: ClockState): void {
+    const roomName = `game:${gameId}`;
+    try {
+      const game = gameService.timeoutGame(gameId, timedOutColor);
+      io.to(roomName).emit("gameOver", {
+        status: game.status,
+        result: game.result!,
+        clock: clockState,
+      });
+    } catch {
+      // Game may have already ended via resign/draw/abort before timeout fires
+    }
+  }
+
   socket.on("joinRoom", (data) => {
     const userId = socket.data.userId;
     const { gameId } = data;
@@ -80,7 +104,12 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     const roomName = `game:${gameId}`;
     socket.join(roomName);
 
-    const clockState = buildClockState(game);
+    // Start clock if game is active and clock not yet running
+    if (game.status === "active" && !getClockState(gameId)) {
+      startClock(gameId, game.clock, game.currentTurn, onTick, onTimeout);
+    }
+
+    const clockState = buildClockStateForGame(game);
     socket.emit("gameState", { ...game, clock: { ...game.clock, ...clockState } });
 
     if (game.status === "active" && isOpponentInRoom(io, gameId, game, userId)) {
@@ -149,6 +178,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
 
     const hadDrawOffer = game.drawOffer !== null;
     const drawOfferBy = game.drawOffer;
+    const playerColor = getPlayerColor(game, userId);
 
     let moveResult: MoveResponse;
     try {
@@ -161,10 +191,23 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       throw err;
     }
 
-    const updatedGame = gameService.getGame(gameId);
-    const clockState = buildClockState(updatedGame);
+    // Switch clock and get updated state
+    const rtt = socket.data.rtt ?? 0;
+    const clockFromSwitch = playerColor ? switchClock(gameId, playerColor, rtt) : null;
 
-    if (hadDrawOffer && drawOfferBy !== getPlayerColor(game, userId)) {
+    // If game ended on this move, stop the clock
+    const isTerminal =
+      moveResult.status === "checkmate" ||
+      moveResult.status === "stalemate" ||
+      moveResult.status === "draw";
+    if (isTerminal) {
+      stopClock(gameId);
+    }
+
+    const updatedGame = gameService.getGame(gameId);
+    const clockState = clockFromSwitch ?? buildClockStateForGame(updatedGame);
+
+    if (hadDrawOffer && drawOfferBy !== playerColor) {
       io.to(roomName).emit("drawDeclined", {});
     }
 
@@ -177,11 +220,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       clock: clockState,
     });
 
-    if (
-      moveResult.status === "checkmate" ||
-      moveResult.status === "stalemate" ||
-      moveResult.status === "draw"
-    ) {
+    if (isTerminal) {
       io.to(roomName).emit("gameOver", {
         status: moveResult.status,
         result: moveResult.result!,
@@ -205,7 +244,8 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       throw err;
     }
 
-    const clockState = buildClockState(game);
+    const clockState = buildClockStateForGame(game);
+    stopClock(gameId);
 
     io.to(roomName).emit("gameOver", {
       status: game.status,
@@ -230,7 +270,8 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     }
 
     if (game.status === "draw") {
-      const clockState = buildClockState(game);
+      const clockState = buildClockStateForGame(game);
+      stopClock(gameId);
       io.to(roomName).emit("gameOver", {
         status: game.status,
         result: game.result!,
@@ -257,7 +298,8 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     }
 
     if (game.status === "draw") {
-      const clockState = buildClockState(game);
+      const clockState = buildClockStateForGame(game);
+      stopClock(gameId);
       io.to(roomName).emit("gameOver", {
         status: game.status,
         result: game.result!,
@@ -281,7 +323,8 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       throw err;
     }
 
-    const clockState = buildClockState(game);
+    const clockState = buildClockStateForGame(game);
+    stopClock(gameId);
 
     io.to(roomName).emit("gameOver", {
       status: game.status,

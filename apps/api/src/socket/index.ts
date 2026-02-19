@@ -67,6 +67,15 @@ export function setupSocketServer(httpServer: HttpServer, cookieSecret: string):
 
     registerGameHandlers(io, socket);
 
+    // RTT measurement: ping every 5 seconds
+    const pingInterval = setInterval(() => {
+      socket.emit("ping", { timestamp: Date.now() });
+    }, 5000);
+
+    socket.on("pong", (data) => {
+      socket.data.rtt = Date.now() - data.timestamp;
+    });
+
     socket.on("disconnecting", () => {
       for (const room of socket.rooms) {
         if (!room.startsWith("game:")) continue;
@@ -89,6 +98,7 @@ export function setupSocketServer(httpServer: HttpServer, cookieSecret: string):
     });
 
     socket.on("disconnect", () => {
+      clearInterval(pingInterval);
       removeConnection(userId, socket.id);
     });
   });

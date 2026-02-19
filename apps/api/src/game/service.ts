@@ -174,3 +174,21 @@ export function getGame(gameId: number): GameState {
   }
   return game;
 }
+
+export function timeoutGame(gameId: number, timedOutColor: PlayerColor): GameState {
+  const game = store.getGame(gameId);
+  if (!game) {
+    throw new GameError("GAME_NOT_FOUND", "Game not found");
+  }
+  if (game.status !== "active") {
+    throw new GameError("INVALID_STATUS", "Game is not active");
+  }
+
+  const winner: PlayerColor = timedOutColor === "white" ? "black" : "white";
+
+  return store.updateGame(gameId, {
+    status: "timeout",
+    result: { winner, reason: "timeout" },
+    drawOffer: null,
+  });
+}
