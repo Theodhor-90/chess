@@ -2,6 +2,27 @@ import { spawnSync } from "node:child_process";
 import { log } from "./logger.js";
 import { DRY_RUN } from "./config.js";
 
+function pnpmFormat(description: string): void {
+  if (DRY_RUN) {
+    log("", "format", `[DRY-RUN] pnpm format`);
+    return;
+  }
+
+  log("", "format", description);
+  const res = spawnSync("pnpm", ["format"], {
+    encoding: "utf-8",
+    timeout: 60_000,
+  });
+
+  if (res.error) {
+    throw new Error(`pnpm format failed: ${res.error.message}`);
+  }
+  if (res.status !== 0) {
+    const stderr = (res.stderr || "").trim();
+    throw new Error(`pnpm format exited with code ${res.status}: ${stderr}`);
+  }
+}
+
 // ── Git Helpers ─────────────────────────────────────────────
 
 function git(args: string[], description: string): string {
@@ -51,11 +72,7 @@ export function createPhaseBranch(milestoneId: string, phaseId: string): void {
   }
 }
 
-export function commitTaskCompletion(
-  milestoneId: string,
-  phaseId: string,
-  taskId: string,
-): void {
+export function commitTaskCompletion(milestoneId: string, phaseId: string, taskId: string): void {
   if (DRY_RUN) {
     log("", "git", `[DRY-RUN] Would commit task ${milestoneId}/${phaseId}/${taskId}`);
     return;
@@ -72,6 +89,7 @@ export function commitTaskCompletion(
     return;
   }
 
+  pnpmFormat(`Auto-formatting before commit for task ${taskId}`);
   git(["add", "-A"], `Staging all changes for task ${taskId}`);
   git(
     [
@@ -105,10 +123,14 @@ export function createPhasePR(milestoneId: string, phaseId: string): void {
     `- [ ] Merge to main\n`;
 
   log("", "git", `Creating PR for ${branchName}`);
-  const res = spawnSync("gh", ["pr", "create", "--title", title, "--body", body, "--base", "main"], {
-    encoding: "utf-8",
-    timeout: 30_000,
-  });
+  const res = spawnSync(
+    "gh",
+    ["pr", "create", "--title", title, "--body", body, "--base", "main"],
+    {
+      encoding: "utf-8",
+      timeout: 30_000,
+    },
+  );
 
   if (res.error) {
     throw new Error(`gh pr create failed: ${res.error.message}`);

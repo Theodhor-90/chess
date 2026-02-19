@@ -44,16 +44,21 @@ You must ground your plan in the actual codebase. Before drafting:
 Your plan must be concrete enough that an implementer can write every line of code without guessing. Here is the standard:
 
 **BAD** (will be rejected — too vague):
+
 > "Add a helper function to extract the session cookie from the response."
 
 **GOOD** (implementable without guessing):
+
 > Create `extractSessionCookie(res: LightMyRequestResponse): string` in the test file. It reads `res.headers["set-cookie"]`, handles both `string` and `string[]`, splits on `";"` to drop attributes, and returns the raw `sessionId=<value>` pair.
 
 **BAD** (will be rejected — missing exact types):
+
 > "Add shared types for the auth endpoints."
 
 **GOOD** (exact type signatures):
+
 > Add to `packages/shared/src/index.ts`:
+>
 > ```ts
 > export interface RegisterRequest {
 >   email: string;

@@ -118,8 +118,7 @@ function preflightValidatePlan(planPath: string): PreflightResult {
   const hasPnpmTest = /pnpm\b.*\btest\b/.test(content);
   const missingVerificationSuite = !hasPnpmBuild || !hasPnpmTypecheck || !hasPnpmTest;
 
-  const passed =
-    missingSections.length === 0 && !missingPnpmFilter && !missingVerificationSuite;
+  const passed = missingSections.length === 0 && !missingPnpmFilter && !missingVerificationSuite;
 
   return { passed, missingSections, missingPnpmFilter, missingVerificationSuite };
 }
@@ -218,12 +217,7 @@ function runPlanningLoop(
     if (!existsSync(planFile)) {
       state = incrementPlanIteration(state, milestoneId, phaseId, taskId);
 
-      const siblingsSection = buildCompletedSiblingsSection(
-        state,
-        milestoneId,
-        phaseId,
-        taskId,
-      );
+      const siblingsSection = buildCompletedSiblingsSection(state, milestoneId, phaseId, taskId);
 
       let prompt: string;
       if (i === 1) {
