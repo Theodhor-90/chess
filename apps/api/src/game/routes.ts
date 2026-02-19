@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type {
   CreateGameRequest,
   CreateGameResponse,
+  GameListResponse,
   JoinGameRequest,
   GameResponse,
   MoveRequest,
@@ -76,6 +77,11 @@ const moveBodySchema = {
 
 async function gameRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
+
+  app.get<{ Reply: GameListResponse }>("/", async (request, reply) => {
+    const games = gameService.getUserGames(db, request.userId!);
+    return reply.code(200).send({ games });
+  });
 
   app.post<{ Body: CreateGameRequest; Reply: CreateGameResponse | ErrorResponse }>(
     "/",

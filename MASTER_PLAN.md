@@ -265,7 +265,7 @@ Exit criteria:
 - Drizzle schema: `users`, `games`, `moves` tables.
 - Games persist across server restarts.
 - Move history is recoverable as PGN.
-- `GET /users/:id/games` returns a user's game list.
+- `GET /api/games` returns the authenticated user's game list.
 
 ---
 

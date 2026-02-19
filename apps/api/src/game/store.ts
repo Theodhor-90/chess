@@ -147,7 +147,7 @@ export function getGamesByUserId(db: DrizzleDb, userId: number): GameState[] {
     .select()
     .from(games)
     .where(or(eq(games.whitePlayerId, userId), eq(games.blackPlayerId, userId)))
-    .orderBy(desc(games.createdAt))
+    .orderBy(desc(games.createdAt), desc(games.id))
     .all();
 
   return rows.map((row) => {

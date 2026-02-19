@@ -26,6 +26,7 @@ describe("Auth enforcement", () => {
 
   const protectedEndpoints = [
     { method: "POST" as const, url: "/api/games", payload: {} },
+    { method: "GET" as const, url: "/api/games", payload: undefined },
     { method: "POST" as const, url: "/api/games/1/join", payload: { inviteToken: "x" } },
     { method: "GET" as const, url: "/api/games/1", payload: undefined },
     { method: "POST" as const, url: "/api/games/1/moves", payload: { from: "e2", to: "e4" } },
@@ -362,6 +363,220 @@ describe("POST /api/games/:id/abort — Abort", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().status).toBe("aborted");
+  });
+});
+
+describe("GET /api/games — Game list", () => {
+  let app: ReturnType<typeof buildApp>;
+
+  beforeEach(() => {
+    cleanGamesTables();
+    app = buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("returns empty array when user has no games", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("list-empty"));
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ games: [] });
+  });
+
+  it("returns games where user is a player with correct playerColor", async () => {
+    const { cookie: c1 } = await registerAndLogin(app, uniqueEmail("list-c"));
+    const { cookie: c2 } = await registerAndLogin(app, uniqueEmail("list-j"));
+
+    // Create a game as c1 and have c2 join it
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie: c1 },
+      payload: {},
+    });
+    expect(createRes.statusCode).toBe(201);
+    const { gameId, inviteToken, color: creatorColor } = createRes.json();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/games/${gameId}/join`,
+      headers: { cookie: c2 },
+      payload: { inviteToken },
+    });
+
+    // c1 should see the game with the color they were assigned at creation
+    const res1 = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: c1 },
+    });
+    expect(res1.statusCode).toBe(200);
+    const body1 = res1.json();
+    expect(body1.games).toHaveLength(1);
+    expect(body1.games[0].id).toBe(gameId);
+    expect(body1.games[0].status).toBe("active");
+    expect(body1.games[0].playerColor).toBe(creatorColor);
+
+    // c2 (the joiner) should see the opposite color
+    const joinerColor = creatorColor === "white" ? "black" : "white";
+    const res2 = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: c2 },
+    });
+    expect(res2.statusCode).toBe(200);
+    const body2 = res2.json();
+    expect(body2.games).toHaveLength(1);
+    expect(body2.games[0].id).toBe(gameId);
+    expect(body2.games[0].playerColor).toBe(joinerColor);
+  });
+
+  it("does not return games where user is not a player", async () => {
+    const { cookie: c1 } = await registerAndLogin(app, uniqueEmail("list-other-c"));
+    const { cookie: c2 } = await registerAndLogin(app, uniqueEmail("list-other-j"));
+    const { cookie: c3 } = await registerAndLogin(app, uniqueEmail("list-other-x"));
+
+    // Create a game between c1 and c2
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie: c1 },
+      payload: {},
+    });
+    const { gameId, inviteToken } = createRes.json();
+    await app.inject({
+      method: "POST",
+      url: `/api/games/${gameId}/join`,
+      headers: { cookie: c2 },
+      payload: { inviteToken },
+    });
+
+    // c3 should see no games
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: c3 },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ games: [] });
+  });
+
+  it("includes playerColor and game fields, excludes fen/pgn/moves", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("list-fields"));
+
+    await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie },
+      payload: {},
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const game = res.json().games[0];
+
+    // Fields that SHOULD be present
+    expect(game.id).toBeDefined();
+    expect(game.status).toBeDefined();
+    expect(game.players).toBeDefined();
+    expect(game.clock).toBeDefined();
+    expect(game.createdAt).toBeDefined();
+    expect(game.playerColor).toBeDefined();
+
+    // Fields that should NOT be present (stripped in GameListItem)
+    expect(game.fen).toBeUndefined();
+    expect(game.pgn).toBeUndefined();
+    expect(game.moves).toBeUndefined();
+    expect(game.currentTurn).toBeUndefined();
+    expect(game.drawOffer).toBeUndefined();
+    expect(game.inviteToken).toBeUndefined();
+
+    // result should be absent (not null) for non-terminal games
+    expect(game).not.toHaveProperty("result");
+  });
+
+  it("returns games ordered by most recent first (descending ID for tied timestamps)", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("list-order"));
+
+    // Create three games sequentially — they will all have the same
+    // unixepoch() timestamp (second precision) in a fast test.
+    // The store orders by createdAt DESC, id DESC, so the most recently
+    // created game (highest id) comes first.
+    const ids: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const createRes = await app.inject({
+        method: "POST",
+        url: "/api/games",
+        headers: { cookie },
+        payload: {},
+      });
+      ids.push(createRes.json().gameId);
+    }
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const games = res.json().games;
+    expect(games).toHaveLength(3);
+
+    // Assert IDs are in descending order (most recently created first)
+    const returnedIds = games.map((g: { id: number }) => g.id);
+    expect(returnedIds).toEqual([ids[2], ids[1], ids[0]]);
+  });
+
+  it("includes result with correct shape for terminal games", async () => {
+    const { cookie: c1 } = await registerAndLogin(app, uniqueEmail("list-result-c"));
+    const { cookie: c2 } = await registerAndLogin(app, uniqueEmail("list-result-j"));
+    const { gameId } = await createAndJoinGame(app, c1, c2);
+
+    // Resign the game to create a terminal state
+    await app.inject({
+      method: "POST",
+      url: `/api/games/${gameId}/resign`,
+      headers: { cookie: c1 },
+    });
+
+    // Verify c1 sees the resigned game with result in game list
+    const res1 = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: c1 },
+    });
+    expect(res1.statusCode).toBe(200);
+    const game1 = res1.json().games[0];
+    expect(game1.id).toBe(gameId);
+    expect(game1.status).toBe("resigned");
+    expect(game1).toHaveProperty("result");
+    expect(game1.result.reason).toBe("resigned");
+    expect(game1.result.winner).toBeDefined();
+
+    // Verify c2 also sees the result
+    const res2 = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: c2 },
+    });
+    expect(res2.statusCode).toBe(200);
+    const game2 = res2.json().games[0];
+    expect(game2.id).toBe(gameId);
+    expect(game2.status).toBe("resigned");
+    expect(game2.result.reason).toBe("resigned");
+    // The winner is the opponent of the resigner (c1)
+    // Since c1 resigned, the winner is whichever color c1 is NOT
+    expect(["white", "black"]).toContain(game2.result.winner);
   });
 });
 

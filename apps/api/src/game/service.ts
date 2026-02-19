@@ -1,6 +1,7 @@
 import { Chess, type Move } from "chess.js";
 import type {
   GameState,
+  GameListItem,
   ClockConfig,
   MoveRequest,
   MoveResponse,
@@ -191,4 +192,17 @@ export function getGame(db: DrizzleDb, gameId: number): GameState {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
   return game;
+}
+
+export function getUserGames(db: DrizzleDb, userId: number): GameListItem[] {
+  const games = store.getGamesByUserId(db, userId);
+  return games.map((game) => ({
+    id: game.id,
+    status: game.status,
+    players: game.players,
+    clock: game.clock,
+    ...(game.result ? { result: game.result } : {}),
+    createdAt: game.createdAt,
+    playerColor: game.players.white?.userId === userId ? "white" : "black",
+  }));
 }

@@ -93,3 +93,21 @@ export interface MoveResponse {
   status: GameStatus;
   result?: GameState["result"];
 }
+
+// ---------------------------------------------------------------------------
+// Game list types (Phase 1.3)
+// ---------------------------------------------------------------------------
+
+export interface GameListItem {
+  id: number;
+  status: GameStatus;
+  players: { white?: GamePlayer; black?: GamePlayer };
+  clock: ClockConfig;
+  result?: { winner?: PlayerColor; reason: GameStatus };
+  createdAt: number;
+  playerColor: PlayerColor;
+}
+
+export interface GameListResponse {
+  games: GameListItem[];
+}
