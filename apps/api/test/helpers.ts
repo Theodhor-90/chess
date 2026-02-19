@@ -1,5 +1,7 @@
 import { buildApp } from "../src/server.js";
 import { sqlite } from "../src/db/index.js";
+import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
+import type { ServerToClientEvents, ClientToServerEvents } from "@chess/shared";
 
 let emailCounter = 0;
 const runId = Date.now();
@@ -74,4 +76,14 @@ export async function createAndJoinGame(
   }
 
   return { gameId, inviteToken, creatorColor };
+}
+
+export type TypedClientSocket = ClientSocket<ServerToClientEvents, ClientToServerEvents>;
+
+export function createSocketClient(port: number, cookie: string): TypedClientSocket {
+  return ioc(`http://127.0.0.1:${port}`, {
+    extraHeaders: { cookie },
+    transports: ["websocket"],
+    autoConnect: true,
+  });
 }
