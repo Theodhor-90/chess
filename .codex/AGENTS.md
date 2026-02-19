@@ -42,6 +42,7 @@ pnpm format               # Prettier auto-fix
 ```
 
 Per-package commands:
+
 ```bash
 pnpm --filter @chess/api test     # Run API tests only
 pnpm --filter @chess/web test     # Run web tests only
@@ -67,6 +68,7 @@ pnpm --filter @chess/web dev      # Start Vite dev server
 ## Fastify Patterns
 
 Use the `buildApp()` factory pattern. Type route generics:
+
 ```typescript
 import Fastify from "fastify";
 import type { HealthResponse } from "@chess/shared";
@@ -83,13 +85,16 @@ export function buildApp() {
 ## Drizzle ORM Patterns
 
 Schema lives in `apps/api/src/db/schema.ts`:
+
 ```typescript
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch())`),
+  createdAt: integer("created_at")
+    .notNull()
+    .default(sql`(unixepoch())`),
 });
 ```
 
@@ -98,6 +103,7 @@ Database instance: `apps/api/src/db/index.ts`. Database file: `apps/api/data/che
 ## Shared Types
 
 All types shared between frontend and backend live in `packages/shared/src/index.ts`. Import as:
+
 ```typescript
 import type { HealthResponse } from "@chess/shared";
 ```
@@ -114,6 +120,7 @@ Build shared package before api/web: `pnpm --filter @chess/shared build`.
 ## After Every Implementation
 
 Always run these verification commands before finishing:
+
 ```bash
 pnpm build
 pnpm typecheck

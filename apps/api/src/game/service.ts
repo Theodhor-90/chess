@@ -1,11 +1,5 @@
 import { Chess, type Move } from "chess.js";
-import type {
-  GameState,
-  ClockConfig,
-  MoveRequest,
-  MoveResponse,
-  PlayerColor,
-} from "@chess/shared";
+import type { GameState, ClockConfig, MoveRequest, MoveResponse, PlayerColor } from "@chess/shared";
 import * as store from "./store.js";
 import { GameError } from "./errors.js";
 

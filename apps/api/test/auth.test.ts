@@ -46,9 +46,7 @@ async function registerUser(
 describe("session store", () => {
   it("createSession returns a UUID and getSession retrieves it", () => {
     const sessionId = createSession(42);
-    expect(sessionId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    );
+    expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     const session = getSession(sessionId);
     expect(session).toEqual({ userId: 42 });
   });

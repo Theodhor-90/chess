@@ -55,6 +55,13 @@ export interface ClockConfig {
   increment: number;
 }
 
+export interface ClockState {
+  white: number; // remaining time in milliseconds
+  black: number; // remaining time in milliseconds
+  activeColor: PlayerColor | null; // null when game not active or game over
+  lastUpdate: number; // server timestamp in ms (Date.now()) for client interpolation
+}
+
 export interface GameState {
   id: number;
   inviteToken: string;
@@ -68,6 +75,7 @@ export interface GameState {
   drawOffer: PlayerColor | null;
   result?: { winner?: PlayerColor; reason: GameStatus };
   createdAt: number;
+  clockState?: ClockState;
 }
 
 export interface CreateGameRequest {
@@ -92,4 +100,47 @@ export interface MoveResponse {
   san: string;
   status: GameStatus;
   result?: GameState["result"];
+}
+
+// ---------------------------------------------------------------------------
+// Socket.io event types (Phase 2.1)
+// ---------------------------------------------------------------------------
+
+export interface ClientToServerEvents {
+  joinRoom: (data: { gameId: number }) => void;
+  leaveRoom: (data: { gameId: number }) => void;
+  move: (data: { gameId: number; from: string; to: string; promotion?: string }) => void;
+  resign: (data: { gameId: number }) => void;
+  offerDraw: (data: { gameId: number }) => void;
+  acceptDraw: (data: { gameId: number }) => void;
+  abort: (data: { gameId: number }) => void;
+}
+
+export interface ServerToClientEvents {
+  gameState: (data: GameState & { clock: ClockState }) => void;
+  moveMade: (data: {
+    fen: string;
+    san: string;
+    pgn: string;
+    status: GameStatus;
+    result?: GameState["result"];
+    clock: ClockState;
+  }) => void;
+  gameOver: (data: {
+    status: GameStatus;
+    result: NonNullable<GameState["result"]>;
+    clock: ClockState;
+  }) => void;
+  opponentJoined: (data: { userId: number; color: PlayerColor }) => void;
+  opponentDisconnected: (data: Record<string, never>) => void;
+  opponentReconnected: (data: Record<string, never>) => void;
+  drawOffered: (data: { by: PlayerColor }) => void;
+  drawDeclined: (data: Record<string, never>) => void;
+  clockUpdate: (data: ClockState) => void;
+  error: (data: { message: string }) => void;
+}
+
+export interface ServerSocketData {
+  userId: number;
+  rtt: number; // latest round-trip time in ms
 }

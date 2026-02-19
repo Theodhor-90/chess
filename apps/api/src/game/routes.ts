@@ -100,7 +100,11 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema, body: joinGameBodySchema } },
     async (request, reply) => {
       try {
-        const game = gameService.joinGame(request.params.id, request.userId!, request.body.inviteToken);
+        const game = gameService.joinGame(
+          request.params.id,
+          request.userId!,
+          request.body.inviteToken,
+        );
         return reply.code(200).send(game);
       } catch (err) {
         return handleGameError(err, reply);

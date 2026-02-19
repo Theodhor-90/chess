@@ -23,6 +23,6 @@
       }
     }
   },
-  "required": ["verdict", "feedback"],
+  "required": ["verdict", "feedback", "issues"],
   "additionalProperties": false
 }
