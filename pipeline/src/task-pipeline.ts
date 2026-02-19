@@ -71,6 +71,90 @@ function buildCompletedSiblingsSection(
   );
 }
 
+// ── Plan Pre-flight Validation ──────────────────────────────
+
+const REQUIRED_PLAN_SECTIONS = [
+  "file structure",
+  "dependencies",
+  "implementation detail",
+  "api contract",
+  "test plan",
+  "implementation order",
+  "verification command",
+];
+
+interface PreflightResult {
+  passed: boolean;
+  missingSections: string[];
+  missingPnpmFilter: boolean;
+  missingVerificationSuite: boolean;
+}
+
+function preflightValidatePlan(planPath: string): PreflightResult {
+  const content = readFileSync(planPath, "utf-8").toLowerCase();
+
+  // Check for required sections (fuzzy heading match)
+  const missingSections: string[] = [];
+  for (const section of REQUIRED_PLAN_SECTIONS) {
+    // Match section name as a markdown heading or within heading text
+    const words = section.split(" ");
+    const found = words.every((word) => {
+      // Look for the word near a markdown heading (#)
+      const headingPattern = new RegExp(`^#{1,4}.*${word}`, "m");
+      return headingPattern.test(content);
+    });
+    if (!found) {
+      missingSections.push(section);
+    }
+  }
+
+  // Check that dependency commands use pnpm --filter syntax (if dependencies section exists)
+  const hasDeps = content.includes("dependencies");
+  const missingPnpmFilter = hasDeps && content.includes("npm install") && !content.includes("pnpm");
+
+  // Check for mandatory verification commands (allow filtered variants like "pnpm --filter X build")
+  const hasPnpmBuild = /pnpm\b.*\bbuild\b/.test(content);
+  const hasPnpmTypecheck = /pnpm\b.*\btypecheck\b/.test(content);
+  const hasPnpmTest = /pnpm\b.*\btest\b/.test(content);
+  const missingVerificationSuite = !hasPnpmBuild || !hasPnpmTypecheck || !hasPnpmTest;
+
+  const passed =
+    missingSections.length === 0 && !missingPnpmFilter && !missingVerificationSuite;
+
+  return { passed, missingSections, missingPnpmFilter, missingVerificationSuite };
+}
+
+function formatPreflightFeedback(result: PreflightResult): string {
+  const issues: string[] = [];
+
+  if (result.missingSections.length > 0) {
+    issues.push(
+      `Missing required plan sections: ${result.missingSections.join(", ")}. ` +
+        "The plan must include all 7 sections: file structure, dependencies, " +
+        "implementation details, API contracts, test plan, implementation order, " +
+        "and verification commands.",
+    );
+  }
+
+  if (result.missingPnpmFilter) {
+    issues.push(
+      "Dependency commands must use `pnpm --filter <package> add <dep>` syntax, not `npm install`.",
+    );
+  }
+
+  if (result.missingVerificationSuite) {
+    issues.push(
+      "Verification commands must include `pnpm build`, `pnpm typecheck`, and `pnpm test`.",
+    );
+  }
+
+  return JSON.stringify({
+    verdict: "needs_revision",
+    feedback:
+      "Plan failed pre-flight structural validation:\n\n" + issues.map((i) => `- ${i}`).join("\n"),
+  });
+}
+
 // ── Main Entry ───────────────────────────────────────────────
 
 export function runTaskPipeline(
@@ -172,6 +256,24 @@ function runPlanningLoop(
       });
       writeFileSync(planFile, result.raw, "utf-8");
       checkpoint(STATE_PATH, state, `plan-v${i} drafted`);
+    }
+
+    // Step 1.5: Pre-flight structural validation (before burning a reviewer iteration)
+    if (!existsSync(feedbackFile)) {
+      const preflight = preflightValidatePlan(planFile);
+      if (!preflight.passed) {
+        log(context, "planning", "Plan failed pre-flight validation");
+        writeFileSync(feedbackFile, formatPreflightFeedback(preflight), "utf-8");
+        checkpoint(STATE_PATH, state, `feedback-v${i} pre-flight rejection`);
+
+        if (i >= CONFIG.maxPlanIterations) {
+          log(context, "planning", "Plan iteration limit reached — blocking");
+          state = transitionTask(state, milestoneId, phaseId, taskId, "blocked");
+          checkpoint(STATE_PATH, state, "task blocked (planning, pre-flight)");
+          return state;
+        }
+        continue; // Skip to next iteration for refinement
+      }
     }
 
     // Step 2: Challenge (skip if artifact already exists)

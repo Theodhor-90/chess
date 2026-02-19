@@ -25,4 +25,17 @@ Read these files in order:
 
 Also explore the existing codebase if needed to verify your revisions are correct.
 
-Output the complete revised plan as clean markdown. Include all sections, not just the changed ones — the implementer will use this as the sole reference.
+## Output Format — CRITICAL
+
+Your output MUST be a **complete, standalone plan**. The implementer will ONLY see this document — they will NOT see previous plan versions or the feedback.
+
+- Include ALL sections: file structure, dependencies, implementation details, API contracts, test plan, implementation order, and verification commands.
+- Do NOT output a delta, diff, or list of changes. Do NOT write "same as before" or "unchanged from v1".
+- Do NOT include process chatter like "I need write permission" or "shall I retry?" — only implementation content.
+- If your output is missing required sections or reads as a patch on a previous version, it will be automatically rejected.
+
+## Output
+
+Your entire stdout response will be captured as the plan document by the pipeline orchestrator. You do NOT need to write any files — just output the plan content directly as your response. Do NOT include process chatter like "I need write permission", "shall I save this?", or "could you approve?" — your response IS the plan document.
+
+Output the complete revised plan as clean markdown.

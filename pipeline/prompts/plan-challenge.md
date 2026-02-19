@@ -11,6 +11,15 @@ A planning agent wrote an implementation plan for a task. Your job is to review 
 
 Read all files carefully before responding.
 
+## Codebase Verification
+
+You have read access to the full codebase. Use it to verify the plan's claims against reality:
+
+- **Check file existence**: If the plan says "modify file X", verify X exists. If it says "create file Y", verify Y doesn't already exist.
+- **Verify imports/exports**: If the plan references functions or types from existing modules, check that those exports actually exist with the stated signatures.
+- **Validate commands**: If the plan includes shell commands (e.g., `drizzle-kit push --config <path>`), verify the paths and flags are correct against the actual project structure.
+- **Confirm conventions**: Spot-check that existing code actually follows the patterns the plan claims (e.g., check whether existing files use default or named exports).
+
 ## Review Checklist
 
 Evaluate the plan against these criteria:
