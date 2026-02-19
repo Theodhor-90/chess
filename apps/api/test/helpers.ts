@@ -30,7 +30,7 @@ export function ensureUsersTable(): void {
 }
 
 export async function registerAndLogin(
-  app: ReturnType<typeof buildApp>,
+  app: ReturnType<typeof buildApp>["app"],
   email: string,
   password = "password123",
 ): Promise<{ cookie: string; userId: number }> {
@@ -48,7 +48,7 @@ export async function registerAndLogin(
 }
 
 export async function createAndJoinGame(
-  app: ReturnType<typeof buildApp>,
+  app: ReturnType<typeof buildApp>["app"],
   creatorCookie: string,
   joinerCookie: string,
 ): Promise<{ gameId: number; inviteToken: string; creatorColor: string }> {

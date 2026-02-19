@@ -7,10 +7,10 @@ beforeAll(() => {
 });
 
 describe("Auth enforcement", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -37,10 +37,10 @@ describe("Auth enforcement", () => {
 });
 
 describe("POST /api/games — Create game", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -66,10 +66,10 @@ describe("POST /api/games — Create game", () => {
 });
 
 describe("POST /api/games/:id/join — Join game", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -146,10 +146,10 @@ describe("POST /api/games/:id/join — Join game", () => {
 });
 
 describe("POST /api/games/:id/moves — Make move", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -213,10 +213,10 @@ describe("POST /api/games/:id/moves — Make move", () => {
 });
 
 describe("GET /api/games/:id — Get game", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -258,10 +258,10 @@ describe("GET /api/games/:id — Get game", () => {
 });
 
 describe("POST /api/games/:id/resign — Resign", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -285,10 +285,10 @@ describe("POST /api/games/:id/resign — Resign", () => {
 });
 
 describe("POST /api/games/:id/draw — Draw", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -321,10 +321,10 @@ describe("POST /api/games/:id/draw — Draw", () => {
 });
 
 describe("POST /api/games/:id/abort — Abort", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -352,14 +352,14 @@ describe("POST /api/games/:id/abort — Abort", () => {
 });
 
 describe("Full game flow — Scholar's mate", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   afterEach(async () => {
     await app.close();
   });
 
   it("register → login → create → join → play to checkmate", async () => {
-    app = buildApp();
+    ({ app } = buildApp());
     const { cookie: c1 } = await registerAndLogin(app, uniqueEmail("flow-c"));
     const { cookie: c2 } = await registerAndLogin(app, uniqueEmail("flow-j"));
     const { gameId, creatorColor } = await createAndJoinGame(app, c1, c2);

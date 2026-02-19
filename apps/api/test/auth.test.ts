@@ -32,7 +32,7 @@ function extractSessionCookie(res: {
 }
 
 async function registerUser(
-  app: ReturnType<typeof buildApp>,
+  app: ReturnType<typeof buildApp>["app"],
   email: string,
   password = "password123",
 ) {
@@ -63,14 +63,14 @@ describe("session store", () => {
 });
 
 describe("auth plugin", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   afterEach(async () => {
     await app.close();
   });
 
   it("request.userId is null when no cookie is sent", async () => {
-    app = buildApp();
+    ({ app } = buildApp());
     app.get("/test-auth", async (request) => {
       return { userId: request.userId };
     });
@@ -81,7 +81,7 @@ describe("auth plugin", () => {
   });
 
   it("request.userId is populated when a valid signed session cookie is sent", async () => {
-    app = buildApp();
+    ({ app } = buildApp());
     const sessionId = createSession(7);
 
     app.get("/test-auth", async (request) => {
@@ -101,7 +101,7 @@ describe("auth plugin", () => {
   });
 
   it("request.userId is null when cookie signature is invalid", async () => {
-    app = buildApp();
+    ({ app } = buildApp());
     app.get("/test-auth", async (request) => {
       return { userId: request.userId };
     });
@@ -116,7 +116,7 @@ describe("auth plugin", () => {
   });
 
   it("requireAuth returns 401 when not authenticated", async () => {
-    app = buildApp();
+    ({ app } = buildApp());
     const { requireAuth } = await import("../src/auth/plugin.js");
     app.get("/protected", { preHandler: requireAuth }, async (request) => {
       return { userId: request.userId };
@@ -128,7 +128,7 @@ describe("auth plugin", () => {
   });
 
   it("requireAuth passes when authenticated", async () => {
-    app = buildApp();
+    ({ app } = buildApp());
     const { requireAuth } = await import("../src/auth/plugin.js");
     const sessionId = createSession(15);
 
@@ -150,10 +150,10 @@ describe("auth plugin", () => {
 });
 
 describe("POST /api/auth/register", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -215,10 +215,10 @@ describe("POST /api/auth/register", () => {
 });
 
 describe("POST /api/auth/login", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -272,10 +272,10 @@ describe("POST /api/auth/login", () => {
 });
 
 describe("POST /api/auth/logout", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
@@ -313,10 +313,10 @@ describe("POST /api/auth/logout", () => {
 });
 
 describe("GET /api/auth/me", () => {
-  let app: ReturnType<typeof buildApp>;
+  let app: ReturnType<typeof buildApp>["app"];
 
   beforeEach(() => {
-    app = buildApp();
+    ({ app } = buildApp());
   });
 
   afterEach(async () => {
