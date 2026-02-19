@@ -4,6 +4,7 @@ import { store } from "./store/index.js";
 import Board from "./components/Board.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { RegisterPage } from "./pages/RegisterPage.js";
+import { AuthGate } from "./components/AuthGate.js";
 
 export function AppRoutes() {
   return (
@@ -27,7 +28,9 @@ export function App() {
   return (
     <Provider store={store}>
       <BrowserRouter>
-        <AppRoutes />
+        <AuthGate>
+          <AppRoutes />
+        </AuthGate>
       </BrowserRouter>
     </Provider>
   );

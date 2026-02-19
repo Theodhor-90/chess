@@ -8,6 +8,18 @@ import { RegisterPage } from "../src/pages/RegisterPage.js";
 import { AppRoutes } from "../src/App.js";
 import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
+import { socketMiddleware } from "../src/store/socketMiddleware.js";
+
+vi.mock("../src/socket.js", () => ({
+  connectSocket: vi.fn(() => ({
+    on: vi.fn(),
+    emit: vi.fn(),
+    connected: true,
+    disconnect: vi.fn(),
+  })),
+  disconnectSocket: vi.fn(),
+  getSocket: vi.fn(() => null),
+}));
 
 afterEach(() => {
   cleanup();
@@ -20,7 +32,8 @@ function createTestStore() {
       [apiSlice.reducerPath]: apiSlice.reducer,
       game: gameReducer,
     },
-    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(apiSlice.middleware),
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware().concat(apiSlice.middleware, socketMiddleware),
   });
 }
 

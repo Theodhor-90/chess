@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useLoginMutation } from "../store/apiSlice.js";
+import { useAppDispatch } from "../store/index.js";
+import { socketActions } from "../store/socketMiddleware.js";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [login, { isLoading, error }] = useLoginMutation();
@@ -12,6 +15,7 @@ export function LoginPage() {
     e.preventDefault();
     try {
       await login({ email, password }).unwrap();
+      dispatch(socketActions.connect());
       navigate("/");
     } catch {
       // Error is captured in the `error` field from useLoginMutation
