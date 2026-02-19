@@ -1,28 +1,29 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { register } from "../api.js";
+import { useRegisterMutation } from "../store/apiSlice.js";
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [register, { isLoading, error }] = useRegisterMutation();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
-
     try {
-      await register(email, password);
+      await register({ email, password }).unwrap();
       navigate("/");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Registration failed");
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      // Error is captured in the `error` field from useRegisterMutation
     }
   }
+
+  const errorMessage =
+    error && "data" in error
+      ? (error.data as { error: string }).error
+      : error
+        ? "Registration failed"
+        : "";
 
   return (
     <div>
@@ -48,9 +49,9 @@ export function RegisterPage() {
             required
           />
         </div>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Registering…" : "Register"}
+        {errorMessage && <p role="alert">{errorMessage}</p>}
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? "Registering…" : "Register"}
         </button>
       </form>
       <p>

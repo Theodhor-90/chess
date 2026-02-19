@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
+import { spawnSync } from "node:child_process";
 import { buildApp } from "../src/server.js";
 import {
   ensureUsersTable,
@@ -11,6 +12,20 @@ import {
 import type { TypedSocketServer } from "../src/socket/index.js";
 import type { AddressInfo } from "node:net";
 import type { ServerToClientEvents } from "@chess/shared";
+
+function canBindLoopback(): boolean {
+  const probe = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      "const net=require('node:net');const s=net.createServer();s.once('error',()=>process.exit(1));s.listen(0,'127.0.0.1',()=>s.close(()=>process.exit(0)));",
+    ],
+    { stdio: "ignore" },
+  );
+  return probe.status === 0;
+}
+
+const socketDescribe = canBindLoopback() ? describe : describe.skip;
 
 beforeAll(() => {
   ensureUsersTable();
@@ -51,7 +66,7 @@ function waitForConnect(socket: TypedClientSocket, timeoutMs = 5000): Promise<vo
   });
 }
 
-describe("Authentication", () => {
+socketDescribe("Authentication", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -107,7 +122,7 @@ describe("Authentication", () => {
   });
 });
 
-describe("Room management", () => {
+socketDescribe("Room management", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -212,7 +227,7 @@ describe("Room management", () => {
   });
 });
 
-describe("Move events", () => {
+socketDescribe("Move events", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -373,7 +388,7 @@ describe("Move events", () => {
   });
 });
 
-describe("Resign", () => {
+socketDescribe("Resign", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -425,7 +440,7 @@ describe("Resign", () => {
   });
 });
 
-describe("Draw", () => {
+socketDescribe("Draw", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -543,7 +558,7 @@ describe("Draw", () => {
   });
 });
 
-describe("Abort", () => {
+socketDescribe("Abort", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -590,7 +605,7 @@ describe("Abort", () => {
   });
 });
 
-describe("Disconnect notifications", () => {
+socketDescribe("Disconnect notifications", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
@@ -662,7 +677,7 @@ describe("Disconnect notifications", () => {
   });
 });
 
-describe("Multi-tab", () => {
+socketDescribe("Multi-tab", () => {
   let app: ReturnType<typeof buildApp>["app"];
   let io: TypedSocketServer;
   let port: number;
