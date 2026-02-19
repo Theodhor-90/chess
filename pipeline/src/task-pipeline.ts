@@ -278,7 +278,7 @@ function runPlanningLoop(
 
     // Step 2: Challenge (skip if artifact already exists)
     if (!existsSync(feedbackFile)) {
-      log(context, "planning", "Codex challenging plan", {
+      log(context, "planning", "Opus challenging plan", {
         current: i,
         total: getTask(state, milestoneId, phaseId, taskId).totalPlanAttempts,
       });
@@ -289,8 +289,8 @@ function runPlanningLoop(
         PHASE_SPEC_PATH: phaseSpecPath(milestoneId, phaseId),
       });
 
-      const result = codex(challengePrompt, {
-        sandbox: CONFIG.steps.planChallenge.sandbox,
+      const result = claude(challengePrompt, {
+        tools: CONFIG.steps.planChallenge.tools,
         schema: "challenge-decision.json",
       });
       writeFileSync(feedbackFile, result.raw, "utf-8");
@@ -404,7 +404,7 @@ function runImplementationLoop(
 
     // Step 2: Review (skip if artifact already exists)
     if (!existsSync(reviewFile)) {
-      log(context, "implementing", "Opus reviewing implementation", {
+      log(context, "implementing", "Codex reviewing implementation", {
         current: i,
         total: getTask(state, milestoneId, phaseId, taskId).totalImplAttempts,
       });
@@ -415,9 +415,8 @@ function runImplementationLoop(
         SPEC_PATH: artifactPath(dir, "spec.md"),
       });
 
-      const result = claude(reviewPrompt, {
-        tools: CONFIG.steps.review.tools,
-        maxTurns: CONFIG.claude.reviewMaxTurns,
+      const result = codex(reviewPrompt, {
+        sandbox: CONFIG.steps.review.sandbox,
         schema: "review-decision.json",
       });
       writeFileSync(reviewFile, result.raw, "utf-8");

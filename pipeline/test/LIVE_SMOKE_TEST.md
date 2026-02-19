@@ -55,8 +55,8 @@ Manual procedure to verify the pipeline end-to-end with real CLI calls.
 
 The pipeline should:
 
-- Plan each task (Opus drafts, Codex challenges)
-- Implement each task (Codex implements, Opus reviews)
+- Plan each task (Opus drafts, Opus challenges)
+- Implement each task (Codex implements, Codex reviews)
 - Mark both tasks as completed
 - Exit with code 0
 

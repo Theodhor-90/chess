@@ -9,7 +9,6 @@ export const CONFIG = {
     bin: "claude",
     model: "opus",
     defaultMaxTurns: 25,
-    reviewMaxTurns: 30,
   },
 
   codex: {
@@ -20,11 +19,11 @@ export const CONFIG = {
 
   steps: {
     planDraft: { tools: ["Read", "Glob", "Grep"] },
-    planChallenge: { sandbox: "read-only" as const },
+    planChallenge: { tools: ["Read", "Glob", "Grep"] },
     planRefine: { tools: ["Read", "Glob", "Grep"] },
     implement: { sandbox: "workspace-write" as const },
     implementFix: { sandbox: "workspace-write" as const },
-    review: { tools: ["Read", "Glob", "Grep", "Bash"] },
+    review: { sandbox: "read-only" as const },
   },
 };
 
