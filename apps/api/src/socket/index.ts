@@ -3,7 +3,8 @@ import type { Server as HttpServer } from "node:http";
 import fastifyCookie from "@fastify/cookie";
 import type { ClientToServerEvents, ServerToClientEvents, ServerSocketData } from "@chess/shared";
 import { getSession } from "../auth/session.js";
-import { addConnection, removeConnection } from "./connections.js";
+import { addConnection, removeConnection, getUserSockets } from "./connections.js";
+import { registerGameHandlers } from "./handlers.js";
 
 type CookieUtils = {
   parse: (cookieHeader: string) => Record<string, string>;
@@ -64,11 +65,31 @@ export function setupSocketServer(httpServer: HttpServer, cookieSecret: string):
     const userId = socket.data.userId;
     addConnection(userId, socket.id);
 
-    // Event handlers registered by t03
+    registerGameHandlers(io, socket);
+
+    socket.on("disconnecting", () => {
+      for (const room of socket.rooms) {
+        if (!room.startsWith("game:")) continue;
+        const userSockets = getUserSockets(userId);
+        let hasOtherSocketInRoom = false;
+        if (userSockets) {
+          for (const sid of userSockets) {
+            if (sid === socket.id) continue;
+            const roomMembers = io.sockets.adapter.rooms.get(room);
+            if (roomMembers && roomMembers.has(sid)) {
+              hasOtherSocketInRoom = true;
+              break;
+            }
+          }
+        }
+        if (!hasOtherSocketInRoom) {
+          socket.to(room).emit("opponentDisconnected", {});
+        }
+      }
+    });
 
     socket.on("disconnect", () => {
       removeConnection(userId, socket.id);
-      // Room disconnect notifications implemented in t03
     });
   });
 
