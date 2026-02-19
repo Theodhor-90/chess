@@ -1,15 +1,22 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildApp } from "../src/server.js";
-import { ensureUsersTable, uniqueEmail, registerAndLogin, createAndJoinGame } from "./helpers.js";
+import {
+  ensureAllTables,
+  cleanGamesTables,
+  uniqueEmail,
+  registerAndLogin,
+  createAndJoinGame,
+} from "./helpers.js";
 
 beforeAll(() => {
-  ensureUsersTable();
+  ensureAllTables();
 });
 
 describe("Auth enforcement", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -40,6 +47,7 @@ describe("POST /api/games — Create game", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -69,6 +77,7 @@ describe("POST /api/games/:id/join — Join game", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -149,6 +158,7 @@ describe("POST /api/games/:id/moves — Make move", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -216,6 +226,7 @@ describe("GET /api/games/:id — Get game", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -261,6 +272,7 @@ describe("POST /api/games/:id/resign — Resign", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -288,6 +300,7 @@ describe("POST /api/games/:id/draw — Draw", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -324,6 +337,7 @@ describe("POST /api/games/:id/abort — Abort", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
+    cleanGamesTables();
     app = buildApp();
   });
 
@@ -354,12 +368,16 @@ describe("POST /api/games/:id/abort — Abort", () => {
 describe("Full game flow — Scholar's mate", () => {
   let app: ReturnType<typeof buildApp>;
 
+  beforeEach(() => {
+    cleanGamesTables();
+    app = buildApp();
+  });
+
   afterEach(async () => {
     await app.close();
   });
 
   it("register → login → create → join → play to checkmate", async () => {
-    app = buildApp();
     const { cookie: c1 } = await registerAndLogin(app, uniqueEmail("flow-c"));
     const { cookie: c2 } = await registerAndLogin(app, uniqueEmail("flow-j"));
     const { gameId, creatorColor } = await createAndJoinGame(app, c1, c2);

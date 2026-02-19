@@ -9,6 +9,7 @@ import type {
   MoveResponse,
   ErrorResponse,
 } from "@chess/shared";
+import { db } from "../db/index.js";
 import * as gameService from "./service.js";
 import { GameError, type GameErrorCode } from "./errors.js";
 import { requireAuth } from "../auth/plugin.js";
@@ -81,7 +82,7 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { body: createGameBodySchema } },
     async (request, reply) => {
       const clock = request.body?.clock;
-      const game = gameService.createGame(request.userId!, clock);
+      const game = gameService.createGame(db, request.userId!, clock);
       const creatorColor = game.players.white?.userId === request.userId! ? "white" : "black";
       return reply.code(201).send({
         gameId: game.id,
@@ -100,7 +101,12 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema, body: joinGameBodySchema } },
     async (request, reply) => {
       try {
-        const game = gameService.joinGame(request.params.id, request.userId!, request.body.inviteToken);
+        const game = gameService.joinGame(
+          db,
+          request.params.id,
+          request.userId!,
+          request.body.inviteToken,
+        );
         return reply.code(200).send(game);
       } catch (err) {
         return handleGameError(err, reply);
@@ -113,7 +119,7 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema } },
     async (request, reply) => {
       try {
-        const game = gameService.getGame(request.params.id);
+        const game = gameService.getGame(db, request.params.id);
         return reply.code(200).send(game);
       } catch (err) {
         return handleGameError(err, reply);
@@ -130,7 +136,7 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema, body: moveBodySchema } },
     async (request, reply) => {
       try {
-        const result = gameService.makeMove(request.params.id, request.userId!, request.body);
+        const result = gameService.makeMove(db, request.params.id, request.userId!, request.body);
         return reply.code(200).send(result);
       } catch (err) {
         return handleGameError(err, reply);
@@ -143,7 +149,7 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema } },
     async (request, reply) => {
       try {
-        const game = gameService.resignGame(request.params.id, request.userId!);
+        const game = gameService.resignGame(db, request.params.id, request.userId!);
         return reply.code(200).send(game);
       } catch (err) {
         return handleGameError(err, reply);
@@ -156,7 +162,7 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema } },
     async (request, reply) => {
       try {
-        const game = gameService.offerOrAcceptDraw(request.params.id, request.userId!);
+        const game = gameService.offerOrAcceptDraw(db, request.params.id, request.userId!);
         return reply.code(200).send(game);
       } catch (err) {
         return handleGameError(err, reply);
@@ -169,7 +175,7 @@ async function gameRoutes(app: FastifyInstance) {
     { schema: { params: gameIdParamsSchema } },
     async (request, reply) => {
       try {
-        const game = gameService.abortGame(request.params.id, request.userId!);
+        const game = gameService.abortGame(db, request.params.id, request.userId!);
         return reply.code(200).send(game);
       } catch (err) {
         return handleGameError(err, reply);

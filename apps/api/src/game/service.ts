@@ -6,6 +6,7 @@ import type {
   MoveResponse,
   PlayerColor,
 } from "@chess/shared";
+import type { DrizzleDb } from "../db/index.js";
 import * as store from "./store.js";
 import { GameError } from "./errors.js";
 
@@ -15,12 +16,17 @@ function getPlayerColor(game: GameState, userId: number): PlayerColor {
   throw new GameError("NOT_A_PLAYER", "You are not a player in this game");
 }
 
-export function createGame(creatorUserId: number, clock?: ClockConfig): GameState {
-  return store.createGame(creatorUserId, clock);
+export function createGame(db: DrizzleDb, creatorUserId: number, clock?: ClockConfig): GameState {
+  return store.createGame(db, creatorUserId, clock);
 }
 
-export function joinGame(gameId: number, userId: number, inviteToken: string): GameState {
-  const game = store.getGame(gameId);
+export function joinGame(
+  db: DrizzleDb,
+  gameId: number,
+  userId: number,
+  inviteToken: string,
+): GameState {
+  const game = store.getGame(db, gameId);
   if (!game) {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
@@ -42,11 +48,16 @@ export function joinGame(gameId: number, userId: number, inviteToken: string): G
     [remainingColor]: { userId, color: remainingColor },
   };
 
-  return store.updateGame(gameId, { status: "active", players: updatedPlayers });
+  return store.updateGame(db, gameId, { status: "active", players: updatedPlayers });
 }
 
-export function makeMove(gameId: number, userId: number, move: MoveRequest): MoveResponse {
-  const game = store.getGame(gameId);
+export function makeMove(
+  db: DrizzleDb,
+  gameId: number,
+  userId: number,
+  move: MoveRequest,
+): MoveResponse {
+  const game = store.getGame(db, gameId);
   if (!game) {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
@@ -71,7 +82,6 @@ export function makeMove(gameId: number, userId: number, move: MoveRequest): Mov
   const fen = chess.fen();
   const pgn = chess.pgn();
   const san = chessMove.san;
-  const moves = [...game.moves, san];
   const nextTurn: PlayerColor = chess.turn() === "w" ? "white" : "black";
 
   const drawOffer = game.drawOffer === playerColor ? null : game.drawOffer;
@@ -92,14 +102,16 @@ export function makeMove(gameId: number, userId: number, move: MoveRequest): Mov
 
   const finalDrawOffer = gameResult ? null : drawOffer;
 
-  store.updateGame(gameId, {
-    fen,
-    pgn,
-    moves,
-    currentTurn: nextTurn,
-    drawOffer: finalDrawOffer,
-    status,
-    ...(gameResult ? { result: gameResult } : {}),
+  db.transaction((tx) => {
+    store.addMove(tx as unknown as DrizzleDb, gameId, game.moves.length + 1, san);
+    store.updateGame(tx as unknown as DrizzleDb, gameId, {
+      fen,
+      pgn,
+      currentTurn: nextTurn,
+      drawOffer: finalDrawOffer,
+      status,
+      ...(gameResult ? { result: gameResult } : {}),
+    });
   });
 
   return {
@@ -111,8 +123,8 @@ export function makeMove(gameId: number, userId: number, move: MoveRequest): Mov
   };
 }
 
-export function resignGame(gameId: number, userId: number): GameState {
-  const game = store.getGame(gameId);
+export function resignGame(db: DrizzleDb, gameId: number, userId: number): GameState {
+  const game = store.getGame(db, gameId);
   if (!game) {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
@@ -123,15 +135,15 @@ export function resignGame(gameId: number, userId: number): GameState {
   const playerColor = getPlayerColor(game, userId);
   const winner: PlayerColor = playerColor === "white" ? "black" : "white";
 
-  return store.updateGame(gameId, {
+  return store.updateGame(db, gameId, {
     status: "resigned",
     result: { winner, reason: "resigned" },
     drawOffer: null,
   });
 }
 
-export function offerOrAcceptDraw(gameId: number, userId: number): GameState {
-  const game = store.getGame(gameId);
+export function offerOrAcceptDraw(db: DrizzleDb, gameId: number, userId: number): GameState {
+  const game = store.getGame(db, gameId);
   if (!game) {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
@@ -142,22 +154,22 @@ export function offerOrAcceptDraw(gameId: number, userId: number): GameState {
   const playerColor = getPlayerColor(game, userId);
 
   if (game.drawOffer === null) {
-    return store.updateGame(gameId, { drawOffer: playerColor });
+    return store.updateGame(db, gameId, { drawOffer: playerColor });
   }
 
   if (game.drawOffer === playerColor) {
     return game;
   }
 
-  return store.updateGame(gameId, {
+  return store.updateGame(db, gameId, {
     status: "draw",
     result: { reason: "draw" },
     drawOffer: null,
   });
 }
 
-export function abortGame(gameId: number, userId: number): GameState {
-  const game = store.getGame(gameId);
+export function abortGame(db: DrizzleDb, gameId: number, userId: number): GameState {
+  const game = store.getGame(db, gameId);
   if (!game) {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
@@ -170,11 +182,11 @@ export function abortGame(gameId: number, userId: number): GameState {
     throw new GameError("NOT_A_PLAYER", "Only the creator can abort the game");
   }
 
-  return store.updateGame(gameId, { status: "aborted", drawOffer: null });
+  return store.updateGame(db, gameId, { status: "aborted", drawOffer: null });
 }
 
-export function getGame(gameId: number): GameState {
-  const game = store.getGame(gameId);
+export function getGame(db: DrizzleDb, gameId: number): GameState {
+  const game = store.getGame(db, gameId);
   if (!game) {
     throw new GameError("GAME_NOT_FOUND", "Game not found");
   }
