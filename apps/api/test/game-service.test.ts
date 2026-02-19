@@ -1,16 +1,28 @@
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import * as gameService from "../src/game/service.js";
 import * as store from "../src/game/store.js";
 import { GameError } from "../src/game/errors.js";
-import { db } from "../src/db/index.js";
-import { ensureAllTables, cleanGamesTables } from "./helpers.js";
+import type { DrizzleDb } from "../src/db/index.js";
+import type { Database as DatabaseType } from "better-sqlite3";
+import { createInMemoryDb, cleanTables } from "./helpers.js";
+
+let db: DrizzleDb;
+let sqliteHandle: DatabaseType;
+let closeDb: () => void;
 
 beforeAll(() => {
-  ensureAllTables();
+  const created = createInMemoryDb();
+  db = created.db;
+  sqliteHandle = created.sqlite;
+  closeDb = created.close;
 });
 
 beforeEach(() => {
-  cleanGamesTables();
+  cleanTables(sqliteHandle);
+});
+
+afterAll(() => {
+  closeDb();
 });
 
 describe("Game Creation", () => {

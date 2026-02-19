@@ -1,22 +1,23 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildApp } from "../src/server.js";
+import { sqlite } from "../src/db/index.js";
 import {
-  ensureAllTables,
-  cleanGamesTables,
+  bootstrapSchema,
+  cleanTables,
   uniqueEmail,
   registerAndLogin,
   createAndJoinGame,
 } from "./helpers.js";
 
 beforeAll(() => {
-  ensureAllTables();
+  bootstrapSchema(sqlite);
 });
 
 describe("Auth enforcement", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -48,7 +49,7 @@ describe("POST /api/games — Create game", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -78,7 +79,7 @@ describe("POST /api/games/:id/join — Join game", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -159,7 +160,7 @@ describe("POST /api/games/:id/moves — Make move", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -227,7 +228,7 @@ describe("GET /api/games/:id — Get game", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -273,7 +274,7 @@ describe("POST /api/games/:id/resign — Resign", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -301,7 +302,7 @@ describe("POST /api/games/:id/draw — Draw", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -338,7 +339,7 @@ describe("POST /api/games/:id/abort — Abort", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -370,7 +371,7 @@ describe("GET /api/games — Game list", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 
@@ -584,7 +585,7 @@ describe("Full game flow — Scholar's mate", () => {
   let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
-    cleanGamesTables();
+    cleanTables(sqlite);
     app = buildApp();
   });
 

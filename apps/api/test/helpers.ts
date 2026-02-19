@@ -1,5 +1,11 @@
+import Database, { type Database as DatabaseType } from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import * as schema from "../src/db/schema.js";
 import { buildApp } from "../src/server.js";
-import { sqlite } from "../src/db/index.js";
+import type { DrizzleDb } from "../src/db/index.js";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { mkdirSync, unlinkSync } from "node:fs";
 
 let emailCounter = 0;
 const runId = Date.now();
@@ -18,8 +24,12 @@ export function extractSessionCookie(res: {
   return raw.split(";")[0];
 }
 
-export function ensureUsersTable(): void {
-  sqlite.exec(`
+/**
+ * Run DDL to create all tables on the given sqlite handle.
+ * Uses CREATE TABLE IF NOT EXISTS so it is safe to call multiple times.
+ */
+export function bootstrapSchema(sqliteHandle: DatabaseType): void {
+  sqliteHandle.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
@@ -27,10 +37,7 @@ export function ensureUsersTable(): void {
       password_hash TEXT NOT NULL
     )
   `);
-}
-
-export function ensureGamesTables(): void {
-  sqlite.exec(`
+  sqliteHandle.exec(`
     CREATE TABLE IF NOT EXISTS games (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
       invite_token TEXT NOT NULL,
@@ -48,16 +55,16 @@ export function ensureGamesTables(): void {
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL
     )
   `);
-  sqlite.exec(`
+  sqliteHandle.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS games_invite_token_idx ON games(invite_token)
   `);
-  sqlite.exec(`
+  sqliteHandle.exec(`
     CREATE INDEX IF NOT EXISTS games_white_player_id_idx ON games(white_player_id)
   `);
-  sqlite.exec(`
+  sqliteHandle.exec(`
     CREATE INDEX IF NOT EXISTS games_black_player_id_idx ON games(black_player_id)
   `);
-  sqlite.exec(`
+  sqliteHandle.exec(`
     CREATE TABLE IF NOT EXISTS moves (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
       game_id INTEGER NOT NULL REFERENCES games(id),
@@ -66,19 +73,77 @@ export function ensureGamesTables(): void {
       created_at INTEGER DEFAULT (unixepoch()) NOT NULL
     )
   `);
-  sqlite.exec(`
+  sqliteHandle.exec(`
     CREATE INDEX IF NOT EXISTS moves_game_id_move_number_idx ON moves(game_id, move_number)
   `);
 }
 
-export function ensureAllTables(): void {
-  ensureUsersTable();
-  ensureGamesTables();
+/**
+ * Delete all rows from games and moves tables on the given sqlite handle.
+ * Deletes moves first to respect FK ordering.
+ */
+export function cleanTables(sqliteHandle: DatabaseType): void {
+  sqliteHandle.exec(`DELETE FROM moves`);
+  sqliteHandle.exec(`DELETE FROM games`);
 }
 
-export function cleanGamesTables(): void {
-  sqlite.exec(`DELETE FROM moves`);
-  sqlite.exec(`DELETE FROM games`);
+/**
+ * Create a fresh in-memory SQLite database with the full schema bootstrapped.
+ * Returns a Drizzle db instance, the raw sqlite handle, and a close function.
+ * Use this for test isolation - each test file gets its own in-memory DB.
+ */
+export function createInMemoryDb(): {
+  db: DrizzleDb;
+  sqlite: DatabaseType;
+  close: () => void;
+} {
+  const sqliteConn = new Database(":memory:");
+  sqliteConn.pragma("foreign_keys = OFF");
+  const drizzleDb = drizzle(sqliteConn, { schema }) as unknown as DrizzleDb;
+  bootstrapSchema(sqliteConn);
+  return { db: drizzleDb, sqlite: sqliteConn, close: () => sqliteConn.close() };
+}
+
+let tempFileCounter = 0;
+
+/**
+ * Create an on-disk SQLite database in a temp directory with the full schema bootstrapped.
+ * Returns the db, sqlite handle, file path, and a cleanup function that closes the
+ * connection and deletes the file.
+ *
+ * Use this for persistence tests that need to open a second independent connection
+ * to the same file, proving data survives across connections.
+ */
+export function createTestDbOnDisk(): {
+  db: DrizzleDb;
+  sqlite: DatabaseType;
+  filePath: string;
+  cleanup: () => void;
+} {
+  const dir = join(tmpdir(), "chess-test");
+  mkdirSync(dir, { recursive: true });
+  tempFileCounter += 1;
+  const filePath = join(dir, `test-${runId}-${tempFileCounter}.db`);
+  const sqliteConn = new Database(filePath);
+  sqliteConn.pragma("journal_mode = WAL");
+  sqliteConn.pragma("foreign_keys = OFF");
+  const drizzleDb = drizzle(sqliteConn, { schema }) as unknown as DrizzleDb;
+  bootstrapSchema(sqliteConn);
+  return {
+    db: drizzleDb,
+    sqlite: sqliteConn,
+    filePath,
+    cleanup: () => {
+      sqliteConn.close();
+      try {
+        unlinkSync(filePath);
+        unlinkSync(filePath + "-wal");
+        unlinkSync(filePath + "-shm");
+      } catch {
+        // Files may not exist - ignore
+      }
+    },
+  };
 }
 
 export async function registerAndLogin(
