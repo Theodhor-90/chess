@@ -340,3 +340,45 @@ describe("Abort", () => {
     }
   });
 });
+
+describe("Timeout", () => {
+  function createActiveGame() {
+    const game = gameService.createGame(100);
+    const joined = gameService.joinGame(game.id, 200, game.inviteToken);
+    const whiteUserId = joined.players.white!.userId;
+    const blackUserId = joined.players.black!.userId;
+    return { gameId: joined.id, whiteUserId, blackUserId };
+  }
+
+  it("timeout sets status to timeout and opponent wins", () => {
+    const { gameId } = createActiveGame();
+    const game = gameService.timeoutGame(gameId, "white");
+    expect(game.status).toBe("timeout");
+    expect(game.result).toEqual({ winner: "black", reason: "timeout" });
+  });
+
+  it("timeout for black makes white the winner", () => {
+    const { gameId } = createActiveGame();
+    const game = gameService.timeoutGame(gameId, "black");
+    expect(game.status).toBe("timeout");
+    expect(game.result).toEqual({ winner: "white", reason: "timeout" });
+  });
+
+  it("cannot timeout a non-active game", () => {
+    const game = gameService.createGame(100);
+    try {
+      gameService.timeoutGame(game.id, "white");
+      expect.fail("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(GameError);
+      expect((err as GameError).code).toBe("INVALID_STATUS");
+    }
+  });
+
+  it("clears any pending draw offer", () => {
+    const { gameId, whiteUserId } = createActiveGame();
+    gameService.offerOrAcceptDraw(gameId, whiteUserId);
+    const game = gameService.timeoutGame(gameId, "white");
+    expect(game.drawOffer).toBeNull();
+  });
+});

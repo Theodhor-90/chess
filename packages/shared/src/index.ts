@@ -114,6 +114,7 @@ export interface ClientToServerEvents {
   offerDraw: (data: { gameId: number }) => void;
   acceptDraw: (data: { gameId: number }) => void;
   abort: (data: { gameId: number }) => void;
+  pong: (data: { timestamp: number }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -138,6 +139,7 @@ export interface ServerToClientEvents {
   drawDeclined: (data: Record<string, never>) => void;
   clockUpdate: (data: ClockState) => void;
   error: (data: { message: string }) => void;
+  ping: (data: { timestamp: number }) => void;
 }
 
 export interface ServerSocketData {
