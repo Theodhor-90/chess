@@ -2,10 +2,14 @@ import { describe, it, expect, beforeAll } from "vitest";
 import * as gameService from "../src/game/service.js";
 import * as store from "../src/game/store.js";
 import { GameError } from "../src/game/errors.js";
-import { ensureSchema } from "./helpers.js";
+import { ensureSchema, seedTestUser } from "./helpers.js";
 
 beforeAll(() => {
   ensureSchema();
+  // Seed users so FK constraints on games.white_player_id / black_player_id are satisfied
+  for (const id of [1, 100, 200, 300, 999]) {
+    seedTestUser(id);
+  }
 });
 
 describe("Game Creation", () => {

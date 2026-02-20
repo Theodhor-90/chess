@@ -85,6 +85,18 @@ export function cleanGamesTables(): void {
   sqlite.exec("DELETE FROM games");
 }
 
+/**
+ * Insert a user row directly into the DB so that FK constraints on
+ * games.white_player_id / black_player_id are satisfied in unit tests
+ * that bypass the HTTP registration flow.
+ * Uses INSERT OR IGNORE so it's safe to call multiple times with the same id.
+ */
+export function seedTestUser(id: number): void {
+  sqlite.exec(
+    `INSERT OR IGNORE INTO users (id, email, password_hash) VALUES (${id}, 'test-user-${id}@seed.local', 'no-password')`,
+  );
+}
+
 export async function registerAndLogin(
   app: ReturnType<typeof buildApp>["app"],
   email: string,

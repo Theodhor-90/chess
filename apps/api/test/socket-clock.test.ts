@@ -186,10 +186,12 @@ socketDescribe("Socket.io + Clock integration", () => {
       increment: 2,
     });
 
-    // White plays e4
-    const movePromise1 = waitForEvent(blackSocket, "moveMade");
+    // White plays e4 — consume moveMade on BOTH sockets to prevent the
+    // first event from being picked up by a later listener on whiteSocket.
+    const movePromise1W = waitForEvent(whiteSocket, "moveMade");
+    const movePromise1B = waitForEvent(blackSocket, "moveMade");
     whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
-    const move1 = await movePromise1;
+    const [, move1] = await Promise.all([movePromise1W, movePromise1B]);
 
     // White's time should be less than initial + increment (deduction is at least 100ms)
     // Formula: 60000 - deduction(>=100ms) + 2000(increment) <= 61900

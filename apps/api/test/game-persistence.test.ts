@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import * as store from "../src/game/store.js";
-import { ensureSchema } from "./helpers.js";
+import { ensureSchema, seedTestUser } from "./helpers.js";
 
 beforeAll(() => {
   ensureSchema();
+  // Seed users so FK constraints on games.white_player_id / black_player_id are satisfied
+  for (const id of [1, 501, 502]) {
+    seedTestUser(id);
+  }
 });
 
 describe("Game Persistence", () => {
