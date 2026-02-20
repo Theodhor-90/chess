@@ -5,6 +5,7 @@ import type {
   LoginRequest,
   CreateGameRequest,
   CreateGameResponse,
+  JoinGameRequest,
   GameResponse,
   ResolveInviteResponse,
   GameListResponse,
@@ -67,6 +68,14 @@ export const apiSlice = createApi({
       query: () => "/games",
       providesTags: ["Game"],
     }),
+    joinGame: builder.mutation<GameResponse, { gameId: number; inviteToken: string }>({
+      query: ({ gameId, inviteToken }) => ({
+        url: `/games/${gameId}/join`,
+        method: "POST",
+        body: { inviteToken } satisfies JoinGameRequest,
+      }),
+      invalidatesTags: ["Game"],
+    }),
   }),
 });
 
@@ -79,4 +88,5 @@ export const {
   useGetGameQuery,
   useResolveInviteQuery,
   useGetMyGamesQuery,
+  useJoinGameMutation,
 } = apiSlice;

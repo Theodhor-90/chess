@@ -111,11 +111,17 @@ describe("LoginPage", () => {
     const buttons = screen.getAllByRole("button", { name: "Login" });
     fireEvent.click(buttons[0]);
     await waitFor(() => {
-      expect(screen.getByText("Chess Platform")).toBeInTheDocument();
+      expect(screen.getAllByText("Chess Platform").length).toBeGreaterThanOrEqual(1);
     });
     expect(globalThis.fetch).toHaveBeenCalled();
-    const [request, options] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(getRequestUrl(request)).toContain("/api/auth/login");
+    const loginCall = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.find(([request]) => getRequestUrl(request).includes("/api/auth/login"));
+    expect(loginCall).toBeDefined();
+    if (!loginCall) {
+      throw new Error("Missing /api/auth/login call");
+    }
+    const [request, options] = loginCall;
     expect(request instanceof Request ? request.method : options?.method).toBe("POST");
   });
 
@@ -192,11 +198,17 @@ describe("RegisterPage", () => {
     const buttons = screen.getAllByRole("button", { name: "Register" });
     fireEvent.click(buttons[0]);
     await waitFor(() => {
-      expect(screen.getByText("Chess Platform")).toBeInTheDocument();
+      expect(screen.getAllByText("Chess Platform").length).toBeGreaterThanOrEqual(1);
     });
     expect(globalThis.fetch).toHaveBeenCalled();
-    const [request, options] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(getRequestUrl(request)).toContain("/api/auth/register");
+    const registerCall = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.find(([request]) => getRequestUrl(request).includes("/api/auth/register"));
+    expect(registerCall).toBeDefined();
+    if (!registerCall) {
+      throw new Error("Missing /api/auth/register call");
+    }
+    const [request, options] = registerCall;
     expect(request instanceof Request ? request.method : options?.method).toBe("POST");
   });
 
@@ -357,12 +369,14 @@ describe("LoginPage redirect support", () => {
 
 describe("App routing (via AppRoutes)", () => {
   it("renders LoginPage at /login", () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
     renderWithProviders(<AppRoutes />, { route: "/login" });
     const buttons = screen.getAllByRole("button", { name: "Login" });
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders RegisterPage at /register", () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
     renderWithProviders(<AppRoutes />, { route: "/register" });
     const buttons = screen.getAllByRole("button", { name: "Register" });
     expect(buttons.length).toBeGreaterThanOrEqual(1);
@@ -373,7 +387,41 @@ describe("App routing (via AppRoutes)", () => {
     mockFetchSuccess([]);
     renderWithProviders(<AppRoutes />, { route: "/" });
     await waitFor(() => {
-      expect(screen.getByText("Chess Platform")).toBeInTheDocument();
+      expect(screen.getAllByText("Chess Platform").length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it("renders JoinPage at /join/:inviteToken when authenticated", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ gameId: 5, status: "waiting" });
+    mockFetchSuccess({
+      id: 5,
+      status: "active",
+      players: {
+        white: { userId: 1, color: "white" },
+        black: { userId: 2, color: "black" },
+      },
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      pgn: "",
+      moves: [],
+      currentTurn: "white",
+      clock: { initialTime: 600, increment: 0 },
+      inviteToken: "test-join-token",
+      drawOffer: null,
+      createdAt: 0,
+    });
+    renderWithProviders(<AppRoutes />, { route: "/join/test-join-token" });
+    await waitFor(() => {
+      expect(screen.getByText("Loading game...")).toBeInTheDocument();
+    });
+  });
+
+  it("redirects /join/:inviteToken to login when not authenticated", async () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
+    renderWithProviders(<AppRoutes />, { route: "/join/some-token" });
+    await waitFor(() => {
+      const buttons = screen.getAllByRole("button", { name: "Login" });
+      expect(buttons.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

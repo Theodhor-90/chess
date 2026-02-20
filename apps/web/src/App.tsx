@@ -7,29 +7,42 @@ import { AuthGate } from "./components/AuthGate.js";
 import { GamePage } from "./pages/GamePage.js";
 import { ProtectedRoute } from "./components/ProtectedRoute.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
+import { NavHeader } from "./components/NavHeader.js";
+import { JoinPage } from "./pages/JoinPage.js";
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route
-        path="/game/:id"
-        element={
-          <ProtectedRoute>
-            <GamePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <>
+      <NavHeader />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/game/:id"
+          element={
+            <ProtectedRoute>
+              <GamePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/join/:inviteToken"
+          element={
+            <ProtectedRoute>
+              <JoinPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </>
   );
 }
 
