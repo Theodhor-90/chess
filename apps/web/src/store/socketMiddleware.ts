@@ -98,6 +98,10 @@ function setupSocketListeners(
   socket.on("disconnect", () => {
     dispatch(setConnectionStatus("disconnected"));
   });
+
+  socket.io.on("reconnect_attempt", () => {
+    dispatch(setConnectionStatus("connecting"));
+  });
 }
 
 export const socketMiddleware: Middleware<object, MiddlewareState> = (storeApi) => {

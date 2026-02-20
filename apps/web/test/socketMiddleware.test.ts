@@ -7,12 +7,14 @@ import type { GameState, ClockState, ClockConfig } from "@chess/shared";
 const mockOn = vi.fn();
 const mockEmit = vi.fn();
 const mockDisconnect = vi.fn();
+const mockManagerOn = vi.fn();
 
 let mockSocket: {
   on: typeof mockOn;
   emit: typeof mockEmit;
   disconnect: typeof mockDisconnect;
   connected: boolean;
+  io: { on: typeof mockManagerOn };
 };
 
 vi.mock("../src/socket.js", () => ({
@@ -34,6 +36,11 @@ function createTestStore() {
 
 function getEventCallback(eventName: string): ((...args: unknown[]) => void) | undefined {
   const call = mockOn.mock.calls.find(([name]) => name === eventName);
+  return call ? call[1] : undefined;
+}
+
+function getManagerEventCallback(eventName: string): ((...args: unknown[]) => void) | undefined {
+  const call = mockManagerOn.mock.calls.find(([name]) => name === eventName);
   return call ? call[1] : undefined;
 }
 
@@ -71,6 +78,7 @@ describe("socketMiddleware", () => {
       emit: mockEmit,
       disconnect: mockDisconnect,
       connected: true,
+      io: { on: mockManagerOn },
     };
   });
 
@@ -169,6 +177,25 @@ describe("socketMiddleware", () => {
 
       expect(store.getState().game.connectionStatus).toBe("connected");
       expect(mockEmit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("reconnect_attempt (manager event)", () => {
+    it("sets connectionStatus to connecting when reconnect_attempt fires", () => {
+      const store = createTestStore();
+      mockSocket.connected = true;
+      store.dispatch(socketActions.connect());
+
+      expect(store.getState().game.connectionStatus).toBe("connected");
+
+      const disconnectCallback = getEventCallback("disconnect");
+      disconnectCallback!();
+      expect(store.getState().game.connectionStatus).toBe("disconnected");
+
+      const reconnectAttemptCallback = getManagerEventCallback("reconnect_attempt");
+      expect(reconnectAttemptCallback).toBeDefined();
+      reconnectAttemptCallback!();
+      expect(store.getState().game.connectionStatus).toBe("connecting");
     });
   });
 
