@@ -73,4 +73,41 @@ pnpm format               # Prettier write
 
 The AI delivery pipeline is in `pipeline/`. It orchestrates Opus (planning/review) and Codex (challenge/implement). See `MASTER_PLAN.md` section "AI Delivery Model" for the full workflow.
 
-Do not modify files in `.pipeline/` manually — the pipeline manages its own state.
+**Role boundary:** Claude Code (Opus) is for **discussion, design, and authoring pipeline specs**. All code implementation flows through the pipeline — Opus plans/reviews, Codex challenges/implements. Never implement features directly in a Claude Code session.
+
+**Architecture overview:**
+
+- Hierarchy: Project → Milestone → Phase → Task
+- Task lifecycle: `pending` → `planning` (Opus drafts plan, Codex challenges) → `plan_locked` → `implementing` (Codex implements, Opus reviews) → `completed` or `blocked`
+- Phase completion creates a git branch + PR for human review/merge
+
+**Pipeline commands** (run from `pipeline/`):
+
+```bash
+npm run pipeline -- init [--force]    # Scan .pipeline/ and create state.json
+npm run pipeline -- run [--dry-run]   # Execute next pending task
+npm run pipeline -- unblock <m> <p> <t> <planning|implementing>
+```
+
+**Starting a new phase — checklist:**
+
+1. Create phase directory: `.pipeline/milestones/{m}/phases/{p}/`
+2. Write `spec.md` (sections: Goal, Architectural Decisions, Exit Criteria, Tasks, Dependencies, Relevant Files)
+3. Create task directories: `.pipeline/milestones/{m}/phases/{p}/tasks/{t}/`
+4. Write `spec.md` per task (sections: Goal, Deliverables, Verification, Depends On)
+5. Update `.pipeline/state.json` — add phase + tasks with `pending` status
+6. Run `npm run pipeline -- run`
+
+**Artifact conventions:**
+
+- Phase spec: `.pipeline/milestones/{m}/phases/{p}/spec.md`
+- Task spec: `.pipeline/milestones/{m}/phases/{p}/tasks/{t}/spec.md`
+- Plan iterations: `plan-v{n}.md`, `feedback-v{n}.md`, `plan-locked.md`
+- Implementation: `impl-notes-v{n}.md`, `review-v{n}.md`
+
+**Rules:**
+
+- Do not modify files in `.pipeline/` except when authoring specs and updating `state.json` for new phases.
+- Do not implement code directly — that is the pipeline's job.
+- The pipeline auto-commits per task and creates a PR per phase.
+- Human merges the PR before the next phase can start.
