@@ -117,10 +117,6 @@ export function GameBoard({
   }, [fen, currentTurn, isGameActive, playerColor, dests, onMove]);
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="game-board"
-      style={{ width: "400px", height: "400px" }}
-    />
+    <div ref={containerRef} data-testid="game-board" style={{ width: "400px", height: "400px" }} />
   );
 }

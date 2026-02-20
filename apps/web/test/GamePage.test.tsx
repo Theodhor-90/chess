@@ -1,13 +1,23 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, act, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, act, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { apiSlice } from "../src/store/apiSlice.js";
-import { gameReducer, setGameState } from "../src/store/gameSlice.js";
+import {
+  gameReducer,
+  setGameState,
+  setDrawOffer,
+  setOpponentConnected,
+  setConnectionStatus,
+} from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { Clock } from "../src/components/Clock.js";
 import { MoveList } from "../src/components/MoveList.js";
+import { GameActions } from "../src/components/GameActions.js";
+import { GameOverOverlay } from "../src/components/GameOverOverlay.js";
+import { DisconnectBanner } from "../src/components/DisconnectBanner.js";
+import { ConnectionStatus } from "../src/components/ConnectionStatus.js";
 import { AppRoutes } from "../src/App.js";
 import { Chessground } from "chessground";
 import { Chess } from "chess.js";
@@ -29,20 +39,17 @@ vi.mock("chess.js", () => ({
   })),
 }));
 
+const mockSocket = {
+  on: vi.fn(),
+  emit: vi.fn(),
+  connected: true,
+  disconnect: vi.fn(),
+};
+
 vi.mock("../src/socket.js", () => ({
-  connectSocket: vi.fn(() => ({
-    on: vi.fn(),
-    emit: vi.fn(),
-    connected: true,
-    disconnect: vi.fn(),
-  })),
+  connectSocket: vi.fn(() => mockSocket),
   disconnectSocket: vi.fn(),
-  getSocket: vi.fn(() => ({
-    on: vi.fn(),
-    emit: vi.fn(),
-    connected: true,
-    disconnect: vi.fn(),
-  })),
+  getSocket: vi.fn(() => mockSocket),
 }));
 
 afterEach(() => {
@@ -109,10 +116,7 @@ function makeFakeGameState(): GameState & { clock: ClockState } {
 
 function renderWithStore(
   ui: React.ReactElement,
-  {
-    route = "/",
-    store,
-  }: { route?: string; store?: ReturnType<typeof createTestStore> } = {},
+  { route = "/", store }: { route?: string; store?: ReturnType<typeof createTestStore> } = {},
 ) {
   const testStore = store ?? createTestStore();
   return {
@@ -285,9 +289,7 @@ describe("GamePage", () => {
       const boardApi = chessgroundMock.mock.results[0]?.value;
       const setCalls = vi.mocked(boardApi.set).mock.calls as Array<[unknown]>;
       expect(
-        setCalls.some(
-          (call) => (call[0] as { orientation?: string }).orientation === "black",
-        ),
+        setCalls.some((call) => (call[0] as { orientation?: string }).orientation === "black"),
       ).toBeTruthy();
     });
   });
@@ -387,5 +389,434 @@ describe("App routing includes /game/:id", () => {
 
     // GamePage shows loading state when no game is loaded
     expect(screen.getByTestId("loading")).toBeInTheDocument();
+  });
+});
+
+describe("GameActions", () => {
+  it("renders resign and draw buttons when game is active", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("resign-button")).toBeInTheDocument();
+    expect(screen.getByTestId("draw-button")).toHaveTextContent("Offer Draw");
+  });
+
+  it("renders nothing when playerColor is null", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    const { container } = renderWithStore(<GameActions gameId={42} playerColor={null} />, {
+      store,
+    });
+
+    expect(container.innerHTML).toBe("");
+  });
+
+  it("shows resign confirmation on resign button click", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("resign-button"));
+
+    expect(screen.getByTestId("resign-confirm")).toBeInTheDocument();
+    expect(screen.getByText("Are you sure you want to resign?")).toBeInTheDocument();
+    expect(screen.getByTestId("resign-confirm-yes")).toBeInTheDocument();
+    expect(screen.getByTestId("resign-confirm-no")).toBeInTheDocument();
+  });
+
+  it("dispatches resign on confirmation", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("resign-button"));
+    fireEvent.click(screen.getByTestId("resign-confirm-yes"));
+
+    expect(mockSocket.emit).toHaveBeenCalledWith("resign", { gameId: 42 });
+  });
+
+  it("cancels resign confirmation", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("resign-button"));
+    expect(screen.getByTestId("resign-confirm")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("resign-confirm-no"));
+    expect(screen.queryByTestId("resign-confirm")).not.toBeInTheDocument();
+    expect(screen.getByTestId("resign-button")).toBeInTheDocument();
+  });
+
+  it("shows 'Offer Draw' when no draw offer exists", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    const drawButton = screen.getByTestId("draw-button");
+    expect(drawButton).toHaveTextContent("Offer Draw");
+    expect(drawButton).not.toBeDisabled();
+  });
+
+  it("shows 'Draw Offered' (disabled) when player already offered", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setDrawOffer("white"));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    const drawButton = screen.getByTestId("draw-button");
+    expect(drawButton).toHaveTextContent("Draw Offered");
+    expect(drawButton).toBeDisabled();
+  });
+
+  it("shows 'Accept Draw' when opponent offered", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setDrawOffer("black"));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    const drawButton = screen.getByTestId("draw-button");
+    expect(drawButton).toHaveTextContent("Accept Draw");
+    expect(drawButton).not.toBeDisabled();
+  });
+
+  it("dispatches offerDraw on 'Offer Draw' click", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("draw-button"));
+
+    expect(mockSocket.emit).toHaveBeenCalledWith("offerDraw", { gameId: 42 });
+  });
+
+  it("dispatches acceptDraw on 'Accept Draw' click", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setDrawOffer("black"));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("draw-button"));
+
+    expect(mockSocket.emit).toHaveBeenCalledWith("acceptDraw", { gameId: 42 });
+  });
+
+  it("shows abort button when game is waiting and user is creator", () => {
+    const store = createTestStore();
+    const waitingGame = { ...makeFakeGameState(), status: "waiting" as const };
+    store.dispatch(setGameState(waitingGame));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("abort-button")).toBeInTheDocument();
+    expect(screen.getByTestId("abort-button")).toHaveTextContent("Abort Game");
+  });
+
+  it("does not show abort button when user is not creator", () => {
+    const store = createTestStore();
+    const waitingGame = { ...makeFakeGameState(), status: "waiting" as const };
+    store.dispatch(setGameState(waitingGame));
+
+    renderWithStore(<GameActions gameId={42} playerColor="black" />, { store });
+
+    expect(screen.queryByTestId("abort-button")).not.toBeInTheDocument();
+  });
+
+  it("dispatches abort on abort button click", () => {
+    const store = createTestStore();
+    const waitingGame = { ...makeFakeGameState(), status: "waiting" as const };
+    store.dispatch(setGameState(waitingGame));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("abort-button"));
+
+    expect(mockSocket.emit).toHaveBeenCalledWith("abort", { gameId: 42 });
+  });
+
+  it("hides resign and draw buttons when game is not active", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.queryByTestId("resign-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("draw-button")).not.toBeInTheDocument();
+  });
+});
+
+describe("GameOverOverlay", () => {
+  it("renders nothing when game is active", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.queryByTestId("game-over-overlay")).not.toBeInTheDocument();
+  });
+
+  it("renders overlay on checkmate with winner message for player", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("game-over-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("result-message")).toHaveTextContent("You won by checkmate!");
+  });
+
+  it("renders loser message for losing player", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="black" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent("You lost by checkmate.");
+  });
+
+  it("renders stalemate message", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "stalemate" as const,
+      result: { reason: "stalemate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent(/Stalemate.*Draw/);
+  });
+
+  it("renders resignation message for winner", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "resigned" as const,
+      result: { winner: "white" as const, reason: "resigned" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent("Opponent resigned. You win!");
+  });
+
+  it("renders resignation message for loser", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "resigned" as const,
+      result: { winner: "black" as const, reason: "resigned" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent("You resigned.");
+  });
+
+  it("renders draw by agreement message", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "draw" as const,
+      result: { reason: "draw" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent("Game drawn by agreement");
+  });
+
+  it("renders timeout message for winner", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "timeout" as const,
+      result: { winner: "white" as const, reason: "timeout" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent(
+      "Opponent ran out of time. You win!",
+    );
+  });
+
+  it("renders aborted message", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "aborted" as const,
+      result: { reason: "aborted" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("result-message")).toHaveTextContent("Game aborted");
+  });
+
+  it("displays final clock times", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    const clocks = screen.getByTestId("final-clocks");
+    expect(clocks).toHaveTextContent("White");
+    expect(clocks).toHaveTextContent("Black");
+    // Clock values from makeFakeGameState: white=599000, black=600000
+    expect(clocks).toHaveTextContent("9:59");
+    expect(clocks).toHaveTextContent("10:00");
+  });
+
+  it("calls onDismiss when 'View Board' is clicked", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    const onDismiss = vi.fn();
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={onDismiss} />, { store });
+
+    fireEvent.click(screen.getByTestId("view-board"));
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("has a 'Back to Dashboard' button", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("back-to-dashboard")).toBeInTheDocument();
+    expect(screen.getByTestId("back-to-dashboard")).toHaveTextContent("Back to Dashboard");
+  });
+});
+
+describe("DisconnectBanner", () => {
+  it("renders nothing when opponent is connected", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<DisconnectBanner />, { store });
+
+    expect(screen.queryByTestId("disconnect-banner")).not.toBeInTheDocument();
+  });
+
+  it("shows banner when opponent is disconnected and game is active", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setOpponentConnected(false));
+
+    renderWithStore(<DisconnectBanner />, { store });
+
+    expect(screen.getByTestId("disconnect-banner")).toBeInTheDocument();
+    expect(screen.getByTestId("disconnect-banner")).toHaveTextContent("Opponent disconnected");
+  });
+
+  it("hides banner when opponent reconnects", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setOpponentConnected(false));
+
+    renderWithStore(<DisconnectBanner />, { store });
+    expect(screen.getByTestId("disconnect-banner")).toBeInTheDocument();
+
+    act(() => {
+      store.dispatch(setOpponentConnected(true));
+    });
+
+    expect(screen.queryByTestId("disconnect-banner")).not.toBeInTheDocument();
+  });
+
+  it("does not show banner when game is not active", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+    store.dispatch(setOpponentConnected(false));
+
+    renderWithStore(<DisconnectBanner />, { store });
+
+    expect(screen.queryByTestId("disconnect-banner")).not.toBeInTheDocument();
+  });
+});
+
+describe("ConnectionStatus", () => {
+  it("shows green dot and 'Connected' when connected", () => {
+    const store = createTestStore();
+    store.dispatch(setConnectionStatus("connected"));
+
+    renderWithStore(<ConnectionStatus />, { store });
+
+    expect(screen.getByTestId("connection-label")).toHaveTextContent("Connected");
+    expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(40, 167, 69)");
+  });
+
+  it("shows yellow dot and 'Reconnecting...' when connecting", () => {
+    const store = createTestStore();
+    store.dispatch(setConnectionStatus("connecting"));
+
+    renderWithStore(<ConnectionStatus />, { store });
+
+    expect(screen.getByTestId("connection-label")).toHaveTextContent("Reconnecting...");
+    expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(255, 193, 7)");
+  });
+
+  it("shows red dot and 'Disconnected' when disconnected", () => {
+    const store = createTestStore();
+
+    renderWithStore(<ConnectionStatus />, { store });
+
+    // Default connectionStatus is "disconnected"
+    expect(screen.getByTestId("connection-label")).toHaveTextContent("Disconnected");
+    expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(220, 53, 69)");
   });
 });

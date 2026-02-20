@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { useGetMeQuery } from "../store/apiSlice.js";
@@ -7,6 +7,10 @@ import { clearGame, clearError } from "../store/gameSlice.js";
 import { GameBoard } from "../components/GameBoard.js";
 import { Clock } from "../components/Clock.js";
 import { MoveList } from "../components/MoveList.js";
+import { GameActions } from "../components/GameActions.js";
+import { GameOverOverlay } from "../components/GameOverOverlay.js";
+import { DisconnectBanner } from "../components/DisconnectBanner.js";
+import { ConnectionStatus } from "../components/ConnectionStatus.js";
 import type { PlayerColor } from "@chess/shared";
 
 export function GamePage() {
@@ -17,6 +21,7 @@ export function GamePage() {
 
   const game = useAppSelector((state) => state.game.currentGame);
   const error = useAppSelector((state) => state.game.error);
+  const [showOverlay, setShowOverlay] = useState(true);
 
   // Determine player's color based on their user ID
   const myUserId = meData?.user?.id ?? null;
@@ -69,47 +74,63 @@ export function GamePage() {
   const lastUpdate = clockState?.lastUpdate ?? Date.now();
 
   return (
-    <div style={{ display: "flex", gap: "24px", padding: "16px", justifyContent: "center" }}>
-      {/* Board column */}
-      <div
-        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}
-      >
-        {/* Opponent clock (top) */}
-        <Clock timeMs={topClockTime} isActive={topClockActive} lastUpdate={lastUpdate} />
+    <div>
+      {/* Disconnect banner at top */}
+      <DisconnectBanner />
 
-        {/* Board */}
-        <GameBoard gameId={gameId} playerColor={playerColor} />
+      <div style={{ display: "flex", gap: "24px", padding: "16px", justifyContent: "center" }}>
+        {/* Board column */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+          {/* Opponent clock (top) */}
+          <Clock timeMs={topClockTime} isActive={topClockActive} lastUpdate={lastUpdate} />
 
-        {/* Player clock (bottom) */}
-        <Clock timeMs={bottomClockTime} isActive={bottomClockActive} lastUpdate={lastUpdate} />
-      </div>
+          {/* Board */}
+          <GameBoard gameId={gameId} playerColor={playerColor} />
 
-      {/* Side panel */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
-        {/* Game info */}
-        <div>
-          <strong>Status:</strong> {game.status}
-          {game.currentTurn && game.status === "active" && <span> - {game.currentTurn}&apos;s turn</span>}
+          {/* Player clock (bottom) */}
+          <Clock timeMs={bottomClockTime} isActive={bottomClockActive} lastUpdate={lastUpdate} />
         </div>
 
-        {/* Error banner */}
-        {error && (
-          <div
-            role="alert"
-            style={{
-              padding: "8px",
-              backgroundColor: "#fee",
-              color: "#c00",
-              borderRadius: "4px",
-            }}
-          >
-            {error}
-          </div>
-        )}
+        {/* Side panel */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
+          {/* Connection status */}
+          <ConnectionStatus />
 
-        {/* Move list */}
-        <MoveList moves={game.moves} />
+          {/* Game info */}
+          <div>
+            <strong>Status:</strong> {game.status}
+            {game.currentTurn && game.status === "active" && (
+              <span> - {game.currentTurn}&apos;s turn</span>
+            )}
+          </div>
+
+          {/* Error banner */}
+          {error && (
+            <div
+              role="alert"
+              style={{
+                padding: "8px",
+                backgroundColor: "#fee",
+                color: "#c00",
+                borderRadius: "4px",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          {/* Move list */}
+          <MoveList moves={game.moves} />
+
+          {/* Game actions */}
+          <GameActions gameId={gameId} playerColor={playerColor} />
+        </div>
       </div>
+
+      {/* Game over overlay */}
+      {showOverlay && (
+        <GameOverOverlay playerColor={playerColor} onDismiss={() => setShowOverlay(false)} />
+      )}
     </div>
   );
 }
