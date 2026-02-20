@@ -76,6 +76,8 @@ export interface GameState {
   result?: { winner?: PlayerColor; reason: GameStatus };
   createdAt: number;
   clockState?: ClockState;
+  clockWhiteRemaining?: number | null;
+  clockBlackRemaining?: number | null;
 }
 
 export interface CreateGameRequest {

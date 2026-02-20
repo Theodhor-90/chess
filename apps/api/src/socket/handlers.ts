@@ -10,9 +10,16 @@ import type {
 } from "@chess/shared";
 import type { TypedSocketServer } from "./index.js";
 import * as gameService from "../game/service.js";
+import * as store from "../game/store.js";
 import { GameError } from "../game/errors.js";
 import { getUserSockets } from "./connections.js";
-import { startClock, stopClock, switchClock, getClockState } from "../game/clock.js";
+import {
+  startClock,
+  stopClock,
+  switchClock,
+  getClockState,
+  getClockRemainingTimes,
+} from "../game/clock.js";
 
 type TypedSocket = Socket<
   ClientToServerEvents,
@@ -26,10 +33,10 @@ function buildClockStateForGame(game: GameState): ClockState {
   if (activeClock) {
     return activeClock;
   }
-  // Fallback: no active clock (game not started or already ended)
+  const initialMs = game.clock.initialTime * 1000;
   return {
-    white: game.clock.initialTime * 1000,
-    black: game.clock.initialTime * 1000,
+    white: game.clockWhiteRemaining ?? initialMs,
+    black: game.clockBlackRemaining ?? initialMs,
     activeColor: game.status === "active" ? game.currentTurn : null,
     lastUpdate: Date.now(),
   };
@@ -106,7 +113,11 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
 
     // Start clock if game is active and clock not yet running
     if (game.status === "active" && !getClockState(gameId)) {
-      startClock(gameId, game.clock, game.currentTurn, onTick, onTimeout);
+      const persisted =
+        game.clockWhiteRemaining != null && game.clockBlackRemaining != null
+          ? { white: game.clockWhiteRemaining, black: game.clockBlackRemaining }
+          : undefined;
+      startClock(gameId, game.clock, game.currentTurn, onTick, onTimeout, persisted);
     }
 
     const clockState = buildClockStateForGame(game);
@@ -194,6 +205,13 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     // Switch clock and get updated state
     const rtt = socket.data.rtt ?? 0;
     const clockFromSwitch = playerColor ? switchClock(gameId, playerColor, rtt) : null;
+    const remainingTimes = getClockRemainingTimes(gameId);
+    if (remainingTimes) {
+      store.updateGame(gameId, {
+        clockWhiteRemaining: remainingTimes.white,
+        clockBlackRemaining: remainingTimes.black,
+      });
+    }
 
     // If game ended on this move, stop the clock
     const isTerminal =

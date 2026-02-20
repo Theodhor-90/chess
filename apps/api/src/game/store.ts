@@ -35,6 +35,8 @@ function rowToGameState(row: GamesRow, movesRows: MovesRow[]): GameState {
     },
     drawOffer: (row.drawOffer as PlayerColor) ?? null,
     createdAt: row.createdAt,
+    clockWhiteRemaining: row.clockWhiteRemaining ?? null,
+    clockBlackRemaining: row.clockBlackRemaining ?? null,
   };
 
   if (row.resultReason !== null) {
@@ -110,6 +112,13 @@ export function updateGame(id: number, updates: Partial<GameState>): GameState {
   if (updates.result !== undefined) {
     setValues.resultWinner = updates.result.winner ?? null;
     setValues.resultReason = updates.result.reason;
+  }
+
+  if (updates.clockWhiteRemaining !== undefined) {
+    setValues.clockWhiteRemaining = updates.clockWhiteRemaining;
+  }
+  if (updates.clockBlackRemaining !== undefined) {
+    setValues.clockBlackRemaining = updates.clockBlackRemaining;
   }
 
   if (Object.keys(setValues).length > 0) {

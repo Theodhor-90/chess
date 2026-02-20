@@ -18,9 +18,7 @@ export const games = sqliteTable(
     status: text("status").notNull().default("waiting"),
     whitePlayerId: integer("white_player_id").references(() => users.id),
     blackPlayerId: integer("black_player_id").references(() => users.id),
-    fen: text("fen")
-      .notNull()
-      .default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+    fen: text("fen").notNull().default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
     pgn: text("pgn").notNull().default(""),
     currentTurn: text("current_turn").notNull().default("white"),
     clockInitialTime: integer("clock_initial_time").notNull().default(600),
@@ -28,6 +26,8 @@ export const games = sqliteTable(
     drawOffer: text("draw_offer"),
     resultWinner: text("result_winner"),
     resultReason: text("result_reason"),
+    clockWhiteRemaining: integer("clock_white_remaining"),
+    clockBlackRemaining: integer("clock_black_remaining"),
     createdAt: integer("created_at")
       .notNull()
       .default(sql`(unixepoch())`),
