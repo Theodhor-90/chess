@@ -19,6 +19,7 @@ describe("Auth enforcement", () => {
 
   const protectedEndpoints = [
     { method: "POST" as const, url: "/api/games", payload: {} },
+    { method: "GET" as const, url: "/api/games", payload: undefined },
     { method: "POST" as const, url: "/api/games/1/join", payload: { inviteToken: "x" } },
     { method: "GET" as const, url: "/api/games/1", payload: undefined },
     { method: "POST" as const, url: "/api/games/1/moves", payload: { from: "e2", to: "e4" } },
@@ -117,6 +118,146 @@ describe("GET /api/games/resolve/:inviteToken — Resolve invite", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().status).toBe("active");
+  });
+});
+
+describe("GET /api/games — List user games", () => {
+  let app: ReturnType<typeof buildApp>["app"];
+
+  beforeEach(() => {
+    ({ app } = buildApp());
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("returns 200 with empty array when user has no games", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("list-empty"));
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([]);
+  });
+
+  it("returns 200 with user's games", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("list-own"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie },
+      payload: {},
+    });
+    const { gameId } = createRes.json();
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie },
+    });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(body[0].status).toBe("waiting");
+    expect((body[0].players.white ? 1 : 0) + (body[0].players.black ? 1 : 0)).toBe(1);
+    expect(body[0].clock).toBeDefined();
+    expect(body[0].id).toBe(gameId);
+  });
+
+  it("returns only games the user participates in", async () => {
+    const { cookie: userACookie } = await registerAndLogin(app, uniqueEmail("list-user-a"));
+    const { cookie: userBCookie } = await registerAndLogin(app, uniqueEmail("list-user-b"));
+
+    const createResA = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie: userACookie },
+      payload: {},
+    });
+    const { gameId: gameIdA } = createResA.json();
+
+    await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie: userBCookie },
+      payload: {},
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: userACookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+    expect(res.json()[0].id).toBe(gameIdA);
+  });
+
+  it("returns games where user joined as opponent", async () => {
+    const { cookie: creatorCookie } = await registerAndLogin(app, uniqueEmail("list-creator"));
+    const { cookie: joinerCookie } = await registerAndLogin(app, uniqueEmail("list-joiner"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie: creatorCookie },
+      payload: {},
+    });
+    const { gameId, inviteToken } = createRes.json();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/games/${gameId}/join`,
+      headers: { cookie: joinerCookie },
+      payload: { inviteToken },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie: joinerCookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toHaveLength(1);
+    expect(res.json()[0].status).toBe("active");
+  });
+
+  it("returns 401 without session cookie", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toEqual({ error: "Unauthorized" });
+  });
+
+  it("does not include inviteToken in response", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("list-no-private-fields"));
+    await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie },
+      payload: {},
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games",
+      headers: { cookie },
+    });
+
+    expect(res.json()[0]).not.toHaveProperty("inviteToken");
+    expect(res.json()[0]).not.toHaveProperty("fen");
+    expect(res.json()[0]).not.toHaveProperty("pgn");
+    expect(res.json()[0]).not.toHaveProperty("moves");
   });
 });
 

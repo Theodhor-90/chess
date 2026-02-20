@@ -9,6 +9,7 @@ import type {
   MoveResponse,
   ErrorResponse,
   ResolveInviteResponse,
+  GameListResponse,
 } from "@chess/shared";
 import * as gameService from "./service.js";
 import { GameError, type GameErrorCode } from "./errors.js";
@@ -97,6 +98,15 @@ async function gameRoutes(app: FastifyInstance) {
       } catch (err) {
         return handleGameError(err, reply);
       }
+    },
+  );
+
+  app.get<{ Reply: GameListResponse | ErrorResponse }>(
+    "/",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const games = gameService.getUserGames(request.userId!);
+      return reply.code(200).send(games);
     },
   );
 

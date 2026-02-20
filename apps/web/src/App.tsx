@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router";
 import { Provider } from "react-redux";
 import { store } from "./store/index.js";
-import Board from "./components/Board.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { RegisterPage } from "./pages/RegisterPage.js";
 import { AuthGate } from "./components/AuthGate.js";
 import { GamePage } from "./pages/GamePage.js";
 import { ProtectedRoute } from "./components/ProtectedRoute.js";
+import { DashboardPage } from "./pages/DashboardPage.js";
 
 export function AppRoutes() {
   return (
@@ -25,10 +25,7 @@ export function AppRoutes() {
         path="/"
         element={
           <ProtectedRoute>
-            <div>
-              <h1>Chess Platform</h1>
-              <Board />
-            </div>
+            <DashboardPage />
           </ProtectedRoute>
         }
       />

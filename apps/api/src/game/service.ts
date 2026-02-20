@@ -1,5 +1,12 @@
 import { Chess, type Move } from "chess.js";
-import type { GameState, ClockConfig, MoveRequest, MoveResponse, PlayerColor } from "@chess/shared";
+import type {
+  GameState,
+  GameListItem,
+  ClockConfig,
+  MoveRequest,
+  MoveResponse,
+  PlayerColor,
+} from "@chess/shared";
 import * as store from "./store.js";
 import { GameError } from "./errors.js";
 
@@ -184,6 +191,18 @@ export function resolveInviteToken(inviteToken: string): {
     throw new GameError("GAME_NOT_FOUND", "Invalid invite token");
   }
   return { gameId: game.id, status: game.status };
+}
+
+export function getUserGames(userId: number): GameListItem[] {
+  const games = store.getGamesByUserId(userId);
+  return games.map((game) => ({
+    id: game.id,
+    status: game.status,
+    players: game.players,
+    clock: game.clock,
+    result: game.result,
+    createdAt: game.createdAt,
+  }));
 }
 
 export function timeoutGame(gameId: number, timedOutColor: PlayerColor): GameState {

@@ -97,6 +97,7 @@ describe("LoginPage", () => {
   it("calls login and navigates to home on success", async () => {
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess([]);
     const store = createTestStore();
     render(
       <Provider store={store}>
@@ -177,6 +178,7 @@ describe("RegisterPage", () => {
   it("calls register and navigates to home on success", async () => {
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } }, 201);
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess([]);
     const store = createTestStore();
     render(
       <Provider store={store}>
@@ -368,6 +370,7 @@ describe("App routing (via AppRoutes)", () => {
 
   it("renders home page at / when authenticated", async () => {
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess([]);
     renderWithProviders(<AppRoutes />, { route: "/" });
     await waitFor(() => {
       expect(screen.getByText("Chess Platform")).toBeInTheDocument();
