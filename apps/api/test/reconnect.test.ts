@@ -11,6 +11,8 @@ import {
 import type { TypedSocketServer } from "../src/socket/index.js";
 import type { AddressInfo } from "node:net";
 import type { ServerToClientEvents } from "@chess/shared";
+import * as store from "../src/game/store.js";
+import { stopClock, getClockState } from "../src/game/clock.js";
 
 function canBindLoopback(): boolean {
   const probe = spawnSync(
@@ -124,6 +126,20 @@ socketDescribe("Reconnection scenarios", () => {
     const blackCookie = creatorColor === "white" ? cookieB : cookieA;
 
     return { gameId, whiteSocket, blackSocket, whiteCookie, blackCookie };
+  }
+
+  async function makeMove(
+    moverSocket: TypedClientSocket,
+    otherSocket: TypedClientSocket,
+    gameId: number,
+    from: string,
+    to: string,
+    moveNumber: number,
+  ): Promise<void> {
+    const p1 = waitForEvent(moverSocket, "moveMade");
+    const p2 = waitForEvent(otherSocket, "moveMade");
+    moverSocket.emit("move", { gameId, from, to, moveNumber });
+    await Promise.all([p1, p2]);
   }
 
   it("reconnecting player re-joins room and receives correct gameState", async () => {
@@ -265,5 +281,222 @@ socketDescribe("Reconnection scenarios", () => {
     expect([ackOne, ackTwo]).toContainEqual({ ok: false, error: "duplicate" });
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(moveMadeCount).toBe(1);
+  });
+
+  it("Scenario 1: full reconnect — player B disconnects, A moves, B reconnects and receives updated state", async () => {
+    const { gameId, whiteSocket, blackSocket, blackCookie } = await setupGame();
+
+    // Both players make some initial moves
+    await makeMove(whiteSocket, blackSocket, gameId, "e2", "e4", 0);
+    await makeMove(blackSocket, whiteSocket, gameId, "e7", "e5", 1);
+
+    // Player B (black) disconnects
+    blackSocket.disconnect();
+    const blackIdx = sockets.indexOf(blackSocket);
+    if (blackIdx >= 0) sockets.splice(blackIdx, 1);
+
+    // Player A (white) makes a move while B is disconnected
+    // Since black is disconnected, we can't wait for moveMade on blackSocket.
+    // Instead, use an ack callback to confirm the move was accepted.
+    const ackPromise = new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      whiteSocket.emit("move", { gameId, from: "d2", to: "d4", moveNumber: 2 }, resolve);
+    });
+    const ack = await ackPromise;
+    expect(ack.ok).toBe(true);
+
+    // Player B reconnects with a new socket
+    const reconnSocket = createSocketClient(port, blackCookie);
+    sockets.push(reconnSocket);
+    await waitForConnect(reconnSocket);
+
+    // B re-joins the room
+    const statePromise = waitForEvent(reconnSocket, "gameState");
+    reconnSocket.emit("joinRoom", { gameId });
+    const state = await statePromise;
+
+    // B should see the updated FEN that includes white's d4 move
+    // After 1.e4 e5 2.d4, the FEN is:
+    expect(state.fen).toBe("rnbqkbnr/pppp1ppp/8/4p3/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2");
+    expect(state.status).toBe("active");
+    expect(state.moves).toContain("e4");
+    expect(state.moves).toContain("e5");
+    expect(state.moves).toContain("d4");
+    expect(state.moves).toHaveLength(3);
+
+    // Verify clock state is included and reasonable
+    const clock = state.clock as { white: number; black: number; activeColor: string | null };
+    expect(clock.white).toBeGreaterThan(0);
+    expect(clock.black).toBeGreaterThan(0);
+    expect(clock.activeColor).toBe("black");
+  });
+
+  it("Scenario 2: clock accuracy — after 3 moves, disconnect and reconnect, clock values match persisted", async () => {
+    const { gameId, whiteSocket, blackSocket, blackCookie } = await setupGame();
+
+    // Play 3 moves (clock switches 3 times)
+    await makeMove(whiteSocket, blackSocket, gameId, "e2", "e4", 0);
+    await makeMove(blackSocket, whiteSocket, gameId, "e7", "e5", 1);
+    await makeMove(whiteSocket, blackSocket, gameId, "d2", "d4", 2);
+
+    // Read persisted clock values from DB
+    const gameAfterMoves = store.getGame(gameId);
+    expect(gameAfterMoves).toBeDefined();
+    const persistedWhite = gameAfterMoves!.clockWhiteRemaining;
+    const persistedBlack = gameAfterMoves!.clockBlackRemaining;
+    expect(persistedWhite).not.toBeNull();
+    expect(persistedBlack).not.toBeNull();
+
+    // Player B disconnects
+    blackSocket.disconnect();
+    const blackIdx = sockets.indexOf(blackSocket);
+    if (blackIdx >= 0) sockets.splice(blackIdx, 1);
+
+    // Player B reconnects
+    const reconnSocket = createSocketClient(port, blackCookie);
+    sockets.push(reconnSocket);
+    await waitForConnect(reconnSocket);
+
+    const statePromise = waitForEvent(reconnSocket, "gameState");
+    reconnSocket.emit("joinRoom", { gameId });
+    const state = await statePromise;
+
+    // Verify clock state matches persisted values within tolerance
+    // The in-memory clock is still running (not cleared), so values may have drifted
+    // slightly from the persisted snapshot. Allow 200ms tolerance.
+    const clock = state.clock as { white: number; black: number };
+    expect(clock.white).toBeGreaterThan(0);
+    expect(clock.black).toBeGreaterThan(0);
+    // White made 2 moves, black made 1. Both should have less than 60000ms.
+    expect(clock.white).toBeLessThan(60000);
+    expect(clock.black).toBeLessThan(60000);
+    // Values should be close to persisted values (within 500ms for test timing margin)
+    expect(Math.abs(clock.white - persistedWhite!)).toBeLessThan(500);
+    expect(Math.abs(clock.black - persistedBlack!)).toBeLessThan(500);
+  });
+
+  it("Scenario 3: server restart simulation — in-memory clock cleared, reconnect uses persisted times", async () => {
+    const { gameId, whiteSocket, blackSocket, whiteCookie } = await setupGame();
+
+    // Play several moves
+    await makeMove(whiteSocket, blackSocket, gameId, "e2", "e4", 0);
+    await makeMove(blackSocket, whiteSocket, gameId, "e7", "e5", 1);
+    await makeMove(whiteSocket, blackSocket, gameId, "d2", "d4", 2);
+
+    // Read persisted clock values from the database
+    const gameFromDb = store.getGame(gameId);
+    expect(gameFromDb).toBeDefined();
+    const persistedWhite = gameFromDb!.clockWhiteRemaining!;
+    const persistedBlack = gameFromDb!.clockBlackRemaining!;
+    expect(persistedWhite).toBeGreaterThan(0);
+    expect(persistedBlack).toBeGreaterThan(0);
+    expect(persistedWhite).toBeLessThan(60000);
+
+    // Simulate server restart: clear the in-memory clock
+    stopClock(gameId);
+    expect(getClockState(gameId)).toBeNull();
+
+    // Disconnect all sockets
+    whiteSocket.disconnect();
+    blackSocket.disconnect();
+    const whiteIdx = sockets.indexOf(whiteSocket);
+    if (whiteIdx >= 0) sockets.splice(whiteIdx, 1);
+    const blackIdx = sockets.indexOf(blackSocket);
+    if (blackIdx >= 0) sockets.splice(blackIdx, 1);
+
+    // Player reconnects with a new socket
+    const reconnSocket = createSocketClient(port, whiteCookie);
+    sockets.push(reconnSocket);
+    await waitForConnect(reconnSocket);
+
+    const statePromise = waitForEvent(reconnSocket, "gameState");
+    reconnSocket.emit("joinRoom", { gameId });
+    const state = await statePromise;
+
+    // Verify the server started a new clock using persisted remaining times
+    const clock = state.clock as { white: number; black: number; activeColor: string | null };
+
+    // Clock should NOT be the initial 60000ms — it should match persisted values
+    expect(clock.white).toBeLessThan(60000);
+    expect(clock.black).toBeLessThan(60000);
+
+    // Values should match persisted times closely (within 200ms since a new clock was just started)
+    expect(Math.abs(clock.white - persistedWhite)).toBeLessThan(200);
+    expect(Math.abs(clock.black - persistedBlack)).toBeLessThan(200);
+
+    // Clock should be active (game was active, joinRoom restarts clock)
+    expect(clock.activeColor).toBe("black"); // It's black's turn after 3 moves
+  });
+
+  it("Scenario 4: duplicate move after reconnect — same moveNumber is rejected as duplicate", async () => {
+    const { gameId, whiteSocket, blackSocket, whiteCookie } = await setupGame();
+
+    // Player A sends move with correct moveNumber, receives ok ack
+    const movePromise = waitForEvent(blackSocket, "moveMade");
+    const firstAck = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 }, resolve);
+    });
+    await movePromise;
+    expect(firstAck.ok).toBe(true);
+
+    // Player A disconnects
+    whiteSocket.disconnect();
+    const whiteIdx = sockets.indexOf(whiteSocket);
+    if (whiteIdx >= 0) sockets.splice(whiteIdx, 1);
+
+    // Track if black receives any additional moveMade events
+    let extraMoveMadeCount = 0;
+    blackSocket.on("moveMade", () => {
+      extraMoveMadeCount++;
+    });
+
+    // Player A reconnects with a new socket
+    const reconnSocket = createSocketClient(port, whiteCookie);
+    sockets.push(reconnSocket);
+    await waitForConnect(reconnSocket);
+
+    // Re-join the room
+    const statePromise = waitForEvent(reconnSocket, "gameState");
+    reconnSocket.emit("joinRoom", { gameId });
+    await statePromise;
+
+    // Player A re-sends the same move with the same moveNumber (simulating retry)
+    const duplicateAck = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      reconnSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 }, resolve);
+    });
+
+    // Verify ack is duplicate rejection
+    expect(duplicateAck.ok).toBe(false);
+    expect(duplicateAck.error).toBe("duplicate");
+
+    // Verify no second moveMade event is broadcast
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(extraMoveMadeCount).toBe(0);
+  });
+
+  it("Scenario 5: opponent disconnect/reconnect visibility — A sees B disconnect and reconnect", async () => {
+    const { gameId, whiteSocket, blackSocket, blackCookie } = await setupGame();
+
+    // Player B disconnects → Player A receives opponentDisconnected
+    const disconnectedPromise = waitForEvent(whiteSocket, "opponentDisconnected");
+    blackSocket.disconnect();
+    const blackIdx = sockets.indexOf(blackSocket);
+    if (blackIdx >= 0) sockets.splice(blackIdx, 1);
+
+    const disconnectedData = await disconnectedPromise;
+    expect(disconnectedData).toBeDefined();
+
+    // Player B reconnects with a new socket and re-joins
+    const reconnSocket = createSocketClient(port, blackCookie);
+    sockets.push(reconnSocket);
+    await waitForConnect(reconnSocket);
+
+    const reconnectedPromise = waitForEvent(whiteSocket, "opponentReconnected");
+    const statePromise = waitForEvent(reconnSocket, "gameState");
+    reconnSocket.emit("joinRoom", { gameId });
+    await statePromise;
+
+    // Player A receives opponentReconnected
+    const reconnectedData = await reconnectedPromise;
+    expect(reconnectedData).toBeDefined();
   });
 });
