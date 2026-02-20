@@ -88,6 +88,10 @@ function setupSocketListeners(
 
   socket.on("connect", () => {
     dispatch(setConnectionStatus("connected"));
+    const { activeGameId } = getState().game;
+    if (activeGameId !== null) {
+      socket.emit("joinRoom", { gameId: activeGameId });
+    }
   });
 
   socket.on("disconnect", () => {

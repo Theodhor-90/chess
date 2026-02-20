@@ -136,6 +136,40 @@ describe("socketMiddleware", () => {
       expect(store.getState().game.connectionStatus).toBe("connected");
       expect(mockOn).not.toHaveBeenCalled();
     });
+
+    it("emits joinRoom when connect fires and activeGameId is set", () => {
+      const store = createTestStore();
+      mockSocket.connected = false;
+      store.dispatch(socketActions.connect());
+
+      const gameCallback = getEventCallback("gameState");
+      gameCallback!(makeFakeGameState());
+      expect(store.getState().game.activeGameId).toBe(1);
+
+      mockEmit.mockClear();
+
+      const connectCallback = getEventCallback("connect");
+      connectCallback!();
+
+      expect(store.getState().game.connectionStatus).toBe("connected");
+      expect(mockEmit).toHaveBeenCalledWith("joinRoom", { gameId: 1 });
+    });
+
+    it("does not emit joinRoom when connect fires and activeGameId is null", () => {
+      const store = createTestStore();
+      mockSocket.connected = false;
+      store.dispatch(socketActions.connect());
+
+      expect(store.getState().game.activeGameId).toBeNull();
+
+      mockEmit.mockClear();
+
+      const connectCallback = getEventCallback("connect");
+      connectCallback!();
+
+      expect(store.getState().game.connectionStatus).toBe("connected");
+      expect(mockEmit).not.toHaveBeenCalled();
+    });
   });
 
   describe("socket/disconnect", () => {
