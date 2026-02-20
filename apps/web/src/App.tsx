@@ -6,20 +6,30 @@ import { LoginPage } from "./pages/LoginPage.js";
 import { RegisterPage } from "./pages/RegisterPage.js";
 import { AuthGate } from "./components/AuthGate.js";
 import { GamePage } from "./pages/GamePage.js";
+import { ProtectedRoute } from "./components/ProtectedRoute.js";
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/game/:id" element={<GamePage />} />
+      <Route
+        path="/game/:id"
+        element={
+          <ProtectedRoute>
+            <GamePage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/"
         element={
-          <div>
-            <h1>Chess Platform</h1>
-            <Board />
-          </div>
+          <ProtectedRoute>
+            <div>
+              <h1>Chess Platform</h1>
+              <Board />
+            </div>
+          </ProtectedRoute>
         }
       />
     </Routes>

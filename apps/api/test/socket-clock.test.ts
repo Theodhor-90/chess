@@ -74,7 +74,10 @@ function collectEvents<K extends keyof ServerToClientEvents>(
   return new Promise((resolve, reject) => {
     const results: Array<Parameters<ServerToClientEvents[K]>[0]> = [];
     const timer = setTimeout(
-      () => reject(new Error(`Timed out collecting ${count} "${event}" events (got ${results.length})`)),
+      () =>
+        reject(
+          new Error(`Timed out collecting ${count} "${event}" events (got ${results.length})`),
+        ),
       timeoutMs,
     );
     socket.on(event, (data) => {

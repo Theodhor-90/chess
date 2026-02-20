@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useLoginMutation } from "../store/apiSlice.js";
 import { useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,7 +17,8 @@ export function LoginPage() {
     try {
       await login({ email, password }).unwrap();
       dispatch(socketActions.connect());
-      navigate("/");
+      const redirect = searchParams.get("redirect");
+      navigate(redirect || "/");
     } catch {
       // Error is captured in the `error` field from useLoginMutation
     }
@@ -59,7 +61,16 @@ export function LoginPage() {
         </button>
       </form>
       <p>
-        Don&apos;t have an account? <Link to="/register">Register</Link>
+        Don&apos;t have an account?{" "}
+        <Link
+          to={
+            searchParams.get("redirect")
+              ? `/register?redirect=${searchParams.get("redirect")}`
+              : "/register"
+          }
+        >
+          Register
+        </Link>
       </p>
     </div>
   );

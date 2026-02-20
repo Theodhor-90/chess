@@ -102,6 +102,11 @@ export interface MoveResponse {
   result?: GameState["result"];
 }
 
+export interface ResolveInviteResponse {
+  gameId: number;
+  status: GameStatus;
+}
+
 // ---------------------------------------------------------------------------
 // Socket.io event types (Phase 2.1)
 // ---------------------------------------------------------------------------

@@ -36,6 +36,90 @@ describe("Auth enforcement", () => {
   }
 });
 
+describe("GET /api/games/resolve/:inviteToken — Resolve invite", () => {
+  let app: ReturnType<typeof buildApp>["app"];
+
+  beforeEach(() => {
+    ({ app } = buildApp());
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("returns 200 with gameId and status for valid token", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("resolve-valid"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie },
+      payload: {},
+    });
+    const { gameId, inviteToken } = createRes.json();
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/games/resolve/${inviteToken}`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().gameId).toBe(gameId);
+    expect(res.json().status).toBe("waiting");
+  });
+
+  it("returns 404 for invalid token", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/games/resolve/00000000-0000-0000-0000-000000000000",
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: "Invalid invite token" });
+  });
+
+  it("does not require authentication", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("resolve-no-auth"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie },
+      payload: {},
+    });
+    const { inviteToken } = createRes.json();
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/games/resolve/${inviteToken}`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().gameId).toEqual(expect.any(Number));
+  });
+
+  it("returns correct status after game is joined", async () => {
+    const { cookie: creatorCookie } = await registerAndLogin(app, uniqueEmail("resolve-creator"));
+    const { cookie: joinerCookie } = await registerAndLogin(app, uniqueEmail("resolve-joiner"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/games",
+      headers: { cookie: creatorCookie },
+      payload: {},
+    });
+    const { gameId, inviteToken } = createRes.json();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/games/${gameId}/join`,
+      headers: { cookie: joinerCookie },
+      payload: { inviteToken },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/games/resolve/${inviteToken}`,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("active");
+  });
+});
+
 describe("POST /api/games — Create game", () => {
   let app: ReturnType<typeof buildApp>["app"];
 

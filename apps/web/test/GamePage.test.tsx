@@ -240,7 +240,7 @@ describe("MoveList", () => {
 });
 
 describe("GamePage", () => {
-  it("shows loading state when no game is loaded", () => {
+  it("shows loading state when no game is loaded", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -249,10 +249,12 @@ describe("GamePage", () => {
     );
 
     renderWithStore(<AppRoutes />, { route: "/game/42" });
-    expect(screen.getByTestId("loading")).toHaveTextContent("Loading game...");
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("Loading game...");
+    });
   });
 
-  it("renders game board and clocks when game is loaded", () => {
+  it("renders game board and clocks when game is loaded", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -265,7 +267,9 @@ describe("GamePage", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/42", store });
 
-    expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
     expect(screen.getAllByTestId("clock")).toHaveLength(2);
     expect(screen.getByTestId("move-list")).toBeInTheDocument();
   });
@@ -294,7 +298,7 @@ describe("GamePage", () => {
     });
   });
 
-  it("displays game status", () => {
+  it("displays game status", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -307,10 +311,12 @@ describe("GamePage", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/42", store });
 
-    expect(screen.getByText(/active/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/active/)).toBeInTheDocument();
+    });
   });
 
-  it("displays move list with correct moves", () => {
+  it("displays move list with correct moves", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -323,11 +329,11 @@ describe("GamePage", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/42", store });
 
-    const moveList = screen.getByTestId("move-list");
+    const moveList = await waitFor(() => screen.getByTestId("move-list"));
     expect(moveList).toHaveTextContent("e4");
   });
 
-  it("shows error message from Redux state", () => {
+  it("shows error message from Redux state", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -341,10 +347,12 @@ describe("GamePage", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/42", store });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Illegal move");
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Illegal move");
+    });
   });
 
-  it("shows invalid game ID message for non-numeric ID", () => {
+  it("shows invalid game ID message for non-numeric ID", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -354,10 +362,12 @@ describe("GamePage", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/abc" });
 
-    expect(screen.getByText("Invalid game ID")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Invalid game ID")).toBeInTheDocument();
+    });
   });
 
-  it("dispatches clearGame on unmount", () => {
+  it("dispatches clearGame on unmount", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -369,7 +379,9 @@ describe("GamePage", () => {
     store.dispatch(setGameState(makeFakeGameState()));
 
     const { unmount } = renderWithStore(<AppRoutes />, { route: "/game/42", store });
-
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
     expect(store.getState().game.currentGame).not.toBeNull();
     unmount();
     expect(store.getState().game.currentGame).toBeNull();
@@ -377,7 +389,7 @@ describe("GamePage", () => {
 });
 
 describe("App routing includes /game/:id", () => {
-  it("renders GamePage at /game/42", () => {
+  it("renders GamePage at /game/42", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -387,8 +399,9 @@ describe("App routing includes /game/:id", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/42" });
 
-    // GamePage shows loading state when no game is loaded
-    expect(screen.getByTestId("loading")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toBeInTheDocument();
+    });
   });
 });
 

@@ -175,6 +175,17 @@ export function getGame(gameId: number): GameState {
   return game;
 }
 
+export function resolveInviteToken(inviteToken: string): {
+  gameId: number;
+  status: GameState["status"];
+} {
+  const game = store.getGameByInviteToken(inviteToken);
+  if (!game) {
+    throw new GameError("GAME_NOT_FOUND", "Invalid invite token");
+  }
+  return { gameId: game.id, status: game.status };
+}
+
 export function timeoutGame(gameId: number, timedOutColor: PlayerColor): GameState {
   const game = store.getGame(gameId);
   if (!game) {
