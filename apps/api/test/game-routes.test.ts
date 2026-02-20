@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildApp } from "../src/server.js";
-import { ensureUsersTable, uniqueEmail, registerAndLogin, createAndJoinGame } from "./helpers.js";
+import { ensureSchema, uniqueEmail, registerAndLogin, createAndJoinGame } from "./helpers.js";
 
 beforeAll(() => {
-  ensureUsersTable();
+  ensureSchema();
 });
 
 describe("Auth enforcement", () => {

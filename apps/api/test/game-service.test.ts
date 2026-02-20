@@ -1,7 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import * as gameService from "../src/game/service.js";
 import * as store from "../src/game/store.js";
 import { GameError } from "../src/game/errors.js";
+import { ensureSchema } from "./helpers.js";
+
+beforeAll(() => {
+  ensureSchema();
+});
 
 describe("Game Creation", () => {
   it("creates a game in waiting status with valid FEN", () => {

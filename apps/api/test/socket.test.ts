@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { spawnSync } from "node:child_process";
 import { buildApp } from "../src/server.js";
 import {
-  ensureUsersTable,
+  ensureSchema,
   uniqueEmail,
   registerAndLogin,
   createAndJoinGame,
@@ -28,7 +28,7 @@ function canBindLoopback(): boolean {
 const socketDescribe = canBindLoopback() ? describe : describe.skip;
 
 beforeAll(() => {
-  ensureUsersTable();
+  ensureSchema();
 });
 
 function waitForEvent<K extends keyof ServerToClientEvents>(
