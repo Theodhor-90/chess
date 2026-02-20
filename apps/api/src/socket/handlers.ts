@@ -7,6 +7,7 @@ import type {
   GameState,
   PlayerColor,
   MoveResponse,
+  MoveAck,
 } from "@chess/shared";
 import type { TypedSocketServer } from "./index.js";
 import * as gameService from "../game/service.js";
@@ -186,7 +187,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     }
   });
 
-  socket.on("move", (data) => {
+  socket.on("move", (data, ack?: (response: MoveAck) => void) => {
     const userId = socket.data.userId;
     const { gameId, from, to, promotion } = data;
     const roomName = `game:${gameId}`;
@@ -196,6 +197,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       game = gameService.getGame(gameId);
     } catch (err) {
       if (err instanceof GameError) {
+        ack?.({ ok: false, error: err.message });
         socket.emit("error", { message: err.message });
         return;
       }
@@ -205,12 +207,22 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     const hadDrawOffer = game.drawOffer !== null;
     const drawOfferBy = game.drawOffer;
     const playerColor = getPlayerColor(game, userId);
+    const serverMoveCount = game.moves.length;
+    if (data.moveNumber < serverMoveCount) {
+      ack?.({ ok: false, error: "duplicate" });
+      return;
+    }
+    if (data.moveNumber > serverMoveCount) {
+      ack?.({ ok: false, error: "Move out of sync" });
+      return;
+    }
 
     let moveResult: MoveResponse;
     try {
       moveResult = gameService.makeMove(gameId, userId, { from, to, promotion });
     } catch (err) {
       if (err instanceof GameError) {
+        ack?.({ ok: false, error: err.message });
         socket.emit("error", { message: err.message });
         return;
       }
@@ -252,6 +264,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       ...(moveResult.result ? { result: moveResult.result } : {}),
       clock: clockState,
     });
+    ack?.({ ok: true });
 
     if (isTerminal) {
       io.to(roomName).emit("gameOver", {

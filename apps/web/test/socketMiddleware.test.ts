@@ -197,19 +197,28 @@ describe("socketMiddleware", () => {
     it("socket/sendMove emits move event and sets optimistic move", () => {
       const store = createTestStore();
       store.dispatch(socketActions.sendMove({ gameId: 1, from: "e2", to: "e4" }));
-      expect(mockEmit).toHaveBeenCalledWith("move", { gameId: 1, from: "e2", to: "e4" });
+      expect(mockEmit).toHaveBeenCalledWith(
+        "move",
+        { gameId: 1, from: "e2", to: "e4", moveNumber: 0 },
+        expect.any(Function),
+      );
       expect(store.getState().game.pendingMove).toEqual({ from: "e2", to: "e4" });
     });
 
     it("socket/sendMove includes promotion when provided", () => {
       const store = createTestStore();
       store.dispatch(socketActions.sendMove({ gameId: 1, from: "e7", to: "e8", promotion: "q" }));
-      expect(mockEmit).toHaveBeenCalledWith("move", {
-        gameId: 1,
-        from: "e7",
-        to: "e8",
-        promotion: "q",
-      });
+      expect(mockEmit).toHaveBeenCalledWith(
+        "move",
+        {
+          gameId: 1,
+          from: "e7",
+          to: "e8",
+          promotion: "q",
+          moveNumber: 0,
+        },
+        expect.any(Function),
+      );
       expect(store.getState().game.pendingMove).toEqual({
         from: "e7",
         to: "e8",

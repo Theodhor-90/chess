@@ -62,6 +62,11 @@ export interface ClockState {
   lastUpdate: number; // server timestamp in ms (Date.now()) for client interpolation
 }
 
+export interface MoveAck {
+  ok: boolean;
+  error?: string;
+}
+
 export interface GameState {
   id: number;
   inviteToken: string;
@@ -127,7 +132,10 @@ export type GameListResponse = GameListItem[];
 export interface ClientToServerEvents {
   joinRoom: (data: { gameId: number }) => void;
   leaveRoom: (data: { gameId: number }) => void;
-  move: (data: { gameId: number; from: string; to: string; promotion?: string }) => void;
+  move: (
+    data: { gameId: number; from: string; to: string; promotion?: string; moveNumber: number },
+    ack?: (response: MoveAck) => void,
+  ) => void;
   resign: (data: { gameId: number }) => void;
   offerDraw: (data: { gameId: number }) => void;
   acceptDraw: (data: { gameId: number }) => void;

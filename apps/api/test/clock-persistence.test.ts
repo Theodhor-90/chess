@@ -197,7 +197,7 @@ socketDescribe("Clock persistence via socket", () => {
     expect(beforeGame!.clockBlackRemaining).toBeNull();
 
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     const afterGame = store.getGame(gameId);
@@ -213,7 +213,7 @@ socketDescribe("Clock persistence via socket", () => {
     const { gameId, whiteSocket, blackSocket } = await setupGame();
 
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     const afterMove = store.getGame(gameId);
@@ -232,7 +232,7 @@ socketDescribe("Clock persistence via socket", () => {
     const { gameId, whiteSocket, blackSocket, whiteCookie } = await setupGame();
 
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     const afterMove = store.getGame(gameId);
@@ -261,7 +261,7 @@ socketDescribe("Clock persistence via socket", () => {
     const { gameId, whiteSocket, blackSocket } = await setupGame();
 
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     const afterMove = store.getGame(gameId);
@@ -288,7 +288,7 @@ socketDescribe("Clock persistence via socket", () => {
     });
 
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     const gameOverW = waitForEvent(whiteSocket, "gameOver", 5000);
@@ -308,7 +308,7 @@ socketDescribe("Clock persistence via socket", () => {
     const { gameId, whiteSocket, blackSocket } = await setupGame();
 
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     const drawOfferedW = waitForEvent(whiteSocket, "drawOffered");
