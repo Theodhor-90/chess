@@ -164,7 +164,7 @@ socketDescribe("Socket.io + Clock integration", () => {
     // White makes a move — e2e4
     const moveMadePromiseW = waitForEvent(whiteSocket, "moveMade");
     const moveMadePromiseB = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
 
     const [moveDataW, moveDataB] = await Promise.all([moveMadePromiseW, moveMadePromiseB]);
 
@@ -188,7 +188,7 @@ socketDescribe("Socket.io + Clock integration", () => {
 
     // White plays e4
     const movePromise1 = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     const move1 = await movePromise1;
 
     // White's time should be less than initial + increment (deduction is at least 100ms)
@@ -201,7 +201,7 @@ socketDescribe("Socket.io + Clock integration", () => {
 
     // Black plays e5
     const movePromise2 = waitForEvent(whiteSocket, "moveMade");
-    blackSocket.emit("move", { gameId, from: "e7", to: "e5" });
+    blackSocket.emit("move", { gameId, from: "e7", to: "e5", moveNumber: 1 });
     const move2 = await movePromise2;
 
     // Black's time should now be less than initial (minus at least 100ms) + increment
@@ -220,7 +220,7 @@ socketDescribe("Socket.io + Clock integration", () => {
 
     // White makes a move to start the clock ticking for black
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     // Collect 2 clockUpdate events (should arrive ~1s apart)
@@ -242,7 +242,7 @@ socketDescribe("Socket.io + Clock integration", () => {
 
     // White makes a move — now black has ~1s on clock
     const movePromise = waitForEvent(blackSocket, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await movePromise;
 
     // Wait for gameOver event (black's clock should expire in ~1 second)

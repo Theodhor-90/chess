@@ -161,7 +161,7 @@ socketDescribe("Reconnection scenarios", () => {
     reconnSocket.emit("joinRoom", { gameId });
     const state = await statePromise;
 
-    expect(state.fen).toBe("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+    expect(state.fen).toBe("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
     expect(state.status).toBe("active");
   });
 
@@ -183,7 +183,7 @@ socketDescribe("Reconnection scenarios", () => {
     reconnSocket.emit("joinRoom", { gameId });
     const state = await statePromise;
 
-    expect(state.fen).toBe("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+    expect(state.fen).toBe("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
     expect(state.moves).toContain("e4");
   });
 
@@ -316,7 +316,7 @@ socketDescribe("Reconnection scenarios", () => {
 
     // B should see the updated FEN that includes white's d4 move
     // After 1.e4 e5 2.d4, the FEN is:
-    expect(state.fen).toBe("rnbqkbnr/pppp1ppp/8/4p3/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2");
+    expect(state.fen).toBe("rnbqkbnr/pppp1ppp/8/4p3/3PP3/8/PPP2PPP/RNBQKBNR b KQkq - 0 2");
     expect(state.status).toBe("active");
     expect(state.moves).toContain("e4");
     expect(state.moves).toContain("e5");
