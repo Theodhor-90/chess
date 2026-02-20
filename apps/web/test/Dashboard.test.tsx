@@ -4,31 +4,32 @@ import { MemoryRouter } from "react-router";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { apiSlice } from "../src/store/apiSlice.js";
-import { gameReducer } from "../src/store/gameSlice.js";
+import { gameReducer, setError, setGameState } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { DashboardPage } from "../src/pages/DashboardPage.js";
 import { CreateGameForm } from "../src/components/CreateGameForm.js";
 import { InviteLink } from "../src/components/InviteLink.js";
 import { GameList } from "../src/components/GameList.js";
+import type { ClockConfig, ClockState, GameState } from "@chess/shared";
+
+const mockSocket = {
+  on: vi.fn(),
+  emit: vi.fn(),
+  connected: true,
+  disconnect: vi.fn(),
+};
 
 vi.mock("../src/socket.js", () => ({
-  connectSocket: vi.fn(() => ({
-    on: vi.fn(),
-    emit: vi.fn(),
-    connected: true,
-    disconnect: vi.fn(),
-  })),
+  connectSocket: vi.fn(() => mockSocket),
   disconnectSocket: vi.fn(),
-  getSocket: vi.fn(() => ({
-    on: vi.fn(),
-    emit: vi.fn(),
-    connected: true,
-    disconnect: vi.fn(),
-  })),
+  getSocket: vi.fn(() => mockSocket),
 }));
 
 afterEach(() => {
   cleanup();
+  mockSocket.on.mockClear();
+  mockSocket.emit.mockClear();
+  mockSocket.disconnect.mockClear();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -81,6 +82,31 @@ function mockFetchPending() {
         // Intentionally unresolved to keep request loading.
       }),
   );
+}
+
+function makeWaitingGameState(gameId: number): GameState & { clock: ClockState } {
+  return {
+    id: gameId,
+    inviteToken: "tok-123",
+    status: "waiting",
+    players: {
+      white: { userId: 1, color: "white" },
+    },
+    fen: "startpos",
+    pgn: "",
+    moves: [],
+    currentTurn: "white",
+    clock: {
+      initialTime: 600,
+      increment: 0,
+      white: 600000,
+      black: 600000,
+      activeColor: "white",
+      lastUpdate: Date.now(),
+    } as ClockConfig & ClockState,
+    drawOffer: null,
+    createdAt: 1700000000,
+  };
 }
 
 describe("CreateGameForm", () => {
@@ -281,13 +307,13 @@ describe("DashboardPage", () => {
     expect((screen.getByTestId("invite-url") as HTMLInputElement).value).toContain("/join/tok-123");
   });
 
-  it("cancel from waiting screen returns to form", async () => {
+  it("cancel waits for abort result before returning to form", async () => {
     mockFetchSuccess([]);
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
     mockFetchSuccess({ gameId: 5, inviteToken: "tok-123", color: "white" }, 201);
     mockFetchSuccess([]);
 
-    renderWithProviders(<DashboardPage />);
+    const { store } = renderWithProviders(<DashboardPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
@@ -301,9 +327,56 @@ describe("DashboardPage", () => {
 
     fireEvent.click(screen.getByTestId("cancel-game-button"));
 
+    expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
+    expect(screen.queryByTestId("create-game-form")).not.toBeInTheDocument();
+
+    act(() => {
+      store.dispatch(
+        setGameState({
+          ...makeWaitingGameState(5),
+          status: "aborted",
+        }),
+      );
+    });
+
     await waitFor(() => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
-    expect(screen.queryByTestId("waiting-screen")).not.toBeInTheDocument();
+  });
+
+  it("cancel recover path keeps waiting screen mounted when abort fails", async () => {
+    mockFetchSuccess([]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ gameId: 5, inviteToken: "tok-123", color: "white" }, 201);
+    mockFetchSuccess([]);
+
+    const { store } = renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("create-game-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
+    });
+
+    act(() => {
+      store.dispatch(setGameState(makeWaitingGameState(5)));
+    });
+
+    fireEvent.click(screen.getByTestId("cancel-game-button"));
+    act(() => {
+      store.dispatch(setError("Game can only be aborted while waiting"));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("create-game-form")).not.toBeInTheDocument();
+    expect(mockSocket.emit).toHaveBeenCalledWith("abort", { gameId: 5 });
+    expect(mockSocket.emit).toHaveBeenCalledWith("leaveRoom", { gameId: 5 });
+    expect(mockSocket.emit).toHaveBeenCalledWith("joinRoom", { gameId: 5 });
   });
 });

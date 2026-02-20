@@ -71,24 +71,8 @@ function mockFetchError(body: unknown, status: number) {
   );
 }
 
-describe("JoinPage", () => {
-  it("shows loading state while resolving invite token", () => {
-    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => new Promise<Response>(() => {}));
-    renderJoinPage("test-token");
-    expect(screen.getByTestId("join-loading")).toHaveTextContent("Joining game...");
-  });
-
-  it("shows error for invalid invite token", async () => {
-    mockFetchError({ error: "Invalid invite token" }, 404);
-    renderJoinPage("invalid-token");
-    await waitFor(() => {
-      expect(screen.getByTestId("join-error")).toBeInTheDocument();
-    });
-    expect(screen.getByTestId("join-error")).toHaveTextContent("Invalid invite token");
-    expect(screen.getByRole("link", { name: "Go to Dashboard" })).toHaveAttribute("href", "/");
-  });
-
-  it("shows already started message for non-waiting game", async () => {
+describe("JoinPage edge cases", () => {
+  it("shows 'already in progress' for active game", async () => {
     mockFetchSuccess({ gameId: 5, status: "active" });
     mockFetchError({ error: "Unauthorized" }, 401);
     renderJoinPage("active-token");
@@ -97,9 +81,10 @@ describe("JoinPage", () => {
     });
     expect(screen.getByText("This game is already in progress.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to Game" })).toHaveAttribute("href", "/game/5");
+    expect(screen.getByRole("link", { name: "Go to Dashboard" })).toHaveAttribute("href", "/");
   });
 
-  it("redirects to game page when authenticated player opens active invite link", async () => {
+  it("redirects player to game when active invite belongs to authenticated participant", async () => {
     mockFetchSuccess({ gameId: 5, status: "active" });
     mockFetchSuccess({ user: { id: 1, email: "player@example.com" } });
     mockFetchSuccess({
@@ -124,33 +109,60 @@ describe("JoinPage", () => {
     });
   });
 
-  it("joins game and navigates to game page on success", async () => {
-    mockFetchSuccess({ gameId: 3, status: "waiting" });
-    mockFetchSuccess({
-      id: 3,
-      status: "active",
-      players: {
-        white: { userId: 1, color: "white" },
-        black: { userId: 2, color: "black" },
-      },
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      pgn: "",
-      moves: [],
-      currentTurn: "white",
-      clock: { initialTime: 600, increment: 0 },
-      inviteToken: "valid-token",
-      drawOffer: null,
-      createdAt: 0,
-    });
-    renderJoinPage("valid-token");
+  it("shows 'already ended' for checkmate game", async () => {
+    mockFetchSuccess({ gameId: 7, status: "checkmate" });
+    renderJoinPage("checkmate-token");
     await waitFor(() => {
-      expect(screen.getByTestId("game-page")).toBeInTheDocument();
+      expect(screen.getByTestId("join-ended")).toBeInTheDocument();
+    });
+    expect(screen.getByText("This game has already ended.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Game" })).toHaveAttribute("href", "/game/7");
+  });
+
+  it("shows 'already ended' for resigned game", async () => {
+    mockFetchSuccess({ gameId: 8, status: "resigned" });
+    renderJoinPage("resigned-token");
+    await waitFor(() => {
+      expect(screen.getByTestId("join-ended")).toBeInTheDocument();
+    });
+    expect(screen.getByText("This game has already ended.")).toBeInTheDocument();
+  });
+
+  it("shows 'already ended' for draw game", async () => {
+    mockFetchSuccess({ gameId: 9, status: "draw" });
+    renderJoinPage("draw-token");
+    await waitFor(() => {
+      expect(screen.getByTestId("join-ended")).toBeInTheDocument();
     });
   });
 
-  it("shows own-game message when join fails with own-game error", async () => {
-    mockFetchSuccess({ gameId: 3, status: "waiting" });
-    mockFetchError({ error: "Cannot join your own game" }, 400);
+  it("shows 'already ended' for timeout game", async () => {
+    mockFetchSuccess({ gameId: 10, status: "timeout" });
+    renderJoinPage("timeout-token");
+    await waitFor(() => {
+      expect(screen.getByTestId("join-ended")).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'already ended' for stalemate game", async () => {
+    mockFetchSuccess({ gameId: 11, status: "stalemate" });
+    renderJoinPage("stalemate-token");
+    await waitFor(() => {
+      expect(screen.getByTestId("join-ended")).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'already ended' for aborted game", async () => {
+    mockFetchSuccess({ gameId: 12, status: "aborted" });
+    renderJoinPage("aborted-token");
+    await waitFor(() => {
+      expect(screen.getByTestId("join-ended")).toBeInTheDocument();
+    });
+  });
+
+  it("shows own game message with copy link when joining own game", async () => {
+    mockFetchSuccess({ gameId: 3, status: "waiting" }); // resolve
+    mockFetchError({ error: "Cannot join your own game" }, 400); // join
     renderJoinPage("own-token");
     await waitFor(() => {
       expect(screen.getByTestId("join-own-game")).toBeInTheDocument();
@@ -158,6 +170,18 @@ describe("JoinPage", () => {
     expect(
       screen.getByText("You created this game — share the link with your opponent."),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("invite-url")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Game" })).toHaveAttribute("href", "/game/3");
     expect(screen.getByRole("link", { name: "Go to Dashboard" })).toHaveAttribute("href", "/");
+  });
+
+  it("shows generic error for non-own-game join failure", async () => {
+    mockFetchSuccess({ gameId: 3, status: "waiting" }); // resolve
+    mockFetchError({ error: "Server error" }, 500); // join
+    renderJoinPage("error-token");
+    await waitFor(() => {
+      expect(screen.getByTestId("join-error")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("join-error")).toHaveTextContent("Server error");
   });
 });

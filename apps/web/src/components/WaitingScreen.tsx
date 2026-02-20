@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
-import { clearGame } from "../store/gameSlice.js";
+import { clearError, clearGame } from "../store/gameSlice.js";
 import { InviteLink } from "./InviteLink.js";
 import type { PlayerColor } from "@chess/shared";
 
@@ -17,6 +17,8 @@ export function WaitingScreen({ gameId, inviteToken, color, onCancel }: WaitingS
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const game = useAppSelector((state) => state.game.currentGame);
+  const error = useAppSelector((state) => state.game.error);
+  const [cancelAttempted, setCancelAttempted] = useState(false);
 
   // Join the game room on mount, leave on unmount
   useEffect(() => {
@@ -34,9 +36,24 @@ export function WaitingScreen({ gameId, inviteToken, color, onCancel }: WaitingS
     }
   }, [game, gameId, navigate]);
 
+  useEffect(() => {
+    if (game && game.status === "aborted") {
+      onCancel();
+    }
+  }, [game, onCancel]);
+
+  useEffect(() => {
+    if (cancelAttempted && error) {
+      dispatch(clearError());
+      dispatch(socketActions.leaveRoom({ gameId }));
+      dispatch(socketActions.joinRoom({ gameId }));
+      setCancelAttempted(false);
+    }
+  }, [cancelAttempted, dispatch, error, gameId]);
+
   function handleCancel() {
+    setCancelAttempted(true);
     dispatch(socketActions.abort({ gameId }));
-    onCancel();
   }
 
   return (
