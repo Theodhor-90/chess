@@ -13,3 +13,12 @@ sqlite.pragma("journal_mode = WAL");
 
 export const db = drizzle(sqlite, { schema });
 export { sqlite };
+
+export type DrizzleDb = typeof db;
+
+export function createDb(path: string): { db: DrizzleDb; sqlite: DatabaseType } {
+  mkdirSync(dirname(path), { recursive: true });
+  const sqliteInstance = new Database(path);
+  sqliteInstance.pragma("journal_mode = WAL");
+  return { db: drizzle(sqliteInstance, { schema }), sqlite: sqliteInstance };
+}

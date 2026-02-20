@@ -93,10 +93,10 @@ export function makeMove(gameId: number, userId: number, move: MoveRequest): Mov
 
   const finalDrawOffer = gameResult ? null : drawOffer;
 
+  store.addMove(gameId, moves.length, san);
   store.updateGame(gameId, {
     fen,
     pgn,
-    moves,
     currentTurn: nextTurn,
     drawOffer: finalDrawOffer,
     status,

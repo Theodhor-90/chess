@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { spawnSync } from "node:child_process";
 import { buildApp } from "../src/server.js";
 import {
-  ensureUsersTable,
+  ensureSchema,
   uniqueEmail,
   registerAndLogin,
   createSocketClient,
@@ -27,7 +27,7 @@ function canBindLoopback(): boolean {
 const e2eDescribe = canBindLoopback() ? describe : describe.skip;
 
 beforeAll(() => {
-  ensureUsersTable();
+  ensureSchema();
 });
 
 function waitForEvent<K extends keyof ServerToClientEvents>(
