@@ -267,7 +267,7 @@ socketDescribe("Move events", () => {
 
     const s1move = waitForEvent(socket1, "moveMade");
     const s2move = waitForEvent(socket2, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
 
     const [m1, m2] = await Promise.all([s1move, s2move]);
 
@@ -304,7 +304,7 @@ socketDescribe("Move events", () => {
     });
 
     const errPromise = waitForEvent(whiteSocket, "error");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e5" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e5", moveNumber: 0 });
     const err = await errPromise;
 
     expect(err.message).toBeDefined();
@@ -330,7 +330,7 @@ socketDescribe("Move events", () => {
     const blackSocket = creatorColor === "white" ? socket2 : socket1;
 
     const errPromise = waitForEvent(blackSocket, "error");
-    blackSocket.emit("move", { gameId, from: "e7", to: "e5" });
+    blackSocket.emit("move", { gameId, from: "e7", to: "e5", moveNumber: 0 });
     const err = await errPromise;
 
     expect(err.message).toBe("It is not your turn");
@@ -354,11 +354,13 @@ socketDescribe("Move events", () => {
     const whiteSocket = creatorColor === "white" ? socket1 : socket2;
     const blackSocket = creatorColor === "white" ? socket2 : socket1;
 
+    let moveNumber = 0;
     async function makeMove(mover: TypedClientSocket, from: string, to: string): Promise<void> {
       const p1 = waitForEvent(socket1, "moveMade");
       const p2 = waitForEvent(socket2, "moveMade");
-      mover.emit("move", { gameId, from, to });
+      mover.emit("move", { gameId, from, to, moveNumber });
       await Promise.all([p1, p2]);
+      moveNumber += 1;
     }
 
     await makeMove(whiteSocket, "e2", "e4");
@@ -373,7 +375,7 @@ socketDescribe("Move events", () => {
     const overP1 = waitForEvent(socket1, "gameOver");
     const overP2 = waitForEvent(socket2, "gameOver");
 
-    whiteSocket.emit("move", { gameId, from: "h5", to: "f7" });
+    whiteSocket.emit("move", { gameId, from: "h5", to: "f7", moveNumber });
 
     const [m1, m2, o1, o2] = await Promise.all([moveP1, moveP2, overP1, overP2]);
 
@@ -538,7 +540,7 @@ socketDescribe("Draw", () => {
 
     const m1p = waitForEvent(socket1, "moveMade");
     const m2p = waitForEvent(socket2, "moveMade");
-    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4", moveNumber: 0 });
     await Promise.all([m1p, m2p]);
 
     const drawP = waitForEvent(socket2, "drawOffered");
@@ -549,7 +551,7 @@ socketDescribe("Draw", () => {
     const declineP2 = waitForEvent(socket2, "drawDeclined");
     const moveP1 = waitForEvent(socket1, "moveMade");
     const moveP2 = waitForEvent(socket2, "moveMade");
-    blackSocket.emit("move", { gameId, from: "e7", to: "e5" });
+    blackSocket.emit("move", { gameId, from: "e7", to: "e5", moveNumber: 1 });
 
     const [, , mm1, mm2] = await Promise.all([declineP1, declineP2, moveP1, moveP2]);
 

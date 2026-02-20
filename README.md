@@ -50,15 +50,15 @@ chess/
 
 Run these from the repo root:
 
-| Command              | Description                          |
-| -------------------- | ------------------------------------ |
-| `pnpm install`       | Install all dependencies             |
-| `pnpm build`         | Build all packages                   |
-| `pnpm test`          | Run all tests (Vitest)               |
-| `pnpm typecheck`     | TypeScript type checking             |
-| `pnpm lint`          | Run ESLint                           |
-| `pnpm format:check`  | Check formatting (Prettier)          |
-| `pnpm format`        | Auto-format all files (Prettier)     |
+| Command             | Description                      |
+| ------------------- | -------------------------------- |
+| `pnpm install`      | Install all dependencies         |
+| `pnpm build`        | Build all packages               |
+| `pnpm test`         | Run all tests (Vitest)           |
+| `pnpm typecheck`    | TypeScript type checking         |
+| `pnpm lint`         | Run ESLint                       |
+| `pnpm format:check` | Check formatting (Prettier)      |
+| `pnpm format`       | Auto-format all files (Prettier) |
 
 ## Development
 

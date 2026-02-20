@@ -14,6 +14,9 @@ import { socketMiddleware } from "../src/store/socketMiddleware.js";
 vi.mock("../src/socket.js", () => ({
   connectSocket: vi.fn(() => ({
     on: vi.fn(),
+    io: {
+      on: vi.fn(),
+    },
     emit: vi.fn(),
     connected: true,
     disconnect: vi.fn(),

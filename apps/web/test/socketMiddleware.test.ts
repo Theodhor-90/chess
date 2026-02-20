@@ -7,12 +7,14 @@ import type { GameState, ClockState, ClockConfig } from "@chess/shared";
 const mockOn = vi.fn();
 const mockEmit = vi.fn();
 const mockDisconnect = vi.fn();
+const mockManagerOn = vi.fn();
 
 let mockSocket: {
   on: typeof mockOn;
   emit: typeof mockEmit;
   disconnect: typeof mockDisconnect;
   connected: boolean;
+  io: { on: typeof mockManagerOn };
 };
 
 vi.mock("../src/socket.js", () => ({
@@ -34,6 +36,11 @@ function createTestStore() {
 
 function getEventCallback(eventName: string): ((...args: unknown[]) => void) | undefined {
   const call = mockOn.mock.calls.find(([name]) => name === eventName);
+  return call ? call[1] : undefined;
+}
+
+function getManagerEventCallback(eventName: string): ((...args: unknown[]) => void) | undefined {
+  const call = mockManagerOn.mock.calls.find(([name]) => name === eventName);
   return call ? call[1] : undefined;
 }
 
@@ -71,6 +78,7 @@ describe("socketMiddleware", () => {
       emit: mockEmit,
       disconnect: mockDisconnect,
       connected: true,
+      io: { on: mockManagerOn },
     };
   });
 
@@ -136,6 +144,59 @@ describe("socketMiddleware", () => {
       expect(store.getState().game.connectionStatus).toBe("connected");
       expect(mockOn).not.toHaveBeenCalled();
     });
+
+    it("emits joinRoom when connect fires and activeGameId is set", () => {
+      const store = createTestStore();
+      mockSocket.connected = false;
+      store.dispatch(socketActions.connect());
+
+      const gameCallback = getEventCallback("gameState");
+      gameCallback!(makeFakeGameState());
+      expect(store.getState().game.activeGameId).toBe(1);
+
+      mockEmit.mockClear();
+
+      const connectCallback = getEventCallback("connect");
+      connectCallback!();
+
+      expect(store.getState().game.connectionStatus).toBe("connected");
+      expect(mockEmit).toHaveBeenCalledWith("joinRoom", { gameId: 1 });
+    });
+
+    it("does not emit joinRoom when connect fires and activeGameId is null", () => {
+      const store = createTestStore();
+      mockSocket.connected = false;
+      store.dispatch(socketActions.connect());
+
+      expect(store.getState().game.activeGameId).toBeNull();
+
+      mockEmit.mockClear();
+
+      const connectCallback = getEventCallback("connect");
+      connectCallback!();
+
+      expect(store.getState().game.connectionStatus).toBe("connected");
+      expect(mockEmit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("reconnect_attempt (manager event)", () => {
+    it("sets connectionStatus to connecting when reconnect_attempt fires", () => {
+      const store = createTestStore();
+      mockSocket.connected = true;
+      store.dispatch(socketActions.connect());
+
+      expect(store.getState().game.connectionStatus).toBe("connected");
+
+      const disconnectCallback = getEventCallback("disconnect");
+      disconnectCallback!();
+      expect(store.getState().game.connectionStatus).toBe("disconnected");
+
+      const reconnectAttemptCallback = getManagerEventCallback("reconnect_attempt");
+      expect(reconnectAttemptCallback).toBeDefined();
+      reconnectAttemptCallback!();
+      expect(store.getState().game.connectionStatus).toBe("connecting");
+    });
   });
 
   describe("socket/disconnect", () => {
@@ -163,19 +224,28 @@ describe("socketMiddleware", () => {
     it("socket/sendMove emits move event and sets optimistic move", () => {
       const store = createTestStore();
       store.dispatch(socketActions.sendMove({ gameId: 1, from: "e2", to: "e4" }));
-      expect(mockEmit).toHaveBeenCalledWith("move", { gameId: 1, from: "e2", to: "e4" });
+      expect(mockEmit).toHaveBeenCalledWith(
+        "move",
+        { gameId: 1, from: "e2", to: "e4", moveNumber: 0 },
+        expect.any(Function),
+      );
       expect(store.getState().game.pendingMove).toEqual({ from: "e2", to: "e4" });
     });
 
     it("socket/sendMove includes promotion when provided", () => {
       const store = createTestStore();
       store.dispatch(socketActions.sendMove({ gameId: 1, from: "e7", to: "e8", promotion: "q" }));
-      expect(mockEmit).toHaveBeenCalledWith("move", {
-        gameId: 1,
-        from: "e7",
-        to: "e8",
-        promotion: "q",
-      });
+      expect(mockEmit).toHaveBeenCalledWith(
+        "move",
+        {
+          gameId: 1,
+          from: "e7",
+          to: "e8",
+          promotion: "q",
+          moveNumber: 0,
+        },
+        expect.any(Function),
+      );
       expect(store.getState().game.pendingMove).toEqual({
         from: "e7",
         to: "e8",

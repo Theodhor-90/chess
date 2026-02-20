@@ -1,5 +1,6 @@
 import { createAction, type Middleware, type Dispatch, type UnknownAction } from "@reduxjs/toolkit";
 import { connectSocket, disconnectSocket, getSocket, type TypedSocket } from "../socket.js";
+import type { MoveAck } from "@chess/shared";
 import {
   setGameState,
   applyMove,
@@ -88,10 +89,18 @@ function setupSocketListeners(
 
   socket.on("connect", () => {
     dispatch(setConnectionStatus("connected"));
+    const { activeGameId } = getState().game;
+    if (activeGameId !== null) {
+      socket.emit("joinRoom", { gameId: activeGameId });
+    }
   });
 
   socket.on("disconnect", () => {
     dispatch(setConnectionStatus("disconnected"));
+  });
+
+  socket.io.on("reconnect_attempt", () => {
+    dispatch(setConnectionStatus("connecting"));
   });
 }
 
@@ -140,9 +149,22 @@ export const socketMiddleware: Middleware<object, MiddlewareState> = (storeApi) 
     if (socketActions.sendMove.match(action)) {
       const socket = getSocket();
       if (socket) {
-        const { from, to, promotion } = action.payload;
+        const { gameId, from, to, promotion } = action.payload;
         storeApi.dispatch(setOptimisticMove({ from, to, promotion }));
-        socket.emit("move", action.payload);
+        const moveNumber = storeApi.getState().game.currentGame?.moves.length ?? 0;
+        socket.emit("move", { gameId, from, to, promotion, moveNumber }, (response: MoveAck) => {
+          if (!response.ok) {
+            if (response.error === "duplicate") {
+              storeApi.dispatch(clearOptimisticMove());
+            } else {
+              storeApi.dispatch(setError(response.error ?? "Move failed"));
+              const currentFen = storeApi.getState().game.currentGame?.fen;
+              if (currentFen) {
+                storeApi.dispatch(rollbackMove(currentFen));
+              }
+            }
+          }
+        });
       }
       return next(action);
     }

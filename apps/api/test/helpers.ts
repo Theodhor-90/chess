@@ -47,6 +47,8 @@ export function ensureGamesTables(): void {
       draw_offer TEXT,
       result_winner TEXT,
       result_reason TEXT,
+      clock_white_remaining INTEGER,
+      clock_black_remaining INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )
   `);

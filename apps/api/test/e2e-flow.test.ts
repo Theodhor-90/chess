@@ -155,6 +155,7 @@ e2eDescribe(
       const whiteSocket = creatorColor === "white" ? socketA : socketB;
       const blackSocket = creatorColor === "white" ? socketB : socketA;
 
+      let moveCounter = 0;
       async function makeMove(
         mover: TypedClientSocket,
         from: string,
@@ -162,7 +163,7 @@ e2eDescribe(
       ): Promise<Parameters<ServerToClientEvents["moveMade"]>[0]> {
         const p1 = waitForEvent(socketA, "moveMade");
         const p2 = waitForEvent(socketB, "moveMade");
-        mover.emit("move", { gameId, from, to });
+        mover.emit("move", { gameId, from, to, moveNumber: moveCounter++ });
         const [m1] = await Promise.all([p1, p2]);
         return m1;
       }
@@ -184,7 +185,7 @@ e2eDescribe(
       const overP1 = waitForEvent(socketA, "gameOver");
       const overP2 = waitForEvent(socketB, "gameOver");
 
-      whiteSocket.emit("move", { gameId, from: "h5", to: "f7" });
+      whiteSocket.emit("move", { gameId, from: "h5", to: "f7", moveNumber: moveCounter++ });
 
       const [mateM1, mateM2, over1, over2] = await Promise.all([mateP1, mateP2, overP1, overP2]);
 

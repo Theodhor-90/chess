@@ -8,6 +8,7 @@ export interface GameSliceState {
   error: string | null;
   drawOffer: PlayerColor | null;
   opponentConnected: boolean;
+  activeGameId: number | null;
 }
 
 const initialState: GameSliceState = {
@@ -17,6 +18,7 @@ const initialState: GameSliceState = {
   error: null,
   drawOffer: null,
   opponentConnected: true,
+  activeGameId: null,
 };
 
 const gameSlice = createSlice({
@@ -35,6 +37,7 @@ const gameSlice = createSlice({
         },
       };
       state.drawOffer = payload.drawOffer;
+      state.activeGameId = payload.id;
     },
     applyMove(
       state,
@@ -113,6 +116,7 @@ const gameSlice = createSlice({
       state.error = null;
       state.drawOffer = null;
       state.opponentConnected = true;
+      state.activeGameId = null;
     },
   },
 });

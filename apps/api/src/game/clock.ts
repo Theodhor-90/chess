@@ -26,6 +26,7 @@ export function startClock(
   activeColor: PlayerColor,
   onTick: TickCallback,
   onTimeout: TimeoutCallback,
+  remainingTimes?: { white: number; black: number },
 ): void {
   // If clock already running for this game, do nothing
   if (activeClocks.has(gameId)) return;
@@ -35,8 +36,8 @@ export function startClock(
 
   const clock: ActiveClock = {
     gameId,
-    white: initialMs,
-    black: initialMs,
+    white: remainingTimes ? remainingTimes.white : initialMs,
+    black: remainingTimes ? remainingTimes.black : initialMs,
     activeColor,
     lastTick: now,
     increment: config.increment * 1000,
@@ -134,6 +135,12 @@ export function getClockState(gameId: number): ClockState | null {
     activeColor: clock.activeColor,
     lastUpdate: now,
   };
+}
+
+export function getClockRemainingTimes(gameId: number): { white: number; black: number } | null {
+  const clock = activeClocks.get(gameId);
+  if (!clock) return null;
+  return { white: clock.white, black: clock.black };
 }
 
 function buildClockState(clock: ActiveClock): ClockState {
