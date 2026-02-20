@@ -102,6 +102,22 @@ export interface MoveResponse {
   result?: GameState["result"];
 }
 
+export interface ResolveInviteResponse {
+  gameId: number;
+  status: GameStatus;
+}
+
+export interface GameListItem {
+  id: number;
+  status: GameStatus;
+  players: { white?: GamePlayer; black?: GamePlayer };
+  clock: ClockConfig;
+  result?: { winner?: PlayerColor; reason: GameStatus };
+  createdAt: number;
+}
+
+export type GameListResponse = GameListItem[];
+
 // ---------------------------------------------------------------------------
 // Socket.io event types (Phase 2.1)
 // ---------------------------------------------------------------------------

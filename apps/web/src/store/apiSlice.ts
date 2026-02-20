@@ -5,7 +5,10 @@ import type {
   LoginRequest,
   CreateGameRequest,
   CreateGameResponse,
+  JoinGameRequest,
   GameResponse,
+  ResolveInviteResponse,
+  GameListResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -52,10 +55,26 @@ export const apiSlice = createApi({
         method: "POST",
         body,
       }),
+      invalidatesTags: ["Game"],
     }),
     getGame: builder.query<GameResponse, number>({
       query: (id) => `/games/${id}`,
       providesTags: (_result, _error, id) => [{ type: "Game", id }],
+    }),
+    resolveInvite: builder.query<ResolveInviteResponse, string>({
+      query: (inviteToken) => `/games/resolve/${inviteToken}`,
+    }),
+    getMyGames: builder.query<GameListResponse, void>({
+      query: () => "/games",
+      providesTags: ["Game"],
+    }),
+    joinGame: builder.mutation<GameResponse, { gameId: number; inviteToken: string }>({
+      query: ({ gameId, inviteToken }) => ({
+        url: `/games/${gameId}/join`,
+        method: "POST",
+        body: { inviteToken } satisfies JoinGameRequest,
+      }),
+      invalidatesTags: ["Game"],
     }),
   }),
 });
@@ -67,4 +86,7 @@ export const {
   useGetMeQuery,
   useCreateGameMutation,
   useGetGameQuery,
+  useResolveInviteQuery,
+  useGetMyGamesQuery,
+  useJoinGameMutation,
 } = apiSlice;

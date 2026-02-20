@@ -8,6 +8,8 @@ import type {
   MoveRequest,
   MoveResponse,
   ErrorResponse,
+  ResolveInviteResponse,
+  GameListResponse,
 } from "@chess/shared";
 import * as gameService from "./service.js";
 import { GameError, type GameErrorCode } from "./errors.js";
@@ -73,12 +75,44 @@ const moveBodySchema = {
   },
 };
 
+const inviteTokenParamsSchema = {
+  type: "object" as const,
+  required: ["inviteToken"],
+  properties: {
+    inviteToken: { type: "string" as const, minLength: 1 },
+  },
+};
+
 async function gameRoutes(app: FastifyInstance) {
-  app.addHook("preHandler", requireAuth);
+  // Public endpoint — no authentication required
+  app.get<{
+    Params: { inviteToken: string };
+    Reply: ResolveInviteResponse | ErrorResponse;
+  }>(
+    "/resolve/:inviteToken",
+    { schema: { params: inviteTokenParamsSchema } },
+    async (request, reply) => {
+      try {
+        const result = gameService.resolveInviteToken(request.params.inviteToken);
+        return reply.code(200).send(result);
+      } catch (err) {
+        return handleGameError(err, reply);
+      }
+    },
+  );
+
+  app.get<{ Reply: GameListResponse | ErrorResponse }>(
+    "/",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const games = gameService.getUserGames(request.userId!);
+      return reply.code(200).send(games);
+    },
+  );
 
   app.post<{ Body: CreateGameRequest; Reply: CreateGameResponse | ErrorResponse }>(
     "/",
-    { schema: { body: createGameBodySchema } },
+    { schema: { body: createGameBodySchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       const clock = request.body?.clock;
       const game = gameService.createGame(request.userId!, clock);
@@ -97,7 +131,7 @@ async function gameRoutes(app: FastifyInstance) {
     Reply: GameResponse | ErrorResponse;
   }>(
     "/:id/join",
-    { schema: { params: gameIdParamsSchema, body: joinGameBodySchema } },
+    { schema: { params: gameIdParamsSchema, body: joinGameBodySchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const game = gameService.joinGame(
@@ -114,7 +148,7 @@ async function gameRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { id: number }; Reply: GameResponse | ErrorResponse }>(
     "/:id",
-    { schema: { params: gameIdParamsSchema } },
+    { schema: { params: gameIdParamsSchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const game = gameService.getGame(request.params.id);
@@ -131,7 +165,7 @@ async function gameRoutes(app: FastifyInstance) {
     Reply: MoveResponse | ErrorResponse;
   }>(
     "/:id/moves",
-    { schema: { params: gameIdParamsSchema, body: moveBodySchema } },
+    { schema: { params: gameIdParamsSchema, body: moveBodySchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const result = gameService.makeMove(request.params.id, request.userId!, request.body);
@@ -144,7 +178,7 @@ async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: number }; Reply: GameResponse | ErrorResponse }>(
     "/:id/resign",
-    { schema: { params: gameIdParamsSchema } },
+    { schema: { params: gameIdParamsSchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const game = gameService.resignGame(request.params.id, request.userId!);
@@ -157,7 +191,7 @@ async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: number }; Reply: GameResponse | ErrorResponse }>(
     "/:id/draw",
-    { schema: { params: gameIdParamsSchema } },
+    { schema: { params: gameIdParamsSchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const game = gameService.offerOrAcceptDraw(request.params.id, request.userId!);
@@ -170,7 +204,7 @@ async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: number }; Reply: GameResponse | ErrorResponse }>(
     "/:id/abort",
-    { schema: { params: gameIdParamsSchema } },
+    { schema: { params: gameIdParamsSchema }, preHandler: [requireAuth] },
     async (request, reply) => {
       try {
         const game = gameService.abortGame(request.params.id, request.userId!);

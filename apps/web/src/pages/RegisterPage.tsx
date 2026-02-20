@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useRegisterMutation } from "../store/apiSlice.js";
 import { useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,7 +17,8 @@ export function RegisterPage() {
     try {
       await register({ email, password }).unwrap();
       dispatch(socketActions.connect());
-      navigate("/");
+      const redirect = searchParams.get("redirect");
+      navigate(redirect || "/");
     } catch {
       // Error is captured in the `error` field from useRegisterMutation
     }
@@ -59,7 +61,16 @@ export function RegisterPage() {
         </button>
       </form>
       <p>
-        Already have an account? <Link to="/login">Login</Link>
+        Already have an account?{" "}
+        <Link
+          to={
+            searchParams.get("redirect")
+              ? `/login?redirect=${searchParams.get("redirect")}`
+              : "/login"
+          }
+        >
+          Login
+        </Link>
       </p>
     </div>
   );

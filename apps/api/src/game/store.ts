@@ -45,3 +45,22 @@ export function updateGame(id: number, updates: Partial<GameState>): GameState {
   games.set(id, updated);
   return updated;
 }
+
+export function getGameByInviteToken(inviteToken: string): GameState | undefined {
+  for (const game of games.values()) {
+    if (game.inviteToken === inviteToken) {
+      return game;
+    }
+  }
+  return undefined;
+}
+
+export function getGamesByUserId(userId: number): GameState[] {
+  const result: GameState[] = [];
+  for (const game of games.values()) {
+    if (game.players.white?.userId === userId || game.players.black?.userId === userId) {
+      result.push(game);
+    }
+  }
+  return result;
+}

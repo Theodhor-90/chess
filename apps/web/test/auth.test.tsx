@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { LoginPage } from "../src/pages/LoginPage.js";
 import { RegisterPage } from "../src/pages/RegisterPage.js";
 import { AppRoutes } from "../src/App.js";
+import { ProtectedRoute } from "../src/components/ProtectedRoute.js";
 import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
@@ -95,6 +96,8 @@ describe("LoginPage", () => {
 
   it("calls login and navigates to home on success", async () => {
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess([]);
     const store = createTestStore();
     render(
       <Provider store={store}>
@@ -108,11 +111,17 @@ describe("LoginPage", () => {
     const buttons = screen.getAllByRole("button", { name: "Login" });
     fireEvent.click(buttons[0]);
     await waitFor(() => {
-      expect(screen.getByText("Chess Platform")).toBeInTheDocument();
+      expect(screen.getAllByText("Chess Platform").length).toBeGreaterThanOrEqual(1);
     });
-    expect(globalThis.fetch).toHaveBeenCalledOnce();
-    const [request, options] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(getRequestUrl(request)).toContain("/api/auth/login");
+    expect(globalThis.fetch).toHaveBeenCalled();
+    const loginCall = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.find(([request]) => getRequestUrl(request).includes("/api/auth/login"));
+    expect(loginCall).toBeDefined();
+    if (!loginCall) {
+      throw new Error("Missing /api/auth/login call");
+    }
+    const [request, options] = loginCall;
     expect(request instanceof Request ? request.method : options?.method).toBe("POST");
   });
 
@@ -174,6 +183,8 @@ describe("RegisterPage", () => {
 
   it("calls register and navigates to home on success", async () => {
     mockFetchSuccess({ user: { id: 1, email: "a@b.com" } }, 201);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess([]);
     const store = createTestStore();
     render(
       <Provider store={store}>
@@ -187,11 +198,17 @@ describe("RegisterPage", () => {
     const buttons = screen.getAllByRole("button", { name: "Register" });
     fireEvent.click(buttons[0]);
     await waitFor(() => {
-      expect(screen.getByText("Chess Platform")).toBeInTheDocument();
+      expect(screen.getAllByText("Chess Platform").length).toBeGreaterThanOrEqual(1);
     });
-    expect(globalThis.fetch).toHaveBeenCalledOnce();
-    const [request, options] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(getRequestUrl(request)).toContain("/api/auth/register");
+    expect(globalThis.fetch).toHaveBeenCalled();
+    const registerCall = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.find(([request]) => getRequestUrl(request).includes("/api/auth/register"));
+    expect(registerCall).toBeDefined();
+    if (!registerCall) {
+      throw new Error("Missing /api/auth/register call");
+    }
+    const [request, options] = registerCall;
     expect(request instanceof Request ? request.method : options?.method).toBe("POST");
   });
 
@@ -232,21 +249,179 @@ describe("RegisterPage", () => {
   });
 });
 
+describe("ProtectedRoute", () => {
+  it("renders children when authenticated", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    renderWithProviders(
+      <ProtectedRoute>
+        <div>Protected Content</div>
+      </ProtectedRoute>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Protected Content")).toBeInTheDocument();
+    });
+  });
+
+  it("redirects to /login with redirect param when not authenticated", async () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
+    const store = createTestStore();
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={["/game/5"]}>
+          <Routes>
+            <Route
+              path="/game/:id"
+              element={
+                <ProtectedRoute>
+                  <div>Game</div>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/login" element={<div>Login Page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Login Page")).toBeInTheDocument();
+    });
+  });
+
+  it("shows loading state while checking auth", () => {
+    let resolveResponse!: (value: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveResponse = resolve;
+      }),
+    );
+    renderWithProviders(
+      <ProtectedRoute>
+        <div>Protected Content</div>
+      </ProtectedRoute>,
+    );
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    resolveResponse(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  });
+});
+
+describe("LoginPage redirect support", () => {
+  it("navigates to redirect param after successful login", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    const store = createTestStore();
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={["/login?redirect=%2Fsome-page"]}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/some-page" element={<div>Redirected Page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    const buttons = screen.getAllByRole("button", { name: "Login" });
+    fireEvent.click(buttons[0]);
+    await waitFor(() => {
+      expect(screen.getByText("Redirected Page")).toBeInTheDocument();
+    });
+  });
+
+  it("navigates to redirect param after successful registration", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } }, 201);
+    const store = createTestStore();
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={["/register?redirect=%2Fsome-page"]}>
+          <Routes>
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/some-page" element={<div>Redirected Page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>,
+    );
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    const buttons = screen.getAllByRole("button", { name: "Register" });
+    fireEvent.click(buttons[0]);
+    await waitFor(() => {
+      expect(screen.getByText("Redirected Page")).toBeInTheDocument();
+    });
+  });
+
+  it("register link preserves redirect param on RegisterPage", () => {
+    renderWithProviders(<RegisterPage />, { route: "/register?redirect=%2Fgame%2F5" });
+    const links = screen.getAllByRole("link", { name: "Login" });
+    expect(links[0].getAttribute("href")).toContain("/login?redirect=/game/5");
+  });
+
+  it("login link preserves redirect param on LoginPage", () => {
+    renderWithProviders(<LoginPage />, { route: "/login?redirect=%2Fgame%2F5" });
+    const links = screen.getAllByRole("link", { name: "Register" });
+    expect(links[0].getAttribute("href")).toContain("/register?redirect=/game/5");
+  });
+});
+
 describe("App routing (via AppRoutes)", () => {
   it("renders LoginPage at /login", () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
     renderWithProviders(<AppRoutes />, { route: "/login" });
     const buttons = screen.getAllByRole("button", { name: "Login" });
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders RegisterPage at /register", () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
     renderWithProviders(<AppRoutes />, { route: "/register" });
     const buttons = screen.getAllByRole("button", { name: "Register" });
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders home page at /", () => {
+  it("renders home page at / when authenticated", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess([]);
     renderWithProviders(<AppRoutes />, { route: "/" });
-    expect(screen.getByText("Chess Platform")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText("Chess Platform").length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it("renders JoinPage at /join/:inviteToken when authenticated", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ gameId: 5, status: "waiting" });
+    mockFetchSuccess({
+      id: 5,
+      status: "active",
+      players: {
+        white: { userId: 1, color: "white" },
+        black: { userId: 2, color: "black" },
+      },
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      pgn: "",
+      moves: [],
+      currentTurn: "white",
+      clock: { initialTime: 600, increment: 0 },
+      inviteToken: "test-join-token",
+      drawOffer: null,
+      createdAt: 0,
+    });
+    renderWithProviders(<AppRoutes />, { route: "/join/test-join-token" });
+    await waitFor(() => {
+      expect(screen.getByText("Loading game...")).toBeInTheDocument();
+    });
+  });
+
+  it("redirects /join/:inviteToken to login when not authenticated", async () => {
+    mockFetchError({ error: "Unauthorized" }, 401);
+    renderWithProviders(<AppRoutes />, { route: "/join/some-token" });
+    await waitFor(() => {
+      const buttons = screen.getAllByRole("button", { name: "Login" });
+      expect(buttons.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });
