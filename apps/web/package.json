@@ -13,6 +13,7 @@
   "dependencies": {
     "@chess/shared": "workspace:*",
     "@reduxjs/toolkit": "^2.10.1",
+    "chess.js": "^1.4.0",
     "chessground": "^9.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
