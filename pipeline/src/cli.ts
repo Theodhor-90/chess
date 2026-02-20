@@ -122,7 +122,7 @@ function parseClaudeDecision(stdout: string, schema: string): CliResult {
   try {
     const envelope = JSON.parse(stdout);
 
-    const raw = typeof envelope.result === "string" ? envelope.result : stdout;
+    const result = typeof envelope.result === "string" ? envelope.result : "";
 
     // Prefer structured_output if available
     if (envelope.structured_output != null) {
@@ -131,10 +131,11 @@ function parseClaudeDecision(stdout: string, schema: string): CliResult {
           ? envelope.structured_output
           : JSON.stringify(envelope.structured_output);
       const decision = parseDecision(structured, schema);
-      return { raw, decision };
+      return { raw: result || structured, decision };
     }
 
     // Fall back to parsing the result text
+    const raw = result || stdout;
     const decision = parseDecision(raw, schema);
     return { raw, decision };
   } catch {
