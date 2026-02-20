@@ -42,6 +42,17 @@ function buildClockStateForGame(game: GameState): ClockState {
   };
 }
 
+function persistAndStopClock(gameId: number): void {
+  const remaining = getClockRemainingTimes(gameId);
+  if (remaining) {
+    store.updateGame(gameId, {
+      clockWhiteRemaining: remaining.white,
+      clockBlackRemaining: remaining.black,
+    });
+  }
+  stopClock(gameId);
+}
+
 function getPlayerColor(game: GameState, userId: number): PlayerColor | null {
   if (game.players.white?.userId === userId) return "white";
   if (game.players.black?.userId === userId) return "black";
@@ -76,6 +87,10 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
   function onTimeout(gameId: number, timedOutColor: PlayerColor, clockState: ClockState): void {
     const roomName = `game:${gameId}`;
     try {
+      store.updateGame(gameId, {
+        clockWhiteRemaining: clockState.white,
+        clockBlackRemaining: clockState.black,
+      });
       const game = gameService.timeoutGame(gameId, timedOutColor);
       io.to(roomName).emit("gameOver", {
         status: game.status,
@@ -219,7 +234,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       moveResult.status === "stalemate" ||
       moveResult.status === "draw";
     if (isTerminal) {
-      stopClock(gameId);
+      persistAndStopClock(gameId);
     }
 
     const updatedGame = gameService.getGame(gameId);
@@ -263,7 +278,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
     }
 
     const clockState = buildClockStateForGame(game);
-    stopClock(gameId);
+    persistAndStopClock(gameId);
 
     io.to(roomName).emit("gameOver", {
       status: game.status,
@@ -289,7 +304,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
 
     if (game.status === "draw") {
       const clockState = buildClockStateForGame(game);
-      stopClock(gameId);
+      persistAndStopClock(gameId);
       io.to(roomName).emit("gameOver", {
         status: game.status,
         result: game.result!,
@@ -317,7 +332,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
 
     if (game.status === "draw") {
       const clockState = buildClockStateForGame(game);
-      stopClock(gameId);
+      persistAndStopClock(gameId);
       io.to(roomName).emit("gameOver", {
         status: game.status,
         result: game.result!,

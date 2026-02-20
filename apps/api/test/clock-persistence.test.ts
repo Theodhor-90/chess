@@ -148,7 +148,7 @@ socketDescribe("Clock persistence via socket", () => {
     await app.close();
   });
 
-  async function setupGame() {
+  async function setupGame(clockConfig?: { initialTime: number; increment: number }) {
     const emailA = uniqueEmail("clkp-a");
     const emailB = uniqueEmail("clkp-b");
     const { cookie: cookieA } = await registerAndLogin(app, emailA);
@@ -158,7 +158,7 @@ socketDescribe("Clock persistence via socket", () => {
       method: "POST",
       url: "/api/games",
       headers: { cookie: cookieA },
-      payload: { clock: { initialTime: 60, increment: 0 } },
+      payload: { clock: clockConfig ?? { initialTime: 60, increment: 0 } },
     });
     const { gameId, inviteToken, color: creatorColor } = createRes.json();
 
@@ -183,8 +183,9 @@ socketDescribe("Clock persistence via socket", () => {
     const whiteSocket = creatorColor === "white" ? socketA : socketB;
     const blackSocket = creatorColor === "white" ? socketB : socketA;
     const whiteCookie = creatorColor === "white" ? cookieA : cookieB;
+    const blackCookie = creatorColor === "white" ? cookieB : cookieA;
 
-    return { gameId, whiteSocket, blackSocket, whiteCookie };
+    return { gameId, whiteSocket, blackSocket, whiteCookie, blackCookie };
   }
 
   it("persists clock remaining times to DB after a move", async () => {
@@ -254,5 +255,78 @@ socketDescribe("Clock persistence via socket", () => {
 
     expect((reconState.clock as { white: number }).white).toBe(persistedWhite);
     expect((reconState.clock as { black: number }).black).toBe(persistedBlack);
+  });
+
+  it("resign persists clock remaining times to DB", async () => {
+    const { gameId, whiteSocket, blackSocket } = await setupGame();
+
+    const movePromise = waitForEvent(blackSocket, "moveMade");
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    await movePromise;
+
+    const afterMove = store.getGame(gameId);
+    expect(afterMove!.clockWhiteRemaining).not.toBeNull();
+
+    const gameOverW = waitForEvent(whiteSocket, "gameOver");
+    const gameOverB = waitForEvent(blackSocket, "gameOver");
+    whiteSocket.emit("resign", { gameId });
+    await Promise.all([gameOverW, gameOverB]);
+
+    const afterResign = store.getGame(gameId);
+    expect(afterResign!.status).toBe("resigned");
+    expect(afterResign!.clockWhiteRemaining).not.toBeNull();
+    expect(afterResign!.clockBlackRemaining).not.toBeNull();
+    expect(afterResign!.clockWhiteRemaining!).toBeLessThan(60000);
+    expect(afterResign!.clockWhiteRemaining!).toBeGreaterThan(0);
+    expect(afterResign!.clockBlackRemaining!).toBe(60000);
+  });
+
+  it("timeout persists clock remaining times to DB with timed-out player at 0", async () => {
+    const { gameId, whiteSocket, blackSocket } = await setupGame({
+      initialTime: 1,
+      increment: 0,
+    });
+
+    const movePromise = waitForEvent(blackSocket, "moveMade");
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    await movePromise;
+
+    const gameOverW = waitForEvent(whiteSocket, "gameOver", 5000);
+    const gameOverB = waitForEvent(blackSocket, "gameOver", 5000);
+    await Promise.all([gameOverW, gameOverB]);
+
+    const afterTimeout = store.getGame(gameId);
+    expect(afterTimeout!.status).toBe("timeout");
+    expect(afterTimeout!.clockWhiteRemaining).not.toBeNull();
+    expect(afterTimeout!.clockBlackRemaining).not.toBeNull();
+    expect(afterTimeout!.clockBlackRemaining!).toBe(0);
+    expect(afterTimeout!.clockWhiteRemaining!).toBeGreaterThan(0);
+    expect(afterTimeout!.clockWhiteRemaining!).toBeLessThanOrEqual(1000);
+  });
+
+  it("draw accepted persists clock remaining times to DB", async () => {
+    const { gameId, whiteSocket, blackSocket } = await setupGame();
+
+    const movePromise = waitForEvent(blackSocket, "moveMade");
+    whiteSocket.emit("move", { gameId, from: "e2", to: "e4" });
+    await movePromise;
+
+    const drawOfferedW = waitForEvent(whiteSocket, "drawOffered");
+    const drawOfferedB = waitForEvent(blackSocket, "drawOffered");
+    whiteSocket.emit("offerDraw", { gameId });
+    await Promise.all([drawOfferedW, drawOfferedB]);
+
+    const gameOverW = waitForEvent(whiteSocket, "gameOver");
+    const gameOverB = waitForEvent(blackSocket, "gameOver");
+    blackSocket.emit("acceptDraw", { gameId });
+    await Promise.all([gameOverW, gameOverB]);
+
+    const afterDraw = store.getGame(gameId);
+    expect(afterDraw!.status).toBe("draw");
+    expect(afterDraw!.clockWhiteRemaining).not.toBeNull();
+    expect(afterDraw!.clockBlackRemaining).not.toBeNull();
+    expect(afterDraw!.clockWhiteRemaining!).toBeLessThan(60000);
+    expect(afterDraw!.clockWhiteRemaining!).toBeGreaterThan(0);
+    expect(afterDraw!.clockBlackRemaining!).toBe(60000);
   });
 });
