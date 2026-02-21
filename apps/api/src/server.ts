@@ -29,7 +29,8 @@ export function buildApp(): { app: ReturnType<typeof Fastify>; io: TypedSocketSe
 export async function start() {
   const { app } = buildApp();
   const port = Number(process.env.PORT ?? 3000);
-  await app.listen({ port, host: "0.0.0.0" });
-  console.log(`Server listening on http://0.0.0.0:${port}`);
+  const host = process.env.HOST ?? "0.0.0.0";
+  await app.listen({ port, host });
+  console.log(`Server listening on http://${host}:${port}`);
   return app;
 }
