@@ -19,12 +19,15 @@ const authBodySchema = {
   },
 };
 
-const COOKIE_OPTIONS = {
-  path: "/",
-  httpOnly: true,
-  sameSite: "lax" as const,
-  signed: true,
-};
+function getCookieOptions() {
+  return {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    signed: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+}
 
 async function authRoutes(app: FastifyInstance) {
   // POST /api/auth/register
@@ -60,7 +63,7 @@ async function authRoutes(app: FastifyInstance) {
       }
 
       const sessionId = createSession(insertedUser.id);
-      reply.setCookie("sessionId", sessionId, COOKIE_OPTIONS);
+      reply.setCookie("sessionId", sessionId, getCookieOptions());
 
       return reply.code(201).send({ user: { id: insertedUser.id, email: insertedUser.email } });
     },
@@ -89,7 +92,7 @@ async function authRoutes(app: FastifyInstance) {
       }
 
       const sessionId = createSession(user.id);
-      reply.setCookie("sessionId", sessionId, COOKIE_OPTIONS);
+      reply.setCookie("sessionId", sessionId, getCookieOptions());
 
       return reply.code(200).send({ user: { id: user.id, email: user.email } });
     },
@@ -105,12 +108,7 @@ async function authRoutes(app: FastifyInstance) {
       }
     }
 
-    reply.clearCookie("sessionId", {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax" as const,
-      signed: true,
-    });
+    reply.clearCookie("sessionId", getCookieOptions());
 
     return reply.code(200).send({ ok: true });
   });

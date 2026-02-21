@@ -27,9 +27,11 @@ export type TypedSocketServer = SocketServer<
 >;
 
 export function setupSocketServer(httpServer: HttpServer, cookieSecret: string): TypedSocketServer {
+  const corsOrigin: string | boolean = process.env.CORS_ORIGIN ?? true;
+
   const io: TypedSocketServer = new SocketServer(httpServer, {
     cors: {
-      origin: true,
+      origin: corsOrigin,
       credentials: true,
     },
   });

@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.git/
+.pipeline/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+coverage/
+test-results/
+playwright-report/
+.pnpm-store/
+.claude/
+.codex/
+.husky/
+
+# Exclude e2e and pipeline source, but keep their package.json
+# files so pnpm workspace resolution works during install
+e2e/
+!e2e/package.json
+pipeline/
+!pipeline/package.json
