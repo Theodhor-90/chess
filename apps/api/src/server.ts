@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fastifyStatic from "@fastify/static";
+import cors from "@fastify/cors";
 import type { HealthResponse } from "@chess/shared";
 import { db } from "./db/index.js";
 import { sql } from "drizzle-orm";
@@ -23,6 +24,10 @@ export function buildApp(options?: BuildAppOptions): {
   const app = Fastify({ logger: false });
 
   app.register(authenticationPlugin);
+  app.register(cors, {
+    origin: process.env.CORS_ORIGIN ?? true,
+    credentials: true,
+  });
   app.register(authRoutesPlugin);
   app.register(gameRoutesPlugin, { prefix: "/api/games" });
 
