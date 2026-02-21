@@ -39,6 +39,9 @@ RUN pnpm -r --filter @chess/shared --filter @chess/api --filter @chess/web build
 # ---- Production stage ----
 FROM node:22-slim AS production
 
+# Install sqlite3 CLI for backup script
+RUN apt-get update && apt-get install -y sqlite3 && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy package.json files (needed for Node.js module resolution)
@@ -61,6 +64,10 @@ COPY --from=build /app/apps/web/dist/ apps/web/dist/
 
 # Create data directory for SQLite (will be overridden by Fly.io volume mount)
 RUN mkdir -p /app/data
+
+# Copy backup script
+COPY scripts/ scripts/
+RUN chmod +x scripts/backup.sh
 
 ENV NODE_ENV=production
 ENV PORT=3000
