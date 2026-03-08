@@ -172,3 +172,17 @@ export interface ServerSocketData {
   userId: number;
   rtt: number; // latest round-trip time in ms
 }
+
+// ---------------------------------------------------------------------------
+// Analysis types (Phase 4.1)
+// ---------------------------------------------------------------------------
+
+export type EvalScore =
+  | { type: "cp"; value: number }
+  | { type: "mate"; value: number };
+
+export interface EvaluationResult {
+  score: EvalScore;
+  bestLine: string[];
+  depth: number;
+}
