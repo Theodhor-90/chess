@@ -77,3 +77,29 @@ export function addChild(parent: MoveTreeNode, san: string, fen: string): MoveTr
   parent.children.push(node);
   return node;
 }
+
+export function getParent(node: MoveTreeNode): MoveTreeNode | null {
+  return node.parent;
+}
+
+export function getChild(node: MoveTreeNode, index: number): MoveTreeNode | null {
+  return node.children[index] ?? null;
+}
+
+export function getMainLine(node: MoveTreeNode): MoveTreeNode | null {
+  return node.children[0] ?? null;
+}
+
+export function getVariations(node: MoveTreeNode): MoveTreeNode[] {
+  return node.children.slice(1);
+}
+
+export function getMainLinePath(root: MoveTreeNode): MoveTreeNode[] {
+  const path: MoveTreeNode[] = [root];
+  let current = root;
+  while (current.children.length > 0) {
+    current = current.children[0];
+    path.push(current);
+  }
+  return path;
+}

@@ -5,6 +5,11 @@ import {
   serializeTree,
   deserializeTree,
   addChild,
+  getParent,
+  getChild,
+  getMainLine,
+  getVariations,
+  getMainLinePath,
 } from "../src/services/move-tree.js";
 
 const SCHOLARS_MATE_PGN = "1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7#";
@@ -261,5 +266,121 @@ describe("addChild", () => {
 
     const parsed = JSON.parse(json) as { children: unknown[] };
     expect(parsed.children).toHaveLength(2);
+  });
+});
+
+describe("tree navigation", () => {
+  it("getParent returns correct parent for a mid-tree node", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    const e4Node = root.children[0];
+    const e5Node = e4Node.children[0];
+    expect(getParent(e5Node)).toBe(e4Node);
+  });
+
+  it("getParent returns null for the root node", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    expect(getParent(root)).toBeNull();
+  });
+
+  it("getChild returns correct child by index", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    expect(getChild(root, 0)).toBe(root.children[0]);
+  });
+
+  it("getChild returns null for out-of-bounds index", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    expect(getChild(root, 5)).toBeNull();
+  });
+
+  it("getChild returns null for a leaf node", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    const path = getMainLinePath(root);
+    const lastNode = path[path.length - 1];
+    expect(getChild(lastNode, 0)).toBeNull();
+  });
+
+  it("getMainLine returns the first child", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    expect(getMainLine(root)).toBe(root.children[0]);
+  });
+
+  it("getMainLine returns null for a leaf node", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    const path = getMainLinePath(root);
+    const lastNode = path[path.length - 1];
+    expect(getMainLine(lastNode)).toBeNull();
+  });
+
+  it("getVariations returns children from index 1 onward", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+
+    const chess = new Chess();
+    chess.move("d4");
+    const d4Node = addChild(root, "d4", chess.fen());
+
+    const variations = getVariations(root);
+    expect(variations).toHaveLength(1);
+    expect(variations[0]).toBe(d4Node);
+  });
+
+  it("getVariations returns empty array if node has 0 or 1 children", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    expect(getVariations(root)).toEqual([]);
+  });
+
+  it("getMainLinePath returns all nodes from root to end of main line in order", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    const path = getMainLinePath(root);
+    expect(path).toHaveLength(8);
+    expect(path[0]).toBe(root);
+    expect(path[path.length - 1].san).toBe("Qxf7#");
+  });
+
+  it("getMainLinePath returns [root] for a root-only tree", () => {
+    const root = buildTreeFromPgn("");
+    const path = getMainLinePath(root);
+    expect(path).toHaveLength(1);
+    expect(path[0]).toBe(root);
+  });
+
+  it("navigating through main line from root to end visits every node in order", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+    const collected: typeof root[] = [];
+    let current: typeof root | null = root;
+    while (current !== null) {
+      collected.push(current);
+      current = getMainLine(current);
+    }
+    const path = getMainLinePath(root);
+    expect(collected).toHaveLength(path.length);
+    for (let i = 0; i < path.length; i++) {
+      expect(collected[i]).toBe(path[i]);
+    }
+  });
+
+  it("navigating into a variation and back to parent works correctly", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+
+    const chess = new Chess();
+    chess.move("d4");
+    const d4Node = addChild(root, "d4", chess.fen());
+
+    expect(getParent(d4Node)).toBe(root);
+  });
+
+  it("navigating to a variation then following its main line produces correct sequence", () => {
+    const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
+
+    const chess = new Chess();
+    chess.move("d4");
+    const d4Fen = chess.fen();
+    const d4Node = addChild(root, "d4", d4Fen);
+
+    chess.move("d5");
+    const d5Fen = chess.fen();
+    const d5Node = addChild(d4Node, "d5", d5Fen);
+
+    expect(getMainLine(d4Node)).toBe(d5Node);
+    expect(getParent(d5Node)).toBe(d4Node);
   });
 });
