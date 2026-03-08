@@ -268,6 +268,78 @@ describe("GameList", () => {
       expect(screen.getByTestId("game-list-error")).toBeInTheDocument();
     });
   });
+
+  it("shows Analyze link for completed games", async () => {
+    mockFetchSuccess([
+      {
+        id: 10,
+        status: "checkmate",
+        players: {
+          white: { userId: 1, color: "white" },
+          black: { userId: 2, color: "black" },
+        },
+        clock: { initialTime: 600, increment: 0 },
+        result: { winner: "white", reason: "checkmate" },
+        createdAt: 1700000000,
+      },
+    ]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+
+    renderWithProviders(<GameList />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-link-10")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("analyze-link-10").closest("a")).toHaveAttribute(
+      "href",
+      "/analysis/10",
+    );
+  });
+
+  it("does not show Analyze link for active games", async () => {
+    mockFetchSuccess([
+      {
+        id: 10,
+        status: "active",
+        players: {
+          white: { userId: 1, color: "white" },
+          black: { userId: 2, color: "black" },
+        },
+        clock: { initialTime: 600, increment: 0 },
+        createdAt: 1700000000,
+      },
+    ]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+
+    renderWithProviders(<GameList />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
+  });
+
+  it("does not show Analyze link for waiting games", async () => {
+    mockFetchSuccess([
+      {
+        id: 10,
+        status: "waiting",
+        players: {
+          white: { userId: 1, color: "white" },
+        },
+        clock: { initialTime: 600, increment: 0 },
+        createdAt: 1700000000,
+      },
+    ]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+
+    renderWithProviders(<GameList />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
+  });
 });
 
 describe("DashboardPage", () => {
