@@ -21,6 +21,10 @@ vi.mock("chess.js", () => ({
   Chess: vi.fn().mockImplementation(() => ({
     moves: vi.fn(() => []),
     get: vi.fn(() => null),
+    loadPgn: vi.fn(),
+    history: vi.fn(() => []),
+    fen: vi.fn(() => "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+    move: vi.fn(),
   })),
 }));
 
@@ -42,7 +46,7 @@ afterEach(() => {
   mockSocket.on.mockClear();
   mockSocket.emit.mockClear();
   mockSocket.disconnect.mockClear();
-  vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
 
 function createTestStore() {
