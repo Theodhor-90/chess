@@ -25,12 +25,12 @@ The feature ships in three milestones:
 
 ## Tech Stack (additions to existing platform)
 
-| Layer            | Choice                  | Rationale                                                                                         |
-| ---------------- | ----------------------- | ------------------------------------------------------------------------------------------------- |
-| Chess engine     | lila-stockfish-web      | Lichess's Stockfish WASM build, battle-tested, supports Web Workers, multi-threaded where available |
-| Engine execution | Web Worker (client-side) | No backend compute cost, runs entirely in the user's browser                                      |
-| Analysis depth   | 18 ply                  | Good balance of accuracy vs. computation time for browser-based analysis                          |
-| Move tree model  | In-memory tree structure | Supports branching with parent/child relationships, serializable for persistence                  |
+| Layer            | Choice                   | Rationale                                                                                           |
+| ---------------- | ------------------------ | --------------------------------------------------------------------------------------------------- |
+| Chess engine     | lila-stockfish-web       | Lichess's Stockfish WASM build, battle-tested, supports Web Workers, multi-threaded where available |
+| Engine execution | Web Worker (client-side) | No backend compute cost, runs entirely in the user's browser                                        |
+| Analysis depth   | 18 ply                   | Good balance of accuracy vs. computation time for browser-based analysis                            |
+| Move tree model  | In-memory tree structure | Supports branching with parent/child relationships, serializable for persistence                    |
 
 ### Existing Stack (unchanged)
 
@@ -53,6 +53,7 @@ Stockfish runs entirely in the browser via lila-stockfish-web WASM. The engine c
 ### Move Tree Data Model
 
 Analysis data is modeled as a tree, not a flat list. Each node contains:
+
 - Position (FEN)
 - Evaluation (centipawns or mate-in-N)
 - Move classification (best, good, inaccuracy, mistake, blunder)

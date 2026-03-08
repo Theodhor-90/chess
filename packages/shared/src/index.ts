@@ -177,9 +177,7 @@ export interface ServerSocketData {
 // Analysis types (Phase 4.1)
 // ---------------------------------------------------------------------------
 
-export type EvalScore =
-  | { type: "cp"; value: number }
-  | { type: "mate"; value: number };
+export type EvalScore = { type: "cp"; value: number } | { type: "mate"; value: number };
 
 export interface EvaluationResult {
   score: EvalScore;
