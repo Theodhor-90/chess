@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
@@ -7,6 +7,23 @@ import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { AppRoutes } from "../src/App.js";
+
+const mockDestroy = vi.fn();
+
+vi.mock("../src/services/stockfish.js", () => ({
+  StockfishService: vi.fn().mockImplementation(() => ({
+    ready: Promise.resolve(),
+    evaluate: vi.fn(),
+    destroy: mockDestroy,
+  })),
+}));
+
+const mockAnalyzeGame = vi.fn();
+
+vi.mock("../src/services/analysis.js", () => ({
+  analyzeGame: (...args: unknown[]) => mockAnalyzeGame(...args),
+  computeAccuracy: vi.fn(() => 85),
+}));
 
 vi.mock("chessground", () => ({
   Chessground: vi.fn(() => ({
@@ -46,6 +63,8 @@ afterEach(() => {
   mockSocket.on.mockClear();
   mockSocket.emit.mockClear();
   mockSocket.disconnect.mockClear();
+  mockDestroy.mockClear();
+  mockAnalyzeGame.mockReset();
   vi.clearAllMocks();
 });
 
@@ -229,5 +248,170 @@ describe("AnalysisPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Invalid game ID")).toBeInTheDocument();
     });
+  });
+
+  it("shows enabled Analyze button for completed game", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({
+      id: 10,
+      status: "checkmate",
+      pgn: "1. e4 e5",
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      moves: ["e4", "e5"],
+      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
+      currentTurn: "white",
+      inviteToken: "tok",
+      drawOffer: null,
+      createdAt: 1700000000,
+    });
+    mockFetchSuccess([]);
+
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("analyze-button")).not.toBeDisabled();
+  });
+
+  it("shows progress during analysis", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({
+      id: 10,
+      status: "checkmate",
+      pgn: "1. e4 e5",
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      moves: ["e4", "e5"],
+      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
+      currentTurn: "white",
+      inviteToken: "tok",
+      drawOffer: null,
+      createdAt: 1700000000,
+    });
+    mockFetchSuccess([]);
+
+    mockAnalyzeGame.mockImplementation(
+      (
+        _service: unknown,
+        _fens: unknown,
+        _moves: unknown,
+        onProgress: (c: number, t: number) => void,
+      ) => {
+        onProgress(2, 3);
+        return new Promise(() => {});
+      },
+    );
+
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("analyze-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analysis-progress")).toHaveTextContent("Analyzing move");
+    });
+  });
+
+  it("displays accuracy scores and eval bar after analysis completes", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({
+      id: 10,
+      status: "checkmate",
+      pgn: "1. e4 e5",
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      moves: ["e4", "e5"],
+      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
+      currentTurn: "white",
+      inviteToken: "tok",
+      drawOffer: null,
+      createdAt: 1700000000,
+    });
+    mockFetchSuccess([]);
+
+    mockAnalyzeGame.mockResolvedValue({
+      positions: [
+        {
+          fen: "start",
+          evaluation: { score: { type: "cp", value: 20 }, bestLine: ["e4"], depth: 18 },
+          classification: null,
+          centipawnLoss: null,
+        },
+        {
+          fen: "after-e4",
+          evaluation: { score: { type: "cp", value: -25 }, bestLine: ["e5"], depth: 18 },
+          classification: "best",
+          centipawnLoss: 0,
+        },
+        {
+          fen: "after-e5",
+          evaluation: { score: { type: "cp", value: 15 }, bestLine: ["Nf3"], depth: 18 },
+          classification: "good",
+          centipawnLoss: 5,
+        },
+      ],
+      whiteAccuracy: 87.3,
+      blackAccuracy: 72.1,
+    });
+
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("analyze-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("accuracy-display")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("accuracy-display")).toHaveTextContent("White: 87.3%");
+    expect(screen.getByTestId("accuracy-display")).toHaveTextContent("Black: 72.1%");
+    expect(screen.getByTestId("eval-bar")).toBeInTheDocument();
+  });
+
+  it("cleans up StockfishService on unmount", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({
+      id: 10,
+      status: "checkmate",
+      pgn: "1. e4 e5",
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      moves: ["e4", "e5"],
+      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
+      currentTurn: "white",
+      inviteToken: "tok",
+      drawOffer: null,
+      createdAt: 1700000000,
+    });
+    mockFetchSuccess([]);
+
+    mockAnalyzeGame.mockResolvedValue({
+      positions: [
+        {
+          fen: "start",
+          evaluation: { score: { type: "cp", value: 0 }, bestLine: ["e4"], depth: 18 },
+          classification: null,
+          centipawnLoss: null,
+        },
+      ],
+      whiteAccuracy: 100,
+      blackAccuracy: 100,
+    });
+
+    const { unmount } = renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("analyze-button"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("accuracy-display")).toBeInTheDocument();
+    });
+
+    unmount();
+
+    expect(mockDestroy).toHaveBeenCalled();
   });
 });

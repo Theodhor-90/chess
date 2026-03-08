@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router";
 import { Chess } from "chess.js";
 import { Chessground } from "chessground";
@@ -8,7 +8,16 @@ import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 import { useGetGameQuery, useGetMyGamesQuery } from "../store/apiSlice.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
-import type { GameStatus, GameResponse } from "@chess/shared";
+import { StockfishService } from "../services/stockfish.js";
+import { analyzeGame } from "../services/analysis.js";
+import { EvalBar } from "../components/EvalBar.js";
+import type {
+  GameStatus,
+  GameResponse,
+  AnalyzedPosition,
+  EvalScore,
+  MoveClassification,
+} from "@chess/shared";
 
 function isTerminalStatus(status: GameStatus): boolean {
   return (
@@ -20,10 +29,18 @@ function isTerminalStatus(status: GameStatus): boolean {
   );
 }
 
+type AnalysisState = "idle" | "running" | "complete";
+
 function AnalysisContent({ game }: { game: GameResponse }) {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  const [positions, setPositions] = useState<AnalyzedPosition[] | null>(null);
+  const [whiteAccuracy, setWhiteAccuracy] = useState<number | null>(null);
+  const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
+  const stockfishRef = useRef<StockfishService | null>(null);
 
   const { moves, fens } = useMemo(() => {
     if (!game.pgn) {
@@ -45,6 +62,45 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   }, [game.pgn]);
 
   const currentFen = fens[currentMoveIndex] ?? fens[0];
+
+  useEffect(() => {
+    return () => {
+      if (stockfishRef.current) {
+        stockfishRef.current.destroy();
+        stockfishRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleAnalyze = useCallback(async () => {
+    if (analysisState !== "idle") return;
+
+    setAnalysisState("running");
+
+    const service = new StockfishService();
+    stockfishRef.current = service;
+
+    try {
+      await service.ready;
+
+      const result = await analyzeGame(service, fens, moves, (current, total) => {
+        setProgress({ current, total });
+      });
+
+      setPositions(result.positions);
+      setWhiteAccuracy(result.whiteAccuracy);
+      setBlackAccuracy(result.blackAccuracy);
+      setAnalysisState("complete");
+    } catch {
+      setAnalysisState("idle");
+    }
+  }, [analysisState, fens, moves]);
+
+  const currentEval: EvalScore | null = positions?.[currentMoveIndex]?.evaluation.score ?? null;
+
+  const classifications: (MoveClassification | null)[] | undefined = positions
+    ? positions.map((p) => p.classification)
+    : undefined;
 
   // Arrow key navigation
   useEffect(() => {
@@ -87,6 +143,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     >
       <h1>Game Analysis</h1>
       <div style={{ display: "flex", gap: "24px" }}>
+        {currentEval && <EvalBar score={currentEval} />}
         <div
           ref={containerRef}
           data-testid="analysis-board"
@@ -97,24 +154,36 @@ function AnalysisContent({ game }: { game: GameResponse }) {
             moves={moves}
             currentMoveIndex={currentMoveIndex}
             onMoveClick={setCurrentMoveIndex}
+            classifications={classifications}
           />
-          <button
-            data-testid="analyze-button"
-            disabled
-            style={{
-              backgroundColor: "#4CAF50",
-              color: "white",
-              padding: "12px 24px",
-              border: "none",
-              borderRadius: "4px",
-              fontSize: "16px",
-              fontWeight: "bold",
-              opacity: 0.6,
-              cursor: "not-allowed",
-            }}
-          >
-            Analyze
-          </button>
+          {analysisState === "idle" && (
+            <button
+              data-testid="analyze-button"
+              onClick={handleAnalyze}
+              style={{
+                backgroundColor: "#4CAF50",
+                color: "white",
+                padding: "12px 24px",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "16px",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              Analyze
+            </button>
+          )}
+          {analysisState === "running" && progress && (
+            <div data-testid="analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
+              Analyzing move {progress.current}/{progress.total}...
+            </div>
+          )}
+          {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (
+            <div data-testid="accuracy-display" style={{ fontSize: "14px", fontWeight: "bold" }}>
+              White: {whiteAccuracy.toFixed(1)}% — Black: {blackAccuracy.toFixed(1)}%
+            </div>
+          )}
         </div>
       </div>
     </div>

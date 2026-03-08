@@ -85,7 +85,8 @@ export function AnalysisMoveList({
                     backgroundColor: isWhiteActive ? "#e0e0ff" : undefined,
                   }}
                 >
-                  {renderIndicator(whiteMoveIndex)}{white}
+                  {renderIndicator(whiteMoveIndex)}
+                  {white}
                 </td>
                 <td
                   ref={isBlackActive ? activeRef : undefined}
@@ -96,7 +97,8 @@ export function AnalysisMoveList({
                     backgroundColor: isBlackActive ? "#e0e0ff" : undefined,
                   }}
                 >
-                  {renderIndicator(blackMoveIndex)}{black ?? ""}
+                  {renderIndicator(blackMoveIndex)}
+                  {black ?? ""}
                 </td>
               </tr>
             );
