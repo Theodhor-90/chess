@@ -141,6 +141,7 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
 
     if (game.status === "active" && isOpponentInRoom(io, gameId, game, userId)) {
       socket.to(roomName).emit("opponentReconnected", {});
+      socket.to(roomName).emit("gameState", { ...game, clock: { ...game.clock, ...clockState } });
     }
   });
 
