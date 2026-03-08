@@ -9,6 +9,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
 import { NavHeader } from "./components/NavHeader.js";
 import { JoinPage } from "./pages/JoinPage.js";
+import { AnalysisPage } from "./pages/AnalysisPage.js";
 
 export function AppRoutes() {
   return (
@@ -30,6 +31,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <JoinPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analysis/:gameId"
+          element={
+            <ProtectedRoute>
+              <AnalysisPage />
             </ProtectedRoute>
           }
         />

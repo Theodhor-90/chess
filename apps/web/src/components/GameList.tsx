@@ -49,6 +49,16 @@ function getOpponentLabel(game: GameListItem, myUserId: number | null): string {
   return "";
 }
 
+function isTerminalStatus(status: GameStatus): boolean {
+  return (
+    status === "checkmate" ||
+    status === "stalemate" ||
+    status === "resigned" ||
+    status === "draw" ||
+    status === "timeout"
+  );
+}
+
 function sortGames(games: GameListItem[]): GameListItem[] {
   const active: GameListItem[] = [];
   const waiting: GameListItem[] = [];
@@ -97,6 +107,7 @@ export function GameList() {
             <th style={{ textAlign: "left", padding: "8px" }}>Time</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Status</th>
             <th style={{ textAlign: "left", padding: "8px" }}>Result</th>
+            <th style={{ textAlign: "left", padding: "8px" }}></th>
           </tr>
         </thead>
         <tbody>
@@ -110,6 +121,13 @@ export function GameList() {
               </td>
               <td style={{ padding: "8px" }}>{getStatusLabel(game.status)}</td>
               <td style={{ padding: "8px" }}>{getResultLabel(game, myUserId)}</td>
+              <td style={{ padding: "8px" }}>
+                {isTerminalStatus(game.status) && (
+                  <Link to={`/analysis/${game.id}`} data-testid={`analyze-link-${game.id}`}>
+                    Analyze
+                  </Link>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
