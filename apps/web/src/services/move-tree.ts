@@ -59,3 +59,21 @@ export function deserializeTree(
   node.children = data.children.map((child) => deserializeTree(child, node));
   return node;
 }
+
+export function addChild(parent: MoveTreeNode, san: string, fen: string): MoveTreeNode {
+  const existing = parent.children.find((child) => child.san === san);
+  if (existing) {
+    return existing;
+  }
+
+  const node: MoveTreeNode = {
+    fen,
+    san,
+    eval: null,
+    classification: null,
+    children: [],
+    parent,
+  };
+  parent.children.push(node);
+  return node;
+}
