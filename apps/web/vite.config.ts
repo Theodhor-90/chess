@@ -6,6 +6,12 @@ const apiTarget = `http://localhost:${apiPort}`;
 
 export default defineConfig({
   plugins: [react()],
+  worker: {
+    format: "es",
+  },
+  optimizeDeps: {
+    exclude: ["lila-stockfish-web"],
+  },
   server: {
     proxy: {
       "/api": apiTarget,
@@ -13,6 +19,10 @@ export default defineConfig({
         target: apiTarget,
         ws: true,
       },
+    },
+    headers: {
+      "Cross-Origin-Embedder-Policy": "require-corp",
+      "Cross-Origin-Opener-Policy": "same-origin",
     },
   },
   test: {
