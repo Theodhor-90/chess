@@ -193,3 +193,24 @@ export interface AnalyzedPosition {
   classification: MoveClassification | null;
   centipawnLoss: number | null;
 }
+
+// ---------------------------------------------------------------------------
+// Move tree types (Phase 5.1)
+// ---------------------------------------------------------------------------
+
+export interface MoveTreeNode {
+  fen: string;
+  eval: EvalScore | null;
+  classification: MoveClassification | null;
+  san: string | null;
+  children: MoveTreeNode[];
+  parent: MoveTreeNode | null;
+}
+
+export interface SerializedMoveTreeNode {
+  fen: string;
+  eval: EvalScore | null;
+  classification: MoveClassification | null;
+  san: string | null;
+  children: SerializedMoveTreeNode[];
+}
