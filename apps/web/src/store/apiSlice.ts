@@ -9,6 +9,9 @@ import type {
   GameResponse,
   ResolveInviteResponse,
   GameListResponse,
+  SaveAnalysisRequest,
+  SaveAnalysisResponse,
+  GetAnalysisResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -76,6 +79,30 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["Game"],
     }),
+
+    // Analysis endpoints
+    saveAnalysis: builder.mutation<
+      SaveAnalysisResponse,
+      { gameId: number; body: SaveAnalysisRequest }
+    >({
+      query: ({ gameId, body }) => ({
+        url: `/games/${gameId}/analysis`,
+        method: "POST",
+        body,
+      }),
+    }),
+    getAnalysis: builder.query<GetAnalysisResponse | null, number>({
+      queryFn: async (gameId, _queryApi, _extraOptions, baseQuery) => {
+        const result = await baseQuery(`/games/${gameId}/analysis`);
+        if (result.error) {
+          if (result.error.status === 404) {
+            return { data: null };
+          }
+          return { error: result.error };
+        }
+        return { data: result.data as GetAnalysisResponse };
+      },
+    }),
   }),
 });
 
@@ -89,4 +116,6 @@ export const {
   useResolveInviteQuery,
   useGetMyGamesQuery,
   useJoinGameMutation,
+  useSaveAnalysisMutation,
+  useGetAnalysisQuery,
 } = apiSlice;
