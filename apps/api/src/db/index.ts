@@ -67,6 +67,20 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec(
     "CREATE INDEX IF NOT EXISTS moves_game_id_move_number_idx ON moves(game_id, move_number)",
   );
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS game_analyses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id INTEGER NOT NULL REFERENCES games(id),
+      analysis_tree TEXT NOT NULL,
+      white_accuracy REAL NOT NULL,
+      black_accuracy REAL NOT NULL,
+      engine_depth INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  sqliteDb.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS game_analyses_game_id_idx ON game_analyses(game_id)",
+  );
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)

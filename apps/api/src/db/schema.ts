@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -53,4 +53,22 @@ export const moves = sqliteTable(
       .default(sql`(unixepoch())`),
   },
   (table) => [index("moves_game_id_move_number_idx").on(table.gameId, table.moveNumber)],
+);
+
+export const gameAnalyses = sqliteTable(
+  "game_analyses",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: integer("game_id")
+      .notNull()
+      .references(() => games.id),
+    analysisTree: text("analysis_tree").notNull(),
+    whiteAccuracy: real("white_accuracy").notNull(),
+    blackAccuracy: real("black_accuracy").notNull(),
+    engineDepth: integer("engine_depth").notNull(),
+    createdAt: integer("created_at")
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [uniqueIndex("game_analyses_game_id_idx").on(table.gameId)],
 );
