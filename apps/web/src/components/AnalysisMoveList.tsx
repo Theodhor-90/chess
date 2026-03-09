@@ -1,14 +1,47 @@
 import { useEffect, useRef } from "react";
+import type { MoveClassification } from "@chess/shared";
 
 interface AnalysisMoveListProps {
   moves: string[];
   currentMoveIndex: number;
   onMoveClick: (moveIndex: number) => void;
+  classifications?: (MoveClassification | null)[];
 }
 
-export function AnalysisMoveList({ moves, currentMoveIndex, onMoveClick }: AnalysisMoveListProps) {
+const classificationColors: Record<MoveClassification, string> = {
+  best: "#22c55e",
+  good: "#22c55e",
+  inaccuracy: "#eab308",
+  mistake: "#f97316",
+  blunder: "#ef4444",
+};
+
+export function AnalysisMoveList({
+  moves,
+  currentMoveIndex,
+  onMoveClick,
+  classifications,
+}: AnalysisMoveListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLTableCellElement>(null);
+
+  function renderIndicator(moveIndex: number): React.ReactNode {
+    const classification = classifications?.[moveIndex];
+    if (!classification) return null;
+    return (
+      <span
+        data-testid={`move-indicator-${moveIndex}`}
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          backgroundColor: classificationColors[classification],
+          marginRight: 4,
+        }}
+      />
+    );
+  }
 
   useEffect(() => {
     if (activeRef.current && containerRef.current) {
@@ -52,6 +85,7 @@ export function AnalysisMoveList({ moves, currentMoveIndex, onMoveClick }: Analy
                     backgroundColor: isWhiteActive ? "#e0e0ff" : undefined,
                   }}
                 >
+                  {renderIndicator(whiteMoveIndex)}
                   {white}
                 </td>
                 <td
@@ -63,6 +97,7 @@ export function AnalysisMoveList({ moves, currentMoveIndex, onMoveClick }: Analy
                     backgroundColor: isBlackActive ? "#e0e0ff" : undefined,
                   }}
                 >
+                  {renderIndicator(blackMoveIndex)}
                   {black ?? ""}
                 </td>
               </tr>

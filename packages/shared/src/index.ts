@@ -184,3 +184,12 @@ export interface EvaluationResult {
   bestLine: string[];
   depth: number;
 }
+
+export type MoveClassification = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
+
+export interface AnalyzedPosition {
+  fen: string;
+  evaluation: EvaluationResult;
+  classification: MoveClassification | null;
+  centipawnLoss: number | null;
+}
