@@ -6,7 +6,8 @@ import type { Api } from "chessground/api";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
-import { useGetGameQuery, useGetMyGamesQuery } from "../store/apiSlice.js";
+import { useGetGameQuery, useGetMyGamesQuery, useGetAnalysisQuery } from "../store/apiSlice.js";
+import { treeToPositions } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { StockfishService } from "../services/stockfish.js";
 import { analyzeGame } from "../services/analysis.js";
@@ -42,6 +43,12 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
   const stockfishRef = useRef<StockfishService | null>(null);
 
+  const {
+    data: storedAnalysis,
+    isLoading: analysisLoading,
+    isError: _analysisError,
+  } = useGetAnalysisQuery(game.id);
+
   const { moves, fens } = useMemo(() => {
     if (!game.pgn) {
       return {
@@ -71,6 +78,16 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (storedAnalysis && analysisState === "idle") {
+      const restoredPositions = treeToPositions(storedAnalysis.analysisTree);
+      setPositions(restoredPositions);
+      setWhiteAccuracy(storedAnalysis.whiteAccuracy);
+      setBlackAccuracy(storedAnalysis.blackAccuracy);
+      setAnalysisState("complete");
+    }
+  }, [storedAnalysis, analysisState]);
 
   const handleAnalyze = useCallback(async () => {
     if (analysisState !== "idle") return;
@@ -156,7 +173,12 @@ function AnalysisContent({ game }: { game: GameResponse }) {
             onMoveClick={setCurrentMoveIndex}
             classifications={classifications}
           />
-          {analysisState === "idle" && (
+          {analysisLoading && (
+            <div data-testid="analysis-loading-stored" style={{ fontSize: "14px", color: "#666" }}>
+              Loading saved analysis...
+            </div>
+          )}
+          {analysisState === "idle" && !analysisLoading && (
             <button
               data-testid="analyze-button"
               onClick={handleAnalyze}
