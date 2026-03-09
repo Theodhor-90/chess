@@ -6,8 +6,13 @@ import type { Api } from "chessground/api";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
-import { useGetGameQuery, useGetMyGamesQuery, useGetAnalysisQuery } from "../store/apiSlice.js";
-import { treeToPositions } from "../services/analysisSerializer.js";
+import {
+  useGetGameQuery,
+  useGetMyGamesQuery,
+  useGetAnalysisQuery,
+  useSaveAnalysisMutation,
+} from "../store/apiSlice.js";
+import { treeToPositions, positionsToTree } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { StockfishService } from "../services/stockfish.js";
 import { analyzeGame } from "../services/analysis.js";
@@ -42,6 +47,9 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [whiteAccuracy, setWhiteAccuracy] = useState<number | null>(null);
   const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
   const stockfishRef = useRef<StockfishService | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const wasComputedLocally = useRef(false);
+  const [saveAnalysis] = useSaveAnalysisMutation();
 
   const {
     data: storedAnalysis,
@@ -89,10 +97,42 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     }
   }, [storedAnalysis, analysisState]);
 
+  useEffect(() => {
+    if (
+      analysisState !== "complete" ||
+      !positions ||
+      whiteAccuracy === null ||
+      blackAccuracy === null ||
+      !wasComputedLocally.current
+    ) {
+      return;
+    }
+
+    const tree = positionsToTree(fens, moves, positions);
+
+    saveAnalysis({
+      gameId: game.id,
+      body: {
+        analysisTree: tree,
+        whiteAccuracy,
+        blackAccuracy,
+        engineDepth: 18,
+      },
+    })
+      .unwrap()
+      .then(() => {
+        setSaveError(null);
+      })
+      .catch(() => {
+        setSaveError("Failed to save analysis results.");
+      });
+  }, [analysisState, positions, whiteAccuracy, blackAccuracy, fens, moves, game.id, saveAnalysis]);
+
   const handleAnalyze = useCallback(async () => {
     if (analysisState !== "idle") return;
 
     setAnalysisState("running");
+    setSaveError(null);
 
     const service = new StockfishService();
     stockfishRef.current = service;
@@ -107,6 +147,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       setPositions(result.positions);
       setWhiteAccuracy(result.whiteAccuracy);
       setBlackAccuracy(result.blackAccuracy);
+      wasComputedLocally.current = true;
       setAnalysisState("complete");
     } catch {
       setAnalysisState("idle");
@@ -204,6 +245,11 @@ function AnalysisContent({ game }: { game: GameResponse }) {
           {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (
             <div data-testid="accuracy-display" style={{ fontSize: "14px", fontWeight: "bold" }}>
               White: {whiteAccuracy.toFixed(1)}% — Black: {blackAccuracy.toFixed(1)}%
+            </div>
+          )}
+          {saveError && (
+            <div data-testid="save-error" style={{ fontSize: "14px", color: "#d32f2f" }}>
+              {saveError}
             </div>
           )}
         </div>
