@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { authenticationPlugin } from "./auth/plugin.js";
 import { authRoutesPlugin } from "./auth/routes.js";
 import { gameRoutesPlugin } from "./game/routes.js";
+import { analysisRoutesPlugin } from "./analysis/routes.js";
 import { setupSocketServer, type TypedSocketServer } from "./socket/index.js";
 
 const COOKIE_SECRET = process.env.SESSION_SECRET ?? "dev-fallback-secret-not-for-production";
@@ -15,6 +16,7 @@ export function buildApp(): { app: ReturnType<typeof Fastify>; io: TypedSocketSe
   app.register(authenticationPlugin);
   app.register(authRoutesPlugin);
   app.register(gameRoutesPlugin, { prefix: "/api/games" });
+  app.register(analysisRoutesPlugin, { prefix: "/api/games" });
 
   app.get<{ Reply: HealthResponse }>("/health", async (_req, reply) => {
     db.run(sql`SELECT 1`);
