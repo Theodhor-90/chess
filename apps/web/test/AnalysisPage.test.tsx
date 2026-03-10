@@ -204,6 +204,7 @@ async function setupCompletedAnalysis() {
     createdAt: 1700000000,
   });
   mockFetchSuccess([]);
+  mockFetchError({}, 404); // no stored analysis
 
   mockAnalyzeGame.mockResolvedValue(analysisResultWithEngineLines);
 
@@ -450,6 +451,7 @@ describe("AnalysisPage", () => {
     });
     // myGames returns no active games
     mockFetchSuccess([]);
+    mockFetchError({}, 404); // no stored analysis
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -485,6 +487,7 @@ describe("AnalysisPage", () => {
       createdAt: 1700000000,
     });
     mockFetchSuccess([]);
+    mockFetchError({}, 404); // no stored analysis
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -509,6 +512,7 @@ describe("AnalysisPage", () => {
       createdAt: 1700000000,
     });
     mockFetchSuccess([]);
+    mockFetchError({}, 404); // no stored analysis
 
     mockAnalyzeGame.mockImplementation(
       (
@@ -549,6 +553,7 @@ describe("AnalysisPage", () => {
       createdAt: 1700000000,
     });
     mockFetchSuccess([]);
+    mockFetchError({}, 404); // no stored analysis
 
     mockAnalyzeGame.mockResolvedValue({
       positions: [
@@ -605,6 +610,7 @@ describe("AnalysisPage", () => {
       createdAt: 1700000000,
     });
     mockFetchSuccess([]);
+    mockFetchError({}, 404); // no stored analysis
 
     mockAnalyzeGame.mockResolvedValue({
       positions: [
@@ -832,6 +838,7 @@ describe("AnalysisPage", () => {
       createdAt: 1700000000,
     });
     mockFetchSuccess([]);
+    mockFetchError({}, 404); // no stored analysis
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
