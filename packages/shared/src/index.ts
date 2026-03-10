@@ -183,6 +183,13 @@ export interface EvaluationResult {
   score: EvalScore;
   bestLine: string[];
   depth: number;
+  engineLines?: EngineLineInfo[];
+}
+
+export interface EngineLineInfo {
+  score: EvalScore;
+  moves: string[];
+  depth: number;
 }
 
 export type MoveClassification = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
@@ -192,4 +199,37 @@ export interface AnalyzedPosition {
   evaluation: EvaluationResult;
   classification: MoveClassification | null;
   centipawnLoss: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Analysis persistence types (Phase 6.1)
+// ---------------------------------------------------------------------------
+
+export interface SerializedAnalysisNode {
+  fen: string;
+  san: string | null;
+  evaluation: EvaluationResult | null;
+  classification: MoveClassification | null;
+  children: SerializedAnalysisNode[];
+}
+
+export interface SaveAnalysisRequest {
+  analysisTree: SerializedAnalysisNode;
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  engineDepth: number;
+}
+
+export interface SaveAnalysisResponse {
+  gameId: number;
+  createdAt: number;
+}
+
+export interface GetAnalysisResponse {
+  gameId: number;
+  analysisTree: SerializedAnalysisNode;
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  engineDepth: number;
+  createdAt: number;
 }

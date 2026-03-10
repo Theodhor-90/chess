@@ -3,20 +3,29 @@ import { useParams } from "react-router";
 import { Chess } from "chess.js";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
+import type { DrawShape } from "chessground/draw";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
-import { useGetGameQuery, useGetMyGamesQuery } from "../store/apiSlice.js";
+import {
+  useGetGameQuery,
+  useGetMyGamesQuery,
+  useGetAnalysisQuery,
+  useSaveAnalysisMutation,
+} from "../store/apiSlice.js";
+import { treeToPositions, positionsToTree } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { StockfishService } from "../services/stockfish.js";
 import { analyzeGame } from "../services/analysis.js";
 import { EvalBar } from "../components/EvalBar.js";
+import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
 import type {
   GameStatus,
   GameResponse,
   AnalyzedPosition,
   EvalScore,
   MoveClassification,
+  EngineLineInfo,
 } from "@chess/shared";
 
 function isTerminalStatus(status: GameStatus): boolean {
@@ -31,6 +40,53 @@ function isTerminalStatus(status: GameStatus): boolean {
 
 type AnalysisState = "idle" | "running" | "complete";
 
+interface VariationState {
+  branchMoveIndex: number;
+  line: EngineLineInfo;
+  fens: string[];
+  stepIndex: number;
+}
+
+function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
+  const chess = new Chess(branchFen);
+  const result: string[] = [];
+  for (const san of sanMoves) {
+    const move = chess.move(san);
+    if (!move) break;
+    result.push(chess.fen());
+  }
+  return result;
+}
+
+function computeArrowShapes(engineLines: EngineLineInfo[] | undefined, fen: string): DrawShape[] {
+  if (!engineLines || engineLines.length === 0) return [];
+
+  const shapes: DrawShape[] = [];
+  const chess = new Chess(fen);
+
+  for (let i = 0; i < engineLines.length && i < 3; i++) {
+    const line = engineLines[i];
+    if (line.moves.length === 0) continue;
+
+    const san = line.moves[0];
+    try {
+      const moveResult = chess.move(san);
+      if (moveResult) {
+        shapes.push({
+          orig: moveResult.from,
+          dest: moveResult.to,
+          brush: i === 0 ? "green" : "blue",
+        });
+        chess.undo();
+      }
+    } catch {
+      // Invalid move for this position — skip
+    }
+  }
+
+  return shapes;
+}
+
 function AnalysisContent({ game }: { game: GameResponse }) {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,6 +97,16 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [whiteAccuracy, setWhiteAccuracy] = useState<number | null>(null);
   const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
   const stockfishRef = useRef<StockfishService | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const wasComputedLocally = useRef(false);
+  const [variation, setVariation] = useState<VariationState | null>(null);
+  const [saveAnalysis] = useSaveAnalysisMutation();
+
+  const {
+    data: storedAnalysis,
+    isLoading: analysisLoading,
+    isError: _analysisError,
+  } = useGetAnalysisQuery(game.id);
 
   const { moves, fens } = useMemo(() => {
     if (!game.pgn) {
@@ -61,7 +127,32 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     return { moves: history, fens: fenList };
   }, [game.pgn]);
 
-  const currentFen = fens[currentMoveIndex] ?? fens[0];
+  const handleLineSelect = useCallback(
+    (lineIndex: number) => {
+      const engineLines = positions?.[currentMoveIndex]?.evaluation.engineLines;
+      if (!engineLines || !engineLines[lineIndex]) return;
+
+      const line = engineLines[lineIndex];
+      const branchFen = fens[currentMoveIndex];
+      const variationFens = computeVariationFens(branchFen, line.moves);
+
+      if (variationFens.length === 0) return;
+
+      setVariation({
+        branchMoveIndex: currentMoveIndex,
+        line,
+        fens: variationFens,
+        stepIndex: 0,
+      });
+    },
+    [positions, currentMoveIndex, fens],
+  );
+
+  const currentFen = variation
+    ? variation.stepIndex === -1
+      ? (fens[variation.branchMoveIndex] ?? fens[0])
+      : (variation.fens[variation.stepIndex] ?? fens[variation.branchMoveIndex] ?? fens[0])
+    : (fens[currentMoveIndex] ?? fens[0]);
 
   useEffect(() => {
     return () => {
@@ -72,10 +163,52 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (storedAnalysis && analysisState === "idle") {
+      const restoredPositions = treeToPositions(storedAnalysis.analysisTree);
+      setPositions(restoredPositions);
+      setWhiteAccuracy(storedAnalysis.whiteAccuracy);
+      setBlackAccuracy(storedAnalysis.blackAccuracy);
+      setAnalysisState("complete");
+    }
+  }, [storedAnalysis, analysisState]);
+
+  useEffect(() => {
+    if (
+      analysisState !== "complete" ||
+      !positions ||
+      whiteAccuracy === null ||
+      blackAccuracy === null ||
+      !wasComputedLocally.current
+    ) {
+      return;
+    }
+
+    const tree = positionsToTree(fens, moves, positions);
+
+    saveAnalysis({
+      gameId: game.id,
+      body: {
+        analysisTree: tree,
+        whiteAccuracy,
+        blackAccuracy,
+        engineDepth: 18,
+      },
+    })
+      .unwrap()
+      .then(() => {
+        setSaveError(null);
+      })
+      .catch(() => {
+        setSaveError("Failed to save analysis results.");
+      });
+  }, [analysisState, positions, whiteAccuracy, blackAccuracy, fens, moves, game.id, saveAnalysis]);
+
   const handleAnalyze = useCallback(async () => {
     if (analysisState !== "idle") return;
 
     setAnalysisState("running");
+    setSaveError(null);
 
     const service = new StockfishService();
     stockfishRef.current = service;
@@ -90,13 +223,23 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       setPositions(result.positions);
       setWhiteAccuracy(result.whiteAccuracy);
       setBlackAccuracy(result.blackAccuracy);
+      wasComputedLocally.current = true;
       setAnalysisState("complete");
     } catch {
       setAnalysisState("idle");
     }
   }, [analysisState, fens, moves]);
 
-  const currentEval: EvalScore | null = positions?.[currentMoveIndex]?.evaluation.score ?? null;
+  const currentEval: EvalScore | null = variation
+    ? variation.line.score
+    : (positions?.[currentMoveIndex]?.evaluation.score ?? null);
+  const currentEngineLines = variation
+    ? positions?.[variation.branchMoveIndex]?.evaluation.engineLines
+    : positions?.[currentMoveIndex]?.evaluation.engineLines;
+  const arrowShapes = useMemo(() => {
+    if (variation) return [];
+    return computeArrowShapes(currentEngineLines, currentFen);
+  }, [variation, currentEngineLines, currentFen]);
 
   const classifications: (MoveClassification | null)[] | undefined = positions
     ? positions.map((p) => p.classification)
@@ -105,15 +248,42 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   // Arrow key navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (variation) {
+          setVariation(null);
+        }
+        return;
+      }
+
       if (e.key === "ArrowLeft") {
-        setCurrentMoveIndex((prev) => Math.max(0, prev - 1));
-      } else if (e.key === "ArrowRight") {
-        setCurrentMoveIndex((prev) => Math.min(moves.length, prev + 1));
+        if (variation) {
+          if (variation.stepIndex <= 0) {
+            setVariation(null);
+          } else {
+            setVariation((prev) => (prev ? { ...prev, stepIndex: prev.stepIndex - 1 } : null));
+          }
+        } else {
+          setCurrentMoveIndex((prev) => Math.max(0, prev - 1));
+        }
+        return;
+      }
+
+      if (e.key === "ArrowRight") {
+        if (variation) {
+          setVariation((prev) =>
+            prev && prev.stepIndex < prev.fens.length - 1
+              ? { ...prev, stepIndex: prev.stepIndex + 1 }
+              : prev,
+          );
+        } else {
+          setCurrentMoveIndex((prev) => Math.min(moves.length, prev + 1));
+        }
+        return;
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [moves.length]);
+  }, [moves.length, variation]);
 
   // Initialize Chessground
   useEffect(() => {
@@ -130,11 +300,14 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     };
   }, []);
 
-  // Update board position
+  // Update board position and arrows
   useEffect(() => {
     if (!apiRef.current) return;
-    apiRef.current.set({ fen: currentFen });
-  }, [currentFen]);
+    apiRef.current.set({
+      fen: currentFen,
+      drawable: { autoShapes: arrowShapes },
+    });
+  }, [currentFen, arrowShapes]);
 
   return (
     <div
@@ -149,14 +322,54 @@ function AnalysisContent({ game }: { game: GameResponse }) {
           data-testid="analysis-board"
           style={{ width: "400px", height: "400px" }}
         />
+        <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
+          {variation && (
+            <div
+              data-testid="variation-indicator"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 12px",
+                backgroundColor: "#e8f0fe",
+                borderRadius: "4px",
+                fontSize: "13px",
+              }}
+            >
+              <span style={{ color: "#1a73e8" }}>Viewing engine line</span>
+              <button
+                data-testid="back-to-main-line"
+                onClick={() => setVariation(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#1a73e8",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  textDecoration: "underline",
+                  padding: 0,
+                }}
+              >
+                Back to main line
+              </button>
+            </div>
+          )}
           <AnalysisMoveList
             moves={moves}
             currentMoveIndex={currentMoveIndex}
-            onMoveClick={setCurrentMoveIndex}
+            onMoveClick={(index: number) => {
+              setVariation(null);
+              setCurrentMoveIndex(index);
+            }}
             classifications={classifications}
           />
-          {analysisState === "idle" && (
+          {analysisLoading && (
+            <div data-testid="analysis-loading-stored" style={{ fontSize: "14px", color: "#666" }}>
+              Loading saved analysis...
+            </div>
+          )}
+          {analysisState === "idle" && !analysisLoading && (
             <button
               data-testid="analyze-button"
               onClick={handleAnalyze}
@@ -182,6 +395,11 @@ function AnalysisContent({ game }: { game: GameResponse }) {
           {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (
             <div data-testid="accuracy-display" style={{ fontSize: "14px", fontWeight: "bold" }}>
               White: {whiteAccuracy.toFixed(1)}% — Black: {blackAccuracy.toFixed(1)}%
+            </div>
+          )}
+          {saveError && (
+            <div data-testid="save-error" style={{ fontSize: "14px", color: "#d32f2f" }}>
+              {saveError}
             </div>
           )}
         </div>

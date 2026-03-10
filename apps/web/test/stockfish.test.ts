@@ -36,10 +36,13 @@ class MockWorker {
 
   private simulateEval(): void {
     if (this.isMatePosition()) {
-      this.emitUci("info depth 18 score mate 2 pv b2f6 g8f8 f6f7");
+      this.emitUci("info depth 18 multipv 1 score mate 2 pv b2f6 g8f8 f6f7");
+      this.emitUci("info depth 18 multipv 2 score mate 4 pv b2b7 g8f8 b7f7");
       this.emitUci("bestmove b2f6");
     } else {
-      this.emitUci("info depth 18 score cp 25 pv e2e4 e7e5 g1f3");
+      this.emitUci("info depth 18 multipv 1 score cp 25 pv e2e4 e7e5 g1f3");
+      this.emitUci("info depth 18 multipv 2 score cp 20 pv d2d4 d7d5 c2c4");
+      this.emitUci("info depth 18 multipv 3 score cp 15 pv g1f3 d7d5 d2d4");
       this.emitUci("bestmove e2e4");
     }
   }
@@ -95,6 +98,40 @@ describe("StockfishService", () => {
   it("evaluates a forced-mate position and returns a mate score", async () => {
     const result = await service.evaluate(MATE_FEN);
     expect(result.score).toEqual({ type: "mate", value: 2 });
+  });
+
+  it("returns engineLines with 3 entries for a normal position", async () => {
+    const result = await service.evaluate(STARTING_FEN);
+    expect(result.engineLines).toBeDefined();
+    expect(result.engineLines).toHaveLength(3);
+  });
+
+  it("engineLines[0] matches score and bestLine", async () => {
+    const result = await service.evaluate(STARTING_FEN);
+    expect(result.engineLines![0].score).toEqual(result.score);
+    expect(result.engineLines![0].moves).toEqual(result.bestLine);
+    expect(result.engineLines![0].depth).toBe(result.depth);
+  });
+
+  it("engineLines contain valid SAN moves and decreasing scores", async () => {
+    const result = await service.evaluate(STARTING_FEN);
+    const lines = result.engineLines!;
+
+    expect(lines[0].score).toEqual({ type: "cp", value: 25 });
+    expect(lines[1].score).toEqual({ type: "cp", value: 20 });
+    expect(lines[2].score).toEqual({ type: "cp", value: 15 });
+
+    expect(lines[0].moves).toEqual(["e4", "e5", "Nf3"]);
+    expect(lines[1].moves).toEqual(["d4", "d5", "c4"]);
+    expect(lines[2].moves).toEqual(["Nf3", "d5", "d4"]);
+  });
+
+  it("returns fewer engineLines when fewer PVs available", async () => {
+    const result = await service.evaluate(MATE_FEN);
+    expect(result.engineLines).toBeDefined();
+    expect(result.engineLines).toHaveLength(2);
+    expect(result.engineLines![0].score).toEqual({ type: "mate", value: 2 });
+    expect(result.engineLines![1].score).toEqual({ type: "mate", value: 4 });
   });
 
   it("destroy() terminates cleanly", () => {

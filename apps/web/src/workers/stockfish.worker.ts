@@ -15,6 +15,7 @@ async function init(): Promise<void> {
 
       if (handshakePhase === "uci" && line === "uciok") {
         handshakePhase = "isready";
+        sf.uci("setoption name MultiPV value 3");
         sf.uci("isready");
       } else if (handshakePhase === "isready" && line === "readyok") {
         handshakePhase = "done";
