@@ -17,6 +17,7 @@ import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { StockfishService } from "../services/stockfish.js";
 import { analyzeGame } from "../services/analysis.js";
 import { EvalBar } from "../components/EvalBar.js";
+import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
 import type {
   GameStatus,
   GameResponse,
@@ -50,6 +51,9 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const wasComputedLocally = useRef(false);
   const [saveAnalysis] = useSaveAnalysisMutation();
+  const handleLineSelect = useCallback((_lineIndex: number) => {
+    // Variation mode will be implemented in t03
+  }, []);
 
   const {
     data: storedAnalysis,
@@ -155,6 +159,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   }, [analysisState, fens, moves]);
 
   const currentEval: EvalScore | null = positions?.[currentMoveIndex]?.evaluation.score ?? null;
+  const currentEngineLines = positions?.[currentMoveIndex]?.evaluation.engineLines;
 
   const classifications: (MoveClassification | null)[] | undefined = positions
     ? positions.map((p) => p.classification)
@@ -207,6 +212,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
           data-testid="analysis-board"
           style={{ width: "400px", height: "400px" }}
         />
+        <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
           <AnalysisMoveList
             moves={moves}
