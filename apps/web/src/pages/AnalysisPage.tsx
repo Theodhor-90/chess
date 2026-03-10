@@ -24,6 +24,7 @@ import type {
   AnalyzedPosition,
   EvalScore,
   MoveClassification,
+  EngineLineInfo,
 } from "@chess/shared";
 
 function isTerminalStatus(status: GameStatus): boolean {
@@ -38,6 +39,24 @@ function isTerminalStatus(status: GameStatus): boolean {
 
 type AnalysisState = "idle" | "running" | "complete";
 
+interface VariationState {
+  branchMoveIndex: number;
+  line: EngineLineInfo;
+  fens: string[];
+  stepIndex: number;
+}
+
+function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
+  const chess = new Chess(branchFen);
+  const result: string[] = [];
+  for (const san of sanMoves) {
+    const move = chess.move(san);
+    if (!move) break;
+    result.push(chess.fen());
+  }
+  return result;
+}
+
 function AnalysisContent({ game }: { game: GameResponse }) {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,10 +69,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const stockfishRef = useRef<StockfishService | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const wasComputedLocally = useRef(false);
+  const [variation, setVariation] = useState<VariationState | null>(null);
   const [saveAnalysis] = useSaveAnalysisMutation();
-  const handleLineSelect = useCallback((_lineIndex: number) => {
-    // Variation mode will be implemented in t03
-  }, []);
 
   const {
     data: storedAnalysis,
@@ -80,7 +97,32 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     return { moves: history, fens: fenList };
   }, [game.pgn]);
 
-  const currentFen = fens[currentMoveIndex] ?? fens[0];
+  const handleLineSelect = useCallback(
+    (lineIndex: number) => {
+      const engineLines = positions?.[currentMoveIndex]?.evaluation.engineLines;
+      if (!engineLines || !engineLines[lineIndex]) return;
+
+      const line = engineLines[lineIndex];
+      const branchFen = fens[currentMoveIndex];
+      const variationFens = computeVariationFens(branchFen, line.moves);
+
+      if (variationFens.length === 0) return;
+
+      setVariation({
+        branchMoveIndex: currentMoveIndex,
+        line,
+        fens: variationFens,
+        stepIndex: 0,
+      });
+    },
+    [positions, currentMoveIndex, fens],
+  );
+
+  const currentFen = variation
+    ? variation.stepIndex === -1
+      ? (fens[variation.branchMoveIndex] ?? fens[0])
+      : (variation.fens[variation.stepIndex] ?? fens[variation.branchMoveIndex] ?? fens[0])
+    : (fens[currentMoveIndex] ?? fens[0]);
 
   useEffect(() => {
     return () => {
@@ -158,8 +200,12 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     }
   }, [analysisState, fens, moves]);
 
-  const currentEval: EvalScore | null = positions?.[currentMoveIndex]?.evaluation.score ?? null;
-  const currentEngineLines = positions?.[currentMoveIndex]?.evaluation.engineLines;
+  const currentEval: EvalScore | null = variation
+    ? variation.line.score
+    : (positions?.[currentMoveIndex]?.evaluation.score ?? null);
+  const currentEngineLines = variation
+    ? positions?.[variation.branchMoveIndex]?.evaluation.engineLines
+    : positions?.[currentMoveIndex]?.evaluation.engineLines;
 
   const classifications: (MoveClassification | null)[] | undefined = positions
     ? positions.map((p) => p.classification)
@@ -168,15 +214,42 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   // Arrow key navigation
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (variation) {
+          setVariation(null);
+        }
+        return;
+      }
+
       if (e.key === "ArrowLeft") {
-        setCurrentMoveIndex((prev) => Math.max(0, prev - 1));
-      } else if (e.key === "ArrowRight") {
-        setCurrentMoveIndex((prev) => Math.min(moves.length, prev + 1));
+        if (variation) {
+          if (variation.stepIndex <= 0) {
+            setVariation(null);
+          } else {
+            setVariation((prev) => (prev ? { ...prev, stepIndex: prev.stepIndex - 1 } : null));
+          }
+        } else {
+          setCurrentMoveIndex((prev) => Math.max(0, prev - 1));
+        }
+        return;
+      }
+
+      if (e.key === "ArrowRight") {
+        if (variation) {
+          setVariation((prev) =>
+            prev && prev.stepIndex < prev.fens.length - 1
+              ? { ...prev, stepIndex: prev.stepIndex + 1 }
+              : prev,
+          );
+        } else {
+          setCurrentMoveIndex((prev) => Math.min(moves.length, prev + 1));
+        }
+        return;
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [moves.length]);
+  }, [moves.length, variation]);
 
   // Initialize Chessground
   useEffect(() => {
@@ -214,10 +287,44 @@ function AnalysisContent({ game }: { game: GameResponse }) {
         />
         <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
+          {variation && (
+            <div
+              data-testid="variation-indicator"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 12px",
+                backgroundColor: "#e8f0fe",
+                borderRadius: "4px",
+                fontSize: "13px",
+              }}
+            >
+              <span style={{ color: "#1a73e8" }}>Viewing engine line</span>
+              <button
+                data-testid="back-to-main-line"
+                onClick={() => setVariation(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#1a73e8",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  textDecoration: "underline",
+                  padding: 0,
+                }}
+              >
+                Back to main line
+              </button>
+            </div>
+          )}
           <AnalysisMoveList
             moves={moves}
             currentMoveIndex={currentMoveIndex}
-            onMoveClick={setCurrentMoveIndex}
+            onMoveClick={(index: number) => {
+              setVariation(null);
+              setCurrentMoveIndex(index);
+            }}
             classifications={classifications}
           />
           {analysisLoading && (
