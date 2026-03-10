@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import type { EvalScore, EvaluationResult } from "@chess/shared";
+import type { EvalScore, EvaluationResult, EngineLineInfo } from "@chess/shared";
 
 export class StockfishService {
   readonly ready: Promise<void>;
@@ -57,9 +57,7 @@ export class StockfishService {
     return new Promise<EvaluationResult>((resolve, reject) => {
       this.evalReject = reject;
 
-      let bestDepth = 0;
-      let bestScore: EvalScore = { type: "cp", value: 0 };
-      let bestPv: string[] = [];
+      const pvData = new Map<number, { depth: number; score: EvalScore; pv: string[] }>();
 
       this.onUciOutput = (line: string) => {
         if (line.startsWith("bestmove")) {
@@ -67,8 +65,23 @@ export class StockfishService {
           this.evalReject = null;
           this.evaluating = false;
 
-          const bestLine = this.pvToSan(fen, bestPv);
-          resolve({ score: bestScore, bestLine, depth: bestDepth });
+          const top = pvData.get(1);
+          const bestScore: EvalScore = top?.score ?? { type: "cp", value: 0 };
+          const bestLine = top ? this.pvToSan(fen, top.pv) : [];
+          const bestDepth = top?.depth ?? 0;
+
+          const engineLines: EngineLineInfo[] = [];
+          for (let i = 1; i <= 3; i++) {
+            const entry = pvData.get(i);
+            if (!entry) break;
+            engineLines.push({
+              score: entry.score,
+              moves: this.pvToSan(fen, entry.pv),
+              depth: entry.depth,
+            });
+          }
+
+          resolve({ score: bestScore, bestLine, depth: bestDepth, engineLines });
           return;
         }
 
@@ -77,7 +90,7 @@ export class StockfishService {
         }
 
         const depth = this.parseIntAfter(line, "depth");
-        if (depth === null || depth < bestDepth) {
+        if (depth === null) {
           return;
         }
 
@@ -92,9 +105,21 @@ export class StockfishService {
           return;
         }
 
-        bestDepth = depth;
-        bestScore = { type: scoreType, value: scoreValue };
-        bestPv = pv;
+        let multipvIndex = this.parseIntAfter(line, "multipv");
+        if (multipvIndex === null) {
+          multipvIndex = 1;
+        }
+
+        const existing = pvData.get(multipvIndex);
+        if (existing && depth < existing.depth) {
+          return;
+        }
+
+        pvData.set(multipvIndex, {
+          depth,
+          score: { type: scoreType, value: scoreValue },
+          pv,
+        });
       };
 
       this.worker.postMessage({ type: "uci-command", command: `position fen ${fen}` });

@@ -183,6 +183,13 @@ export interface EvaluationResult {
   score: EvalScore;
   bestLine: string[];
   depth: number;
+  engineLines?: EngineLineInfo[];
+}
+
+export interface EngineLineInfo {
+  score: EvalScore;
+  moves: string[];
+  depth: number;
 }
 
 export type MoveClassification = "best" | "good" | "inaccuracy" | "mistake" | "blunder";
