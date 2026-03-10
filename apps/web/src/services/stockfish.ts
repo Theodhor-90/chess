@@ -127,6 +127,12 @@ export class StockfishService {
     });
   }
 
+  stop(): void {
+    if (this.evaluating) {
+      this.worker.postMessage({ type: "uci-command", command: "stop" });
+    }
+  }
+
   destroy(): void {
     this.worker.postMessage({ type: "uci-command", command: "quit" });
     this.worker.terminate();
