@@ -320,7 +320,7 @@ function TrainingContent() {
         <div
           ref={containerRef}
           data-testid="training-board"
-          style={{ width: "400px", height: "400px" }}
+          style={{ width: "400px", height: "400px", flexShrink: 0 }}
         />
         <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>

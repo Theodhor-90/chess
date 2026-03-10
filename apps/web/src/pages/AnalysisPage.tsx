@@ -320,7 +320,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
         <div
           ref={containerRef}
           data-testid="analysis-board"
-          style={{ width: "400px", height: "400px" }}
+          style={{ width: "400px", height: "400px", flexShrink: 0 }}
         />
         <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
         <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
