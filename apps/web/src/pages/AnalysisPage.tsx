@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { Chess } from "chess.js";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
+import type { DrawShape } from "chessground/draw";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
@@ -55,6 +56,35 @@ function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
     result.push(chess.fen());
   }
   return result;
+}
+
+function computeArrowShapes(engineLines: EngineLineInfo[] | undefined, fen: string): DrawShape[] {
+  if (!engineLines || engineLines.length === 0) return [];
+
+  const shapes: DrawShape[] = [];
+  const chess = new Chess(fen);
+
+  for (let i = 0; i < engineLines.length && i < 3; i++) {
+    const line = engineLines[i];
+    if (line.moves.length === 0) continue;
+
+    const san = line.moves[0];
+    try {
+      const moveResult = chess.move(san);
+      if (moveResult) {
+        shapes.push({
+          orig: moveResult.from,
+          dest: moveResult.to,
+          brush: i === 0 ? "green" : "blue",
+        });
+        chess.undo();
+      }
+    } catch {
+      // Invalid move for this position — skip
+    }
+  }
+
+  return shapes;
 }
 
 function AnalysisContent({ game }: { game: GameResponse }) {
@@ -206,6 +236,10 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const currentEngineLines = variation
     ? positions?.[variation.branchMoveIndex]?.evaluation.engineLines
     : positions?.[currentMoveIndex]?.evaluation.engineLines;
+  const arrowShapes = useMemo(() => {
+    if (variation) return [];
+    return computeArrowShapes(currentEngineLines, currentFen);
+  }, [variation, currentEngineLines, currentFen]);
 
   const classifications: (MoveClassification | null)[] | undefined = positions
     ? positions.map((p) => p.classification)
@@ -266,11 +300,14 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     };
   }, []);
 
-  // Update board position
+  // Update board position and arrows
   useEffect(() => {
     if (!apiRef.current) return;
-    apiRef.current.set({ fen: currentFen });
-  }, [currentFen]);
+    apiRef.current.set({
+      fen: currentFen,
+      drawable: { autoShapes: arrowShapes },
+    });
+  }, [currentFen, arrowShapes]);
 
   return (
     <div

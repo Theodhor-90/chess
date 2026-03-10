@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { Chess } from "chess.js";
+import type { DrawShape } from "chessground/draw";
 import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
@@ -286,10 +287,55 @@ function mockChessForVariation() {
   });
 }
 
+function mockChessForArrows() {
+  const moveMap: Record<string, Record<string, { from: string; to: string; san: string }>> = {
+    "start-fen": {
+      e4: { from: "e2", to: "e4", san: "e4" },
+      d4: { from: "d2", to: "d4", san: "d4" },
+      Nf3: { from: "g1", to: "f3", san: "Nf3" },
+    },
+    "mainline-fen-after-e4": {
+      e5: { from: "e7", to: "e5", san: "e5" },
+      d5: { from: "d7", to: "d5", san: "d5" },
+      Nf6: { from: "g8", to: "f6", san: "Nf6" },
+    },
+  };
+
+  vi.mocked(Chess).mockImplementation((fen?: string) => {
+    const currentFen = fen ?? "start-fen";
+    const fenMoves = moveMap[currentFen] ?? {};
+
+    return {
+      moves: vi.fn(() => []),
+      get: vi.fn(() => null),
+      loadPgn: vi.fn(),
+      history: vi.fn(() => ["e4", "e5"]),
+      fen: vi
+        .fn()
+        .mockReturnValueOnce("start-fen")
+        .mockReturnValueOnce("mainline-fen-after-e4")
+        .mockReturnValue("mainline-fen-after-e5"),
+      move: vi.fn((san: string) => {
+        const mapped = fenMoves[san];
+        if (mapped) return mapped;
+        if (typeof san === "string") return { from: "a1", to: "a2", san };
+        return null;
+      }),
+      undo: vi.fn(() => null),
+    } as unknown as Chess;
+  });
+}
+
 function expectLatestBoardFen(expectedFen: string) {
   const latestCall = mockChessgroundSet.mock.calls.at(-1);
   expect(latestCall).toBeDefined();
-  expect(latestCall?.[0]).toEqual({ fen: expectedFen });
+  expect(latestCall?.[0]).toMatchObject({ fen: expectedFen });
+}
+
+function getLatestAutoShapes(): DrawShape[] | undefined {
+  const latestCall = mockChessgroundSet.mock.calls.at(-1);
+  if (!latestCall) return undefined;
+  return latestCall[0]?.drawable?.autoShapes;
 }
 
 describe("AnalysisPage", () => {
@@ -724,5 +770,80 @@ describe("AnalysisPage", () => {
   it("variation indicator not shown when not in variation mode", async () => {
     await setupCompletedAnalysis();
     expect(screen.queryByTestId("variation-indicator")).toBeNull();
+  });
+
+  it("includes drawable.autoShapes in Chessground set() call", async () => {
+    await setupCompletedAnalysis();
+
+    const hasDrawable = mockChessgroundSet.mock.calls.some(
+      (call) => call[0]?.drawable !== undefined,
+    );
+    expect(hasDrawable).toBe(true);
+  });
+
+  it("arrow shapes have correct brushes with green for top and blue for others", async () => {
+    await setupCompletedAnalysis();
+    mockChessForArrows();
+    mockChessgroundSet.mockClear();
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+
+    await waitFor(() => {
+      const shapes = getLatestAutoShapes();
+      expect(shapes).toBeDefined();
+      expect(shapes!.length).toBe(3);
+    });
+
+    const shapes = getLatestAutoShapes()!;
+    expect(shapes[0]).toEqual({ orig: "e2", dest: "e4", brush: "green" });
+    expect(shapes[1]).toEqual({ orig: "d2", dest: "d4", brush: "blue" });
+    expect(shapes[2]).toEqual({ orig: "g1", dest: "f3", brush: "blue" });
+  });
+
+  it("arrows are hidden in variation mode", async () => {
+    await setupCompletedAnalysis();
+    mockChessForVariation();
+    mockChessgroundSet.mockClear();
+
+    fireEvent.click(screen.getByTestId("engine-line-0"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("variation-indicator")).toBeInTheDocument();
+    });
+
+    const shapes = getLatestAutoShapes();
+    expect(shapes).toBeDefined();
+    expect(shapes).toEqual([]);
+  });
+
+  it("no arrows before analysis is run", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({
+      id: 10,
+      status: "checkmate",
+      pgn: "1. e4 e5",
+      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      moves: ["e4", "e5"],
+      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
+      currentTurn: "white",
+      inviteToken: "tok",
+      drawOffer: null,
+      createdAt: 1700000000,
+    });
+    mockFetchSuccess([]);
+
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
+    });
+
+    const callsWithDrawable = mockChessgroundSet.mock.calls.filter(
+      (call) => call[0]?.drawable?.autoShapes !== undefined,
+    );
+    for (const call of callsWithDrawable) {
+      expect(call[0].drawable.autoShapes).toEqual([]);
+    }
   });
 });
