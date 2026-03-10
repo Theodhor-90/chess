@@ -10,6 +10,7 @@ import { DashboardPage } from "./pages/DashboardPage.js";
 import { NavHeader } from "./components/NavHeader.js";
 import { JoinPage } from "./pages/JoinPage.js";
 import { AnalysisPage } from "./pages/AnalysisPage.js";
+import { TrainingPage } from "./pages/TrainingPage.js";
 
 export function AppRoutes() {
   return (
@@ -39,6 +40,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <AnalysisPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/training"
+          element={
+            <ProtectedRoute>
+              <TrainingPage />
             </ProtectedRoute>
           }
         />
