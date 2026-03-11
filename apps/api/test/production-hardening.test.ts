@@ -8,16 +8,22 @@ sqlite.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at INTEGER NOT NULL DEFAULT (unixepoch()),
     email TEXT NOT NULL UNIQUE,
+    username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL
   )
 `);
 
-let emailCounter = 0;
+let counter = 0;
 const runId = Date.now();
 
 function uniqueEmail(prefix: string): string {
-  emailCounter += 1;
-  return `${prefix}-${runId}-${emailCounter}@test.com`;
+  counter += 1;
+  return `${prefix}-${runId}-${counter}@test.com`;
+}
+
+function uniqueUsername(prefix: string): string {
+  counter += 1;
+  return `${prefix}_${runId}_${counter}`;
 }
 
 function extractSetCookieHeader(res: {
@@ -77,7 +83,7 @@ describe("production hardening", () => {
       const res = await app.inject({
         method: "POST",
         url: "/api/auth/register",
-        payload: { email, password: "password123" },
+        payload: { email, username: uniqueUsername("u"), password: "password123" },
       });
 
       expect(res.statusCode).toBe(201);
@@ -93,7 +99,7 @@ describe("production hardening", () => {
       const res = await app.inject({
         method: "POST",
         url: "/api/auth/register",
-        payload: { email, password: "password123" },
+        payload: { email, username: uniqueUsername("u"), password: "password123" },
       });
 
       expect(res.statusCode).toBe(201);
@@ -110,7 +116,7 @@ describe("production hardening", () => {
       const registerRes = await app.inject({
         method: "POST",
         url: "/api/auth/register",
-        payload: { email, password: "password123" },
+        payload: { email, username: uniqueUsername("u"), password: "password123" },
       });
       const cookie = extractSessionCookie(registerRes);
 
