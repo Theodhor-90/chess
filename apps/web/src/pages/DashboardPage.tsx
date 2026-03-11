@@ -59,6 +59,11 @@ export function DashboardPage() {
       </div>
       <hr style={{ margin: "24px 0" }} />
       <GameList />
+      <div style={{ marginTop: "16px" }}>
+        <Link to="/history" data-testid="history-link">
+          View full history
+        </Link>
+      </div>
     </div>
   );
 }

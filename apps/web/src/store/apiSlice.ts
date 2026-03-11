@@ -12,6 +12,8 @@ import type {
   SaveAnalysisRequest,
   SaveAnalysisResponse,
   GetAnalysisResponse,
+  GameHistoryQuery,
+  GameHistoryResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -91,6 +93,18 @@ export const apiSlice = createApi({
         body,
       }),
     }),
+    getGameHistory: builder.query<GameHistoryResponse, GameHistoryQuery>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params.page !== undefined) searchParams.set("page", String(params.page));
+        if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
+        if (params.result) searchParams.set("result", params.result);
+        if (params.sort) searchParams.set("sort", params.sort);
+        const qs = searchParams.toString();
+        return `/games/history${qs ? `?${qs}` : ""}`;
+      },
+    }),
+
     getAnalysis: builder.query<GetAnalysisResponse | null, number>({
       queryFn: async (gameId, _queryApi, _extraOptions, baseQuery) => {
         const result = await baseQuery(`/games/${gameId}/analysis`);
@@ -116,6 +130,7 @@ export const {
   useResolveInviteQuery,
   useGetMyGamesQuery,
   useJoinGameMutation,
+  useGetGameHistoryQuery,
   useSaveAnalysisMutation,
   useGetAnalysisQuery,
 } = apiSlice;
