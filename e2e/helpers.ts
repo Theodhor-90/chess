@@ -13,12 +13,26 @@ export function uniqueEmail(): string {
 }
 
 /**
+ * Generates a unique username for each test invocation.
+ * Uses the same counter as uniqueEmail to guarantee uniqueness.
+ */
+export function uniqueUsername(): string {
+  return `user_${Date.now()}_${counter}`;
+}
+
+/**
  * Fills out the registration form and submits it.
  * Navigates to /register, fills the email and password fields, clicks submit,
  * and waits for the URL to change away from /register (indicating success).
  */
-export async function registerUser(page: Page, email: string, password: string): Promise<void> {
+export async function registerUser(
+  page: Page,
+  email: string,
+  password: string,
+  username?: string,
+): Promise<void> {
   await page.goto("/register");
+  await page.locator('input[id="username"]').fill(username ?? uniqueUsername());
   await page.locator('input[id="email"]').fill(email);
   await page.locator('input[id="password"]').fill(password);
   await page.locator('button[type="submit"]').click();
