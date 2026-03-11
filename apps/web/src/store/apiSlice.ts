@@ -14,6 +14,7 @@ import type {
   GetAnalysisResponse,
   GameHistoryQuery,
   GameHistoryResponse,
+  PlayerStatsResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -105,6 +106,10 @@ export const apiSlice = createApi({
       },
     }),
 
+    getUserStats: builder.query<PlayerStatsResponse, number>({
+      query: (id) => `/users/${id}/stats`,
+    }),
+
     getAnalysis: builder.query<GetAnalysisResponse | null, number>({
       queryFn: async (gameId, _queryApi, _extraOptions, baseQuery) => {
         const result = await baseQuery(`/games/${gameId}/analysis`);
@@ -133,4 +138,5 @@ export const {
   useGetGameHistoryQuery,
   useSaveAnalysisMutation,
   useGetAnalysisQuery,
+  useGetUserStatsQuery,
 } = apiSlice;

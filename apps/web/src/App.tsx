@@ -12,6 +12,7 @@ import { JoinPage } from "./pages/JoinPage.js";
 import { AnalysisPage } from "./pages/AnalysisPage.js";
 import { TrainingPage } from "./pages/TrainingPage.js";
 import { HistoryPage } from "./pages/HistoryPage.js";
+import { ProfilePage } from "./pages/ProfilePage.js";
 
 export function AppRoutes() {
   return (
@@ -57,6 +58,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/:id"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
