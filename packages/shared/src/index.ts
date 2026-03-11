@@ -151,6 +151,31 @@ export interface GameHistoryResponse {
   total: number;
 }
 
+export interface RecentGameItem {
+  gameId: number;
+  opponentUsername: string;
+  opponentId: number;
+  result: "win" | "loss" | "draw";
+  resultReason: GameStatus;
+  myColor: PlayerColor;
+  playedAt: number;
+}
+
+export interface PlayerStatsResponse {
+  userId: number;
+  username: string;
+  totalGames: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  avgAccuracy: {
+    white: number | null;
+    black: number | null;
+  };
+  recentGames: RecentGameItem[];
+}
+
 // ---------------------------------------------------------------------------
 // Socket.io event types (Phase 2.1)
 // ---------------------------------------------------------------------------

@@ -9,12 +9,14 @@ import type {
   MoveRequest,
   MoveResponse,
   PlayerColor,
+  PlayerStatsResponse,
+  RecentGameItem,
 } from "@chess/shared";
 import { and, eq, or, sql, inArray, isNull, desc as descOp, asc as ascOp } from "drizzle-orm";
 import * as store from "./store.js";
 import { GameError } from "./errors.js";
 import { db } from "../db/index.js";
-import { games, users } from "../db/schema.js";
+import { games, users, gameAnalyses } from "../db/schema.js";
 
 function getPlayerColor(game: GameState, userId: number): PlayerColor {
   if (game.players.white?.userId === userId) return "white";
@@ -338,4 +340,117 @@ export function getGameHistory(
   });
 
   return { items, total };
+}
+
+export function getPlayerStats(userId: number): PlayerStatsResponse | null {
+  const user = db
+    .select({ id: users.id, username: users.username })
+    .from(users)
+    .where(eq(users.id, userId))
+    .get();
+  if (!user) return null;
+
+  const baseCondition = and(
+    or(eq(games.whitePlayerId, userId), eq(games.blackPlayerId, userId)),
+    inArray(games.status, TERMINAL_STATUSES),
+  )!;
+
+  const countResult = db
+    .select({
+      total: sql<number>`count(*)`,
+      wins: sql<number>`count(*) FILTER (WHERE (${games.whitePlayerId} = ${userId} AND ${games.resultWinner} = 'white') OR (${games.blackPlayerId} = ${userId} AND ${games.resultWinner} = 'black'))`,
+      losses: sql<number>`count(*) FILTER (WHERE (${games.whitePlayerId} = ${userId} AND ${games.resultWinner} = 'black') OR (${games.blackPlayerId} = ${userId} AND ${games.resultWinner} = 'white'))`,
+    })
+    .from(games)
+    .where(baseCondition)
+    .get();
+
+  const totalGames = countResult?.total ?? 0;
+  const wins = countResult?.wins ?? 0;
+  const losses = countResult?.losses ?? 0;
+  const draws = totalGames - wins - losses;
+  const winRate = totalGames === 0 ? 0 : Math.round((wins / totalGames) * 1000) / 10;
+
+  const accuracyWhiteResult = db
+    .select({ avg: sql<number | null>`AVG(${gameAnalyses.whiteAccuracy})` })
+    .from(gameAnalyses)
+    .innerJoin(games, eq(gameAnalyses.gameId, games.id))
+    .where(eq(games.whitePlayerId, userId))
+    .get();
+
+  const accuracyBlackResult = db
+    .select({ avg: sql<number | null>`AVG(${gameAnalyses.blackAccuracy})` })
+    .from(gameAnalyses)
+    .innerJoin(games, eq(gameAnalyses.gameId, games.id))
+    .where(eq(games.blackPlayerId, userId))
+    .get();
+
+  const avgWhite = accuracyWhiteResult?.avg ?? null;
+  const avgBlack = accuracyBlackResult?.avg ?? null;
+
+  const recentRows = db
+    .select()
+    .from(games)
+    .where(baseCondition)
+    .orderBy(descOp(games.createdAt))
+    .limit(10)
+    .all();
+
+  const opponentIds = new Set<number>();
+  for (const row of recentRows) {
+    const opponentId = row.whitePlayerId === userId ? row.blackPlayerId : row.whitePlayerId;
+    if (opponentId !== null) opponentIds.add(opponentId);
+  }
+
+  const usernameMap = new Map<number, string>();
+  if (opponentIds.size > 0) {
+    const userRows = db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(inArray(users.id, [...opponentIds]))
+      .all();
+    for (const u of userRows) {
+      usernameMap.set(u.id, u.username);
+    }
+  }
+
+  const recentGames: RecentGameItem[] = recentRows.map((row) => {
+    const myColor: PlayerColor = row.whitePlayerId === userId ? "white" : "black";
+    const opponentId = myColor === "white" ? row.blackPlayerId! : row.whitePlayerId!;
+    const opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
+
+    let result: "win" | "loss" | "draw";
+    if (row.resultWinner === myColor) {
+      result = "win";
+    } else if (row.resultWinner !== null) {
+      result = "loss";
+    } else {
+      result = "draw";
+    }
+
+    return {
+      gameId: row.id,
+      opponentUsername,
+      opponentId,
+      result,
+      resultReason: row.status as GameStatus,
+      myColor,
+      playedAt: row.createdAt,
+    };
+  });
+
+  return {
+    userId: user.id,
+    username: user.username,
+    totalGames,
+    wins,
+    losses,
+    draws,
+    winRate,
+    avgAccuracy: {
+      white: avgWhite !== null ? Math.round(avgWhite * 10) / 10 : null,
+      black: avgBlack !== null ? Math.round(avgBlack * 10) / 10 : null,
+    },
+    recentGames,
+  };
 }
