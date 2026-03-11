@@ -70,11 +70,11 @@ function mockFetchError(body: unknown, status: number) {
 }
 
 describe("NavHeader", () => {
-  it("shows user email and logout button when authenticated", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "player@test.com" } });
+  it("shows username and logout button when authenticated", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "player@test.com", username: "player_one" } });
     renderWithProviders(<NavHeader />);
     await waitFor(() => {
-      expect(screen.getByTestId("user-email")).toHaveTextContent("player@test.com");
+      expect(screen.getByTestId("user-display-name")).toHaveTextContent("player_one");
     });
     expect(screen.getByTestId("logout-button")).toBeInTheDocument();
   });
@@ -89,7 +89,7 @@ describe("NavHeader", () => {
   });
 
   it("app title links to home", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
     renderWithProviders(<NavHeader />);
     await waitFor(() => {
       expect(screen.getByTestId("nav-header")).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe("NavHeader", () => {
   });
 
   it("logout button calls logout and navigates to /login", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
     const store = createTestStore();
     render(
       <Provider store={store}>

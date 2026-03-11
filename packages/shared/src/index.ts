@@ -50,6 +50,7 @@ export interface MoveRequest {
 export interface GamePlayer {
   userId: number;
   color: PlayerColor;
+  username?: string;
 }
 
 export interface ClockConfig {

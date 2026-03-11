@@ -315,6 +315,11 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       style={{ padding: "16px", maxWidth: "1000px", margin: "0 auto" }}
     >
       <h1>Game Analysis</h1>
+      <div data-testid="analysis-players" style={{ fontSize: "14px", marginBottom: "8px" }}>
+        {game.players.white?.username ?? `User #${game.players.white?.userId ?? "?"}`}
+        {" vs "}
+        {game.players.black?.username ?? `User #${game.players.black?.userId ?? "?"}`}
+      </div>
       <div style={{ display: "flex", gap: "24px" }}>
         {currentEval && <EvalBar score={currentEval} />}
         <div

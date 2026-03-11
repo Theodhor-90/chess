@@ -38,7 +38,7 @@ export function NavHeader() {
       <div>
         {isAuthenticated ? (
           <>
-            <span data-testid="user-email">{meData.user.email}</span>{" "}
+            <span data-testid="user-display-name">{meData.user.username}</span>{" "}
             <button data-testid="logout-button" onClick={handleLogout}>
               Logout
             </button>

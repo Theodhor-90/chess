@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { eq, or, desc, asc } from "drizzle-orm";
+import { eq, or, desc, asc, inArray } from "drizzle-orm";
 import type { GameState, ClockConfig, PlayerColor, GamePlayer, GameStatus } from "@chess/shared";
 import { db } from "../db/index.js";
-import { games, moves } from "../db/schema.js";
+import { games, moves, users } from "../db/schema.js";
 
 const DEFAULT_CLOCK: ClockConfig = { initialTime: 600, increment: 0 };
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -11,13 +11,42 @@ type GamesRow = typeof games.$inferSelect;
 type MovesRow = typeof moves.$inferSelect;
 type GamesUpdate = Partial<typeof games.$inferInsert>;
 
-function rowToGameState(row: GamesRow, movesRows: MovesRow[]): GameState {
+function lookupUsernames(
+  whitePlayerId: number | null,
+  blackPlayerId: number | null,
+): { white?: string; black?: string } {
+  const result: { white?: string; black?: string } = {};
+  if (whitePlayerId !== null) {
+    const row = db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, whitePlayerId))
+      .get();
+    if (row) result.white = row.username;
+  }
+  if (blackPlayerId !== null) {
+    const row = db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, blackPlayerId))
+      .get();
+    if (row) result.black = row.username;
+  }
+  return result;
+}
+
+function rowToGameState(
+  row: GamesRow,
+  movesRows: MovesRow[],
+  usernames?: { white?: string; black?: string },
+): GameState {
+  const names = usernames ?? lookupUsernames(row.whitePlayerId, row.blackPlayerId);
   const players: { white?: GamePlayer; black?: GamePlayer } = {};
   if (row.whitePlayerId !== null) {
-    players.white = { userId: row.whitePlayerId, color: "white" };
+    players.white = { userId: row.whitePlayerId, color: "white", username: names.white };
   }
   if (row.blackPlayerId !== null) {
-    players.black = { userId: row.blackPlayerId, color: "black" };
+    players.black = { userId: row.blackPlayerId, color: "black", username: names.black };
   }
 
   const state: GameState = {
@@ -152,6 +181,26 @@ export function getGamesByUserId(userId: number): GameState[] {
     .orderBy(desc(games.createdAt), desc(games.id))
     .all();
 
+  // Collect all unique player IDs for batch username lookup
+  const playerIds = new Set<number>();
+  for (const row of rows) {
+    if (row.whitePlayerId !== null) playerIds.add(row.whitePlayerId);
+    if (row.blackPlayerId !== null) playerIds.add(row.blackPlayerId);
+  }
+
+  // Batch fetch usernames
+  const usernameMap = new Map<number, string>();
+  if (playerIds.size > 0) {
+    const userRows = db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(inArray(users.id, [...playerIds]))
+      .all();
+    for (const u of userRows) {
+      usernameMap.set(u.id, u.username);
+    }
+  }
+
   return rows.map((row) => {
     const movesRows = db
       .select()
@@ -159,7 +208,11 @@ export function getGamesByUserId(userId: number): GameState[] {
       .where(eq(moves.gameId, row.id))
       .orderBy(asc(moves.moveNumber))
       .all();
-    return rowToGameState(row, movesRows);
+    const names = {
+      white: row.whitePlayerId !== null ? usernameMap.get(row.whitePlayerId) : undefined,
+      black: row.blackPlayerId !== null ? usernameMap.get(row.blackPlayerId) : undefined,
+    };
+    return rowToGameState(row, movesRows, names);
   });
 }
 

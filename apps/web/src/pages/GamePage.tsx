@@ -67,6 +67,12 @@ export function GamePage() {
   const topClockColor: PlayerColor = playerColor === "black" ? "white" : "black";
   const bottomClockColor: PlayerColor = playerColor === "black" ? "black" : "white";
 
+  const topPlayer = topClockColor === "white" ? game.players.white : game.players.black;
+  const bottomPlayer = bottomClockColor === "white" ? game.players.white : game.players.black;
+  const topLabel = topPlayer?.username ?? (topPlayer ? `User #${topPlayer.userId}` : "");
+  const bottomLabel =
+    bottomPlayer?.username ?? (bottomPlayer ? `User #${bottomPlayer.userId}` : "");
+
   const topClockTime = clockState?.[topClockColor] ?? game.clock.initialTime * 1000;
   const bottomClockTime = clockState?.[bottomClockColor] ?? game.clock.initialTime * 1000;
   const topClockActive = clockState?.activeColor === topClockColor;
@@ -82,13 +88,19 @@ export function GamePage() {
         {/* Board column */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
           {/* Opponent clock (top) */}
-          <Clock timeMs={topClockTime} isActive={topClockActive} lastUpdate={lastUpdate} />
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span data-testid="top-player-label">{topLabel}</span>
+            <Clock timeMs={topClockTime} isActive={topClockActive} lastUpdate={lastUpdate} />
+          </div>
 
           {/* Board */}
           <GameBoard gameId={gameId} playerColor={playerColor} />
 
           {/* Player clock (bottom) */}
-          <Clock timeMs={bottomClockTime} isActive={bottomClockActive} lastUpdate={lastUpdate} />
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Clock timeMs={bottomClockTime} isActive={bottomClockActive} lastUpdate={lastUpdate} />
+            <span data-testid="bottom-player-label">{bottomLabel}</span>
+          </div>
         </div>
 
         {/* Side panel */}

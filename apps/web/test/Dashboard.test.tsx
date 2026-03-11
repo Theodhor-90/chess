@@ -90,7 +90,7 @@ function makeWaitingGameState(gameId: number): GameState & { clock: ClockState }
     inviteToken: "tok-123",
     status: "waiting",
     players: {
-      white: { userId: 1, color: "white" },
+      white: { userId: 1, color: "white", username: "player_one" },
     },
     fen: "startpos",
     pgn: "",
@@ -223,7 +223,7 @@ describe("GameList", () => {
 
   it("shows empty state when no games", async () => {
     mockFetchSuccess([]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<GameList />);
 
@@ -238,14 +238,14 @@ describe("GameList", () => {
         id: 10,
         status: "active",
         players: {
-          white: { userId: 1, color: "white" },
-          black: { userId: 2, color: "black" },
+          white: { userId: 1, color: "white", username: "player_one" },
+          black: { userId: 2, color: "black", username: "player_two" },
         },
         clock: { initialTime: 600, increment: 0 },
         createdAt: 1700000000,
       },
     ]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<GameList />);
 
@@ -253,14 +253,14 @@ describe("GameList", () => {
       expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("User #2")).toBeInTheDocument();
+    expect(screen.getByText("player_two")).toBeInTheDocument();
     expect(screen.getByText("10+0")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
   it("shows error state on fetch failure", async () => {
     mockFetchError({ error: "Failed" }, 500);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<GameList />);
 
@@ -275,15 +275,15 @@ describe("GameList", () => {
         id: 10,
         status: "checkmate",
         players: {
-          white: { userId: 1, color: "white" },
-          black: { userId: 2, color: "black" },
+          white: { userId: 1, color: "white", username: "player_one" },
+          black: { userId: 2, color: "black", username: "player_two" },
         },
         clock: { initialTime: 600, increment: 0 },
         result: { winner: "white", reason: "checkmate" },
         createdAt: 1700000000,
       },
     ]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<GameList />);
 
@@ -302,14 +302,14 @@ describe("GameList", () => {
         id: 10,
         status: "active",
         players: {
-          white: { userId: 1, color: "white" },
-          black: { userId: 2, color: "black" },
+          white: { userId: 1, color: "white", username: "player_one" },
+          black: { userId: 2, color: "black", username: "player_two" },
         },
         clock: { initialTime: 600, increment: 0 },
         createdAt: 1700000000,
       },
     ]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<GameList />);
 
@@ -325,13 +325,13 @@ describe("GameList", () => {
         id: 10,
         status: "waiting",
         players: {
-          white: { userId: 1, color: "white" },
+          white: { userId: 1, color: "white", username: "player_one" },
         },
         clock: { initialTime: 600, increment: 0 },
         createdAt: 1700000000,
       },
     ]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<GameList />);
 
@@ -345,7 +345,7 @@ describe("GameList", () => {
 describe("DashboardPage", () => {
   it("renders create game form and game list", async () => {
     mockFetchSuccess([]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
 
     renderWithProviders(<DashboardPage />);
 
@@ -360,7 +360,7 @@ describe("DashboardPage", () => {
 
   it("switches to waiting screen after game creation", async () => {
     mockFetchSuccess([]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
     mockFetchSuccess({ gameId: 5, inviteToken: "tok-123", color: "white" }, 201);
     mockFetchSuccess([]);
 
@@ -381,7 +381,7 @@ describe("DashboardPage", () => {
 
   it("cancel waits for abort result before returning to form", async () => {
     mockFetchSuccess([]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
     mockFetchSuccess({ gameId: 5, inviteToken: "tok-123", color: "white" }, 201);
     mockFetchSuccess([]);
 
@@ -418,7 +418,7 @@ describe("DashboardPage", () => {
 
   it("cancel recover path keeps waiting screen mounted when abort fails", async () => {
     mockFetchSuccess([]);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
     mockFetchSuccess({ gameId: 5, inviteToken: "tok-123", color: "white" }, 201);
     mockFetchSuccess([]);
 

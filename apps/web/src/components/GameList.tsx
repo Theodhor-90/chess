@@ -41,10 +41,12 @@ function getResultLabel(game: GameListItem, myUserId: number | null): string {
 function getOpponentLabel(game: GameListItem, myUserId: number | null): string {
   if (!myUserId) return "";
   if (game.players.white?.userId === myUserId) {
-    return game.players.black ? `User #${game.players.black.userId}` : "Waiting for opponent...";
+    const opponent = game.players.black;
+    return opponent ? (opponent.username ?? `User #${opponent.userId}`) : "Waiting for opponent...";
   }
   if (game.players.black?.userId === myUserId) {
-    return game.players.white ? `User #${game.players.white.userId}` : "Waiting for opponent...";
+    const opponent = game.players.white;
+    return opponent ? (opponent.username ?? `User #${opponent.userId}`) : "Waiting for opponent...";
   }
   return "";
 }
