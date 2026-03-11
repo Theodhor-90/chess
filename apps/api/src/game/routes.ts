@@ -10,6 +10,8 @@ import type {
   ErrorResponse,
   ResolveInviteResponse,
   GameListResponse,
+  GameHistoryQuery,
+  GameHistoryResponse,
 } from "@chess/shared";
 import * as gameService from "./service.js";
 import { GameError, type GameErrorCode } from "./errors.js";
@@ -107,6 +109,28 @@ async function gameRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const games = gameService.getUserGames(request.userId!);
       return reply.code(200).send(games);
+    },
+  );
+
+  const historyQuerySchema = {
+    type: "object" as const,
+    properties: {
+      page: { type: "integer" as const, minimum: 1, default: 1 },
+      limit: { type: "integer" as const, minimum: 1, maximum: 50, default: 20 },
+      result: { type: "string" as const, enum: ["win", "loss", "draw"] },
+      sort: { type: "string" as const, enum: ["newest", "oldest"], default: "newest" },
+    },
+  };
+
+  app.get<{
+    Querystring: GameHistoryQuery;
+    Reply: GameHistoryResponse | ErrorResponse;
+  }>(
+    "/history",
+    { schema: { querystring: historyQuerySchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const result = gameService.getGameHistory(request.userId!, request.query);
+      return reply.code(200).send(result);
     },
   );
 

@@ -2,13 +2,19 @@ import { Chess, type Move } from "chess.js";
 import type {
   GameState,
   GameListItem,
+  GameHistoryItem,
+  GameHistoryResponse,
+  GameStatus,
   ClockConfig,
   MoveRequest,
   MoveResponse,
   PlayerColor,
 } from "@chess/shared";
+import { and, eq, or, sql, inArray, isNull, desc as descOp, asc as ascOp } from "drizzle-orm";
 import * as store from "./store.js";
 import { GameError } from "./errors.js";
+import { db } from "../db/index.js";
+import { games, users } from "../db/schema.js";
 
 function getPlayerColor(game: GameState, userId: number): PlayerColor {
   if (game.players.white?.userId === userId) return "white";
@@ -221,4 +227,115 @@ export function timeoutGame(gameId: number, timedOutColor: PlayerColor): GameSta
     result: { winner, reason: "timeout" },
     drawOffer: null,
   });
+}
+
+const TERMINAL_STATUSES = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
+
+export function getGameHistory(
+  userId: number,
+  query: { page?: number; limit?: number; result?: "win" | "loss" | "draw"; sort?: "newest" | "oldest" },
+): GameHistoryResponse {
+  const page = Math.max(1, query.page ?? 1);
+  const limit = Math.max(1, Math.min(50, query.limit ?? 20));
+  const sort = query.sort ?? "newest";
+
+  const baseCondition = and(
+    or(eq(games.whitePlayerId, userId), eq(games.blackPlayerId, userId)),
+    inArray(games.status, TERMINAL_STATUSES),
+  )!;
+
+  let conditions = baseCondition;
+
+  if (query.result === "win") {
+    conditions = and(
+      baseCondition,
+      or(
+        and(eq(games.whitePlayerId, userId), eq(games.resultWinner, "white")),
+        and(eq(games.blackPlayerId, userId), eq(games.resultWinner, "black")),
+      ),
+    )!;
+  } else if (query.result === "loss") {
+    conditions = and(
+      baseCondition,
+      or(
+        and(eq(games.whitePlayerId, userId), eq(games.resultWinner, "black")),
+        and(eq(games.blackPlayerId, userId), eq(games.resultWinner, "white")),
+      ),
+    )!;
+  } else if (query.result === "draw") {
+    conditions = and(
+      baseCondition,
+      isNull(games.resultWinner),
+      inArray(games.status, ["stalemate", "draw"]),
+    )!;
+  }
+
+  const countResult = db
+    .select({ count: sql<number>`count(*)` })
+    .from(games)
+    .where(conditions)
+    .get();
+  const total = countResult?.count ?? 0;
+
+  const orderBy = sort === "newest" ? descOp(games.createdAt) : ascOp(games.createdAt);
+  const offset = (page - 1) * limit;
+
+  const rows = db
+    .select()
+    .from(games)
+    .where(conditions)
+    .orderBy(orderBy)
+    .limit(limit)
+    .offset(offset)
+    .all();
+
+  const opponentIds = new Set<number>();
+  for (const row of rows) {
+    const opponentId =
+      row.whitePlayerId === userId ? row.blackPlayerId : row.whitePlayerId;
+    if (opponentId !== null) opponentIds.add(opponentId);
+  }
+
+  const usernameMap = new Map<number, string>();
+  if (opponentIds.size > 0) {
+    const userRows = db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(inArray(users.id, [...opponentIds]))
+      .all();
+    for (const u of userRows) {
+      usernameMap.set(u.id, u.username);
+    }
+  }
+
+  const items: GameHistoryItem[] = rows.map((row) => {
+    const myColor: PlayerColor = row.whitePlayerId === userId ? "white" : "black";
+    const opponentId =
+      myColor === "white" ? row.blackPlayerId! : row.whitePlayerId!;
+    const opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
+
+    let result: "win" | "loss" | "draw";
+    if (row.resultWinner === myColor) {
+      result = "win";
+    } else if (row.resultWinner !== null) {
+      result = "loss";
+    } else {
+      result = "draw";
+    }
+
+    const timeControl = `${Math.floor(row.clockInitialTime / 60)}+${row.clockIncrement}`;
+
+    return {
+      id: row.id,
+      opponentUsername,
+      opponentId,
+      result,
+      resultReason: row.status as GameStatus,
+      myColor,
+      timeControl,
+      playedAt: row.createdAt,
+    };
+  });
+
+  return { items, total };
 }

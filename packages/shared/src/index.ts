@@ -128,6 +128,29 @@ export interface GameListItem {
 
 export type GameListResponse = GameListItem[];
 
+export interface GameHistoryQuery {
+  page?: number;
+  limit?: number;
+  result?: "win" | "loss" | "draw";
+  sort?: "newest" | "oldest";
+}
+
+export interface GameHistoryItem {
+  id: number;
+  opponentUsername: string;
+  opponentId: number;
+  result: "win" | "loss" | "draw";
+  resultReason: GameStatus;
+  myColor: PlayerColor;
+  timeControl: string;
+  playedAt: number;
+}
+
+export interface GameHistoryResponse {
+  items: GameHistoryItem[];
+  total: number;
+}
+
 // ---------------------------------------------------------------------------
 // Socket.io event types (Phase 2.1)
 // ---------------------------------------------------------------------------
