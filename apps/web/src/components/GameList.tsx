@@ -51,6 +51,17 @@ function getOpponentLabel(game: GameListItem, myUserId: number | null): string {
   return "";
 }
 
+function getOpponentId(game: GameListItem, myUserId: number | null): number | null {
+  if (!myUserId) return null;
+  if (game.players.white?.userId === myUserId) {
+    return game.players.black?.userId ?? null;
+  }
+  if (game.players.black?.userId === myUserId) {
+    return game.players.white?.userId ?? null;
+  }
+  return null;
+}
+
 function isTerminalStatus(status: GameStatus): boolean {
   return (
     status === "checkmate" ||
@@ -116,7 +127,20 @@ export function GameList() {
           {sorted.map((game) => (
             <tr key={game.id} data-testid={`game-row-${game.id}`}>
               <td style={{ padding: "8px" }}>
-                <Link to={`/game/${game.id}`}>{getOpponentLabel(game, myUserId)}</Link>
+                {(() => {
+                  const opponentId = getOpponentId(game, myUserId);
+                  const label = getOpponentLabel(game, myUserId);
+                  return opponentId ? (
+                    <Link
+                      to={`/profile/${opponentId}`}
+                      style={{ color: "inherit", textDecoration: "none" }}
+                    >
+                      {label}
+                    </Link>
+                  ) : (
+                    label
+                  );
+                })()}
               </td>
               <td style={{ padding: "8px" }}>
                 {formatTimeControl(game.clock.initialTime, game.clock.increment)}

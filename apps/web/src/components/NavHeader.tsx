@@ -38,7 +38,13 @@ export function NavHeader() {
       <div>
         {isAuthenticated ? (
           <>
-            <span data-testid="user-display-name">{meData.user.username}</span>{" "}
+            <Link
+              to={`/profile/${meData.user.id}`}
+              data-testid="user-display-name"
+              style={{ textDecoration: "none", color: "inherit" }}
+            >
+              {meData.user.username}
+            </Link>{" "}
             <button data-testid="logout-button" onClick={handleLogout}>
               Logout
             </button>

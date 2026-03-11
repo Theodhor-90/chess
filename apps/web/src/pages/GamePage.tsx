@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { useGetMeQuery } from "../store/apiSlice.js";
 import { socketActions } from "../store/socketMiddleware.js";
@@ -89,7 +89,17 @@ export function GamePage() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
           {/* Opponent clock (top) */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span data-testid="top-player-label">{topLabel}</span>
+            {topPlayer ? (
+              <Link
+                to={`/profile/${topPlayer.userId}`}
+                data-testid="top-player-label"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                {topLabel}
+              </Link>
+            ) : (
+              <span data-testid="top-player-label">{topLabel}</span>
+            )}
             <Clock timeMs={topClockTime} isActive={topClockActive} lastUpdate={lastUpdate} />
           </div>
 
@@ -99,7 +109,17 @@ export function GamePage() {
           {/* Player clock (bottom) */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <Clock timeMs={bottomClockTime} isActive={bottomClockActive} lastUpdate={lastUpdate} />
-            <span data-testid="bottom-player-label">{bottomLabel}</span>
+            {bottomPlayer ? (
+              <Link
+                to={`/profile/${bottomPlayer.userId}`}
+                data-testid="bottom-player-label"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                {bottomLabel}
+              </Link>
+            ) : (
+              <span data-testid="bottom-player-label">{bottomLabel}</span>
+            )}
           </div>
         </div>
 

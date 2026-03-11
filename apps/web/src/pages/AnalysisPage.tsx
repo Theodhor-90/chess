@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { Chess } from "chess.js";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
@@ -316,9 +316,27 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     >
       <h1>Game Analysis</h1>
       <div data-testid="analysis-players" style={{ fontSize: "14px", marginBottom: "8px" }}>
-        {game.players.white?.username ?? `User #${game.players.white?.userId ?? "?"}`}
+        {game.players.white?.userId ? (
+          <Link
+            to={`/profile/${game.players.white.userId}`}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            {game.players.white.username ?? `User #${game.players.white.userId}`}
+          </Link>
+        ) : (
+          `User #${game.players.white?.userId ?? "?"}`
+        )}
         {" vs "}
-        {game.players.black?.username ?? `User #${game.players.black?.userId ?? "?"}`}
+        {game.players.black?.userId ? (
+          <Link
+            to={`/profile/${game.players.black.userId}`}
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            {game.players.black.username ?? `User #${game.players.black.userId}`}
+          </Link>
+        ) : (
+          `User #${game.players.black?.userId ?? "?"}`
+        )}
       </div>
       <div style={{ display: "flex", gap: "24px" }}>
         {currentEval && <EvalBar score={currentEval} />}

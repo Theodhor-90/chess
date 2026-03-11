@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useGetGameHistoryQuery } from "../store/apiSlice.js";
 
 const PAGE_SIZE = 20;
@@ -73,7 +73,15 @@ export function HistoryPage() {
                 onClick={() => navigate(`/analysis/${item.id}`)}
                 style={{ cursor: "pointer" }}
               >
-                <td style={{ padding: "8px" }}>{item.opponentUsername}</td>
+                <td style={{ padding: "8px" }}>
+                  <Link
+                    to={`/profile/${item.opponentId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: "inherit", textDecoration: "none" }}
+                  >
+                    {item.opponentUsername}
+                  </Link>
+                </td>
                 <td style={{ padding: "8px" }}>
                   <span
                     style={{
