@@ -6,11 +6,11 @@ import { eq } from "drizzle-orm";
 const SALT_ROUNDS = 10;
 
 const seedUsers = [
-  { email: "test@email.com", password: "testtest" },
-  { email: "test2@email.com", password: "test2test2" },
+  { email: "test@email.com", username: "testuser", password: "testtest" },
+  { email: "test2@email.com", username: "testuser2", password: "test2test2" },
 ];
 
-for (const { email, password } of seedUsers) {
+for (const { email, username, password } of seedUsers) {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   const existing = db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
@@ -20,7 +20,7 @@ for (const { email, password } of seedUsers) {
   } else {
     const result = db
       .insert(users)
-      .values({ email, passwordHash })
+      .values({ email, username, passwordHash })
       .returning({ id: users.id, email: users.email })
       .get();
     console.log(`Seeded user: id=${result.id}, email=${result.email}`);
