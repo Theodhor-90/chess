@@ -235,7 +235,12 @@ const TERMINAL_STATUSES = ["checkmate", "stalemate", "resigned", "draw", "timeou
 
 export function getGameHistory(
   userId: number,
-  query: { page?: number; limit?: number; result?: "win" | "loss" | "draw"; sort?: "newest" | "oldest" },
+  query: {
+    page?: number;
+    limit?: number;
+    result?: "win" | "loss" | "draw";
+    sort?: "newest" | "oldest";
+  },
 ): GameHistoryResponse {
   const page = Math.max(1, query.page ?? 1);
   const limit = Math.max(1, Math.min(50, query.limit ?? 20));
@@ -293,8 +298,7 @@ export function getGameHistory(
 
   const opponentIds = new Set<number>();
   for (const row of rows) {
-    const opponentId =
-      row.whitePlayerId === userId ? row.blackPlayerId : row.whitePlayerId;
+    const opponentId = row.whitePlayerId === userId ? row.blackPlayerId : row.whitePlayerId;
     if (opponentId !== null) opponentIds.add(opponentId);
   }
 
@@ -312,8 +316,7 @@ export function getGameHistory(
 
   const items: GameHistoryItem[] = rows.map((row) => {
     const myColor: PlayerColor = row.whitePlayerId === userId ? "white" : "black";
-    const opponentId =
-      myColor === "white" ? row.blackPlayerId! : row.whitePlayerId!;
+    const opponentId = myColor === "white" ? row.blackPlayerId! : row.whitePlayerId!;
     const opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
 
     let result: "win" | "loss" | "draw";

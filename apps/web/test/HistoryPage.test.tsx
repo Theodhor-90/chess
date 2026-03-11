@@ -122,12 +122,8 @@ describe("HistoryPage", () => {
     expect(screen.getByText("Resigned")).toBeInTheDocument();
     expect(screen.getByText("10+0")).toBeInTheDocument();
     expect(screen.getByText("5+3")).toBeInTheDocument();
-    expect(
-      screen.getByText(new Date(1710000000 * 1000).toLocaleDateString()),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(new Date(1710100000 * 1000).toLocaleDateString()),
-    ).toBeInTheDocument();
+    expect(screen.getByText(new Date(1710000000 * 1000).toLocaleDateString())).toBeInTheDocument();
+    expect(screen.getByText(new Date(1710100000 * 1000).toLocaleDateString())).toBeInTheDocument();
   });
 
   it("previous button disabled on first page", async () => {

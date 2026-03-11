@@ -110,7 +110,10 @@ export function HistoryPage() {
         </table>
       )}
 
-      <div data-testid="history-pagination" style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+      <div
+        data-testid="history-pagination"
+        style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px" }}
+      >
         <button
           data-testid="history-prev"
           disabled={page === 1}

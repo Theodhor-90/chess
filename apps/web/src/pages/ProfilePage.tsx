@@ -78,8 +78,12 @@ export function ProfilePage() {
             <div>N/A</div>
           ) : (
             <div>
-              <div>White: {data.avgAccuracy.white !== null ? `${data.avgAccuracy.white}%` : "N/A"}</div>
-              <div>Black: {data.avgAccuracy.black !== null ? `${data.avgAccuracy.black}%` : "N/A"}</div>
+              <div>
+                White: {data.avgAccuracy.white !== null ? `${data.avgAccuracy.white}%` : "N/A"}
+              </div>
+              <div>
+                Black: {data.avgAccuracy.black !== null ? `${data.avgAccuracy.black}%` : "N/A"}
+              </div>
             </div>
           )}
         </div>

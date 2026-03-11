@@ -168,12 +168,8 @@ describe("ProfilePage", () => {
     expect(screen.getByText("L")).toBeInTheDocument();
     expect(screen.getByText("Checkmate")).toBeInTheDocument();
     expect(screen.getByText("Resigned")).toBeInTheDocument();
-    expect(
-      screen.getByText(new Date(1710000000 * 1000).toLocaleDateString()),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(new Date(1710100000 * 1000).toLocaleDateString()),
-    ).toBeInTheDocument();
+    expect(screen.getByText(new Date(1710000000 * 1000).toLocaleDateString())).toBeInTheDocument();
+    expect(screen.getByText(new Date(1710100000 * 1000).toLocaleDateString())).toBeInTheDocument();
   });
 
   it("recent game row click navigates to analysis page", async () => {

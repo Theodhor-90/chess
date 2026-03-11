@@ -223,9 +223,7 @@ describe("GET /api/users/:id/stats — Player stats", () => {
 
     // Verify ordering: each game's playedAt >= next game's playedAt
     for (let i = 0; i < body.recentGames.length - 1; i++) {
-      expect(body.recentGames[i].playedAt).toBeGreaterThanOrEqual(
-        body.recentGames[i + 1].playedAt,
-      );
+      expect(body.recentGames[i].playedAt).toBeGreaterThanOrEqual(body.recentGames[i + 1].playedAt);
     }
   });
 });
