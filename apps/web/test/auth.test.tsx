@@ -170,8 +170,9 @@ describe("RegisterPage", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders email input, password input, and submit button", () => {
+  it("renders username input, email input, password input, and submit button", () => {
     renderWithProviders(<RegisterPage />);
+    expect(screen.getByLabelText("Username")).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Register" })).toBeInTheDocument();
@@ -185,8 +186,8 @@ describe("RegisterPage", () => {
   });
 
   it("calls register and navigates to home on success", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } }, 201);
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "testuser" } }, 201);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "testuser" } });
     mockFetchSuccess([]);
     const store = createTestStore();
     render(
@@ -196,6 +197,7 @@ describe("RegisterPage", () => {
         </MemoryRouter>
       </Provider>,
     );
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "testuser" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
     const buttons = screen.getAllByRole("button", { name: "Register" });
@@ -218,6 +220,7 @@ describe("RegisterPage", () => {
   it("displays error message on registration failure", async () => {
     mockFetchError({ error: "Email already taken" }, 409);
     renderWithProviders(<RegisterPage />);
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "testuser" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
     const buttons = screen.getAllByRole("button", { name: "Register" });
@@ -235,6 +238,7 @@ describe("RegisterPage", () => {
       }),
     );
     renderWithProviders(<RegisterPage />);
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "testuser" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
     const buttons = screen.getAllByRole("button", { name: "Register" });
@@ -244,7 +248,7 @@ describe("RegisterPage", () => {
       expect(submitting[0]).toBeDisabled();
     });
     resolveResponse(
-      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com", username: "testuser" } }), {
         status: 201,
         headers: { "Content-Type": "application/json" },
       }),
@@ -336,7 +340,7 @@ describe("LoginPage redirect support", () => {
   });
 
   it("navigates to redirect param after successful registration", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } }, 201);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "testuser" } }, 201);
     const store = createTestStore();
     render(
       <Provider store={store}>
@@ -348,6 +352,7 @@ describe("LoginPage redirect support", () => {
         </MemoryRouter>
       </Provider>,
     );
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "testuser" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
     const buttons = screen.getAllByRole("button", { name: "Register" });

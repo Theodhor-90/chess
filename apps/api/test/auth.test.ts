@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { describe, it, expect, afterEach, beforeAll, beforeEach } from "vitest";
 import { createSession, getSession, destroySession } from "../src/auth/session.js";
 import { buildApp } from "../src/server.js";
@@ -9,17 +10,25 @@ beforeAll(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       email TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL
     )
   `);
 });
 
 let emailCounter = 0;
+let usernameCounter = 0;
 const runId = Date.now();
+const shortId = randomBytes(3).toString("hex");
 
 function uniqueEmail(prefix: string): string {
   emailCounter += 1;
   return `${prefix}-${runId}-${emailCounter}@test.com`;
+}
+
+function uniqueUsername(prefix = "u"): string {
+  usernameCounter += 1;
+  return `${prefix}_${shortId}_${usernameCounter}`;
 }
 
 function extractSessionCookie(res: {
@@ -35,11 +44,12 @@ async function registerUser(
   app: ReturnType<typeof buildApp>["app"],
   email: string,
   password = "password123",
+  username?: string,
 ) {
   return app.inject({
     method: "POST",
     url: "/api/auth/register",
-    payload: { email, password },
+    payload: { username: username ?? uniqueUsername(), email, password },
   });
 }
 
@@ -166,7 +176,7 @@ describe("POST /api/auth/register", () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.json()).toEqual({
-      user: { id: expect.any(Number), email },
+      user: { id: expect.any(Number), email, username: expect.any(String) },
     });
 
     const setCookie = res.headers["set-cookie"];
@@ -187,7 +197,7 @@ describe("POST /api/auth/register", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/register",
-      payload: { password: "password123" },
+      payload: { username: uniqueUsername(), password: "password123" },
     });
 
     expect(res.statusCode).toBe(400);
@@ -197,7 +207,7 @@ describe("POST /api/auth/register", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/register",
-      payload: { email: uniqueEmail("register-nopw") },
+      payload: { username: uniqueUsername(), email: uniqueEmail("register-nopw") },
     });
 
     expect(res.statusCode).toBe(400);
@@ -207,7 +217,11 @@ describe("POST /api/auth/register", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/auth/register",
-      payload: { email: uniqueEmail("register-short"), password: "short" },
+      payload: {
+        username: uniqueUsername(),
+        email: uniqueEmail("register-short"),
+        password: "short",
+      },
     });
 
     expect(res.statusCode).toBe(400);
@@ -237,7 +251,7 @@ describe("POST /api/auth/login", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
-      user: { id: expect.any(Number), email },
+      user: { id: expect.any(Number), email, username: expect.any(String) },
     });
 
     const setCookie = res.headers["set-cookie"];
@@ -336,7 +350,7 @@ describe("GET /api/auth/me", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
-      user: { id: expect.any(Number), email },
+      user: { id: expect.any(Number), email, username: expect.any(String) },
     });
   });
 
@@ -359,5 +373,81 @@ describe("GET /api/auth/me", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json()).toEqual({ error: "Unauthorized" });
+  });
+});
+
+describe("POST /api/auth/register — username validation", () => {
+  let app: ReturnType<typeof buildApp>["app"];
+
+  beforeEach(() => {
+    ({ app } = buildApp());
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("valid username registers successfully", async () => {
+    const username = uniqueUsername("alice");
+    const email = uniqueEmail("username-valid");
+    const res = await registerUser(app, email, "password123", username);
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual({
+      user: { id: expect.any(Number), email, username },
+    });
+  });
+
+  it("duplicate username returns 409", async () => {
+    const username = uniqueUsername("dup");
+    await registerUser(app, uniqueEmail("dup1"), "password123", username);
+    const res = await registerUser(app, uniqueEmail("dup2"), "password123", username);
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: "Username already taken" });
+  });
+
+  it("case-insensitive duplicate username returns 409", async () => {
+    const email1 = uniqueEmail("case1");
+    const email2 = uniqueEmail("case2");
+    await registerUser(app, email1, "password123", "Alice");
+    const res = await registerUser(app, email2, "password123", "alice");
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: "Username already taken" });
+  });
+
+  it("username too short returns 400", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: { username: "ab", email: uniqueEmail("short-un"), password: "password123" },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("username too long returns 400", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: {
+        username: "a".repeat(21),
+        email: uniqueEmail("long-un"),
+        password: "password123",
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("username with invalid characters returns 400", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      payload: { username: "user@name", email: uniqueEmail("invalid-un"), password: "password123" },
+    });
+
+    expect(res.statusCode).toBe(400);
   });
 });

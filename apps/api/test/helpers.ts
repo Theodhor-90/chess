@@ -1,14 +1,22 @@
+import { randomBytes } from "node:crypto";
 import { buildApp } from "../src/server.js";
 import { sqlite } from "../src/db/index.js";
 import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
 import type { ServerToClientEvents, ClientToServerEvents } from "@chess/shared";
 
 let emailCounter = 0;
+let usernameCounter = 0;
 const runId = Date.now();
+const shortId = randomBytes(3).toString("hex");
 
 export function uniqueEmail(prefix: string): string {
   emailCounter += 1;
   return `${prefix}-${runId}-${emailCounter}@test.com`;
+}
+
+export function uniqueUsername(prefix = "u"): string {
+  usernameCounter += 1;
+  return `${prefix}_${shortId}_${usernameCounter}`;
 }
 
 export function extractSessionCookie(res: {
@@ -26,6 +34,7 @@ export function ensureUsersTable(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       email TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL
     )
   `);
@@ -93,7 +102,7 @@ export function cleanGamesTables(): void {
  */
 export function seedTestUser(id: number): void {
   sqlite.exec(
-    `INSERT OR IGNORE INTO users (id, email, password_hash) VALUES (${id}, 'test-user-${id}@seed.local', 'no-password')`,
+    `INSERT OR IGNORE INTO users (id, email, username, password_hash) VALUES (${id}, 'test-user-${id}@seed.local', 'test_user_${id}', 'no-password')`,
   );
 }
 
@@ -105,7 +114,7 @@ export async function registerAndLogin(
   const res = await app.inject({
     method: "POST",
     url: "/api/auth/register",
-    payload: { email, password },
+    payload: { username: uniqueUsername(), email, password },
   });
   if (res.statusCode !== 201) {
     throw new Error(`Registration failed: ${res.statusCode} ${res.body}`);

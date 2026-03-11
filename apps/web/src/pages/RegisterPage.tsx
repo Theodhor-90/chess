@@ -8,6 +8,7 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [register, { isLoading, error }] = useRegisterMutation();
@@ -15,7 +16,7 @@ export function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await register({ email, password }).unwrap();
+      await register({ username, email, password }).unwrap();
       dispatch(socketActions.connect());
       const redirect = searchParams.get("redirect");
       navigate(redirect || "/");
@@ -35,6 +36,20 @@ export function RegisterPage() {
     <div>
       <h1>Register</h1>
       <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            minLength={3}
+            maxLength={20}
+            pattern="^[a-zA-Z0-9_]+$"
+            title="3–20 characters, letters, numbers, and underscores only"
+          />
+        </div>
         <div>
           <label htmlFor="email">Email</label>
           <input

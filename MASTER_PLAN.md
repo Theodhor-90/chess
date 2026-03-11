@@ -180,6 +180,39 @@ Exit criteria:
 
 ---
 
+### M8: Game History & Player Profiles
+
+**Goal:** Users can browse their full game history with filtering and sorting, view detailed player profiles with win/loss/draw statistics and accuracy trends, and see usernames instead of user IDs throughout the app.
+
+#### Phase 8.1 — Usernames & Game History
+
+Add a username field to user accounts (chosen at registration, displayed everywhere). Build a dedicated game history page with server-side pagination, filtering by result (win/loss/draw), and sorting by date.
+
+Exit criteria:
+
+- Users table has a `username` column (unique, 3–20 chars, alphanumeric + underscores).
+- Registration requires a username. Login continues to use email.
+- All UI surfaces show usernames instead of "User #123".
+- `GET /games/history?page=1&limit=20&result=win&sort=newest` returns paginated game history.
+- `/history` page renders a paginated, filterable table of completed games.
+- Each row shows: opponent username, result (W/L/D), result reason, time control, date.
+- Clicking a row navigates to the analysis page for that game.
+
+#### Phase 8.2 — Player Profiles & Statistics
+
+Build player profile pages with aggregate statistics and a recent games section. Each user gets a public profile showing their record and average accuracy.
+
+Exit criteria:
+
+- `GET /users/:id/stats` returns: total games, wins, losses, draws, win rate, average accuracy (white & black), and results of last 10 games.
+- `/profile/:id` page displays the user's username, stats dashboard, and recent games.
+- Stats include: total games played, win/loss/draw counts with percentages, average analysis accuracy.
+- Recent games section shows last 10 games with opponent, result, and date.
+- Nav header shows the logged-in user's username, clickable to their own profile.
+- Opponent names in game history and game pages link to opponent profiles.
+
+---
+
 ## Cross-Milestone Standards
 
 - All existing platform conventions apply (ESM, strict TypeScript, named exports, Prettier, ESLint).

@@ -29,6 +29,7 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       email TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL
     )
   `);

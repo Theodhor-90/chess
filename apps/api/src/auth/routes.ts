@@ -1,6 +1,6 @@
 import fp from "fastify-plugin";
 import bcrypt from "bcrypt";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { RegisterRequest, LoginRequest, AuthResponse, ErrorResponse } from "@chess/shared";
 import { db } from "../db/index.js";
@@ -14,6 +14,21 @@ const authBodySchema = {
   type: "object" as const,
   required: ["email", "password"],
   properties: {
+    email: { type: "string" as const, minLength: 1 },
+    password: { type: "string" as const, minLength: 8 },
+  },
+};
+
+const registerBodySchema = {
+  type: "object" as const,
+  required: ["username", "email", "password"],
+  properties: {
+    username: {
+      type: "string" as const,
+      minLength: 3,
+      maxLength: 20,
+      pattern: "^[a-zA-Z0-9_]+$",
+    },
     email: { type: "string" as const, minLength: 1 },
     password: { type: "string" as const, minLength: 8 },
   },
@@ -33,31 +48,40 @@ async function authRoutes(app: FastifyInstance) {
   // POST /api/auth/register
   app.post<{ Body: RegisterRequest; Reply: AuthResponse | ErrorResponse }>(
     "/api/auth/register",
-    { schema: { body: authBodySchema } },
+    { schema: { body: registerBodySchema } },
     async (request: FastifyRequest<{ Body: RegisterRequest }>, reply: FastifyReply) => {
-      const { email, password } = request.body;
+      const { username, email, password } = request.body;
+
+      // Check username uniqueness (case-insensitive)
+      const existingUsername = db
+        .select({ id: users.id })
+        .from(users)
+        .where(sql`LOWER(${users.username}) = LOWER(${username})`)
+        .get();
+      if (existingUsername) {
+        return reply.code(409).send({ error: "Username already taken" });
+      }
 
       // Check email uniqueness
       const existing = db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
-
       if (existing) {
         return reply.code(409).send({ error: "Email already taken" });
       }
 
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-      let insertedUser: { id: number; email: string };
+      let insertedUser: { id: number; email: string; username: string };
       try {
         const result = db
           .insert(users)
-          .values({ email, passwordHash })
-          .returning({ id: users.id, email: users.email })
+          .values({ email, username, passwordHash })
+          .returning({ id: users.id, email: users.email, username: users.username })
           .get();
         insertedUser = result;
       } catch (err: unknown) {
         // Handle race condition: unique constraint violation
         if (err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
-          return reply.code(409).send({ error: "Email already taken" });
+          return reply.code(409).send({ error: "Username or email already taken" });
         }
         throw err;
       }
@@ -65,7 +89,13 @@ async function authRoutes(app: FastifyInstance) {
       const sessionId = createSession(insertedUser.id);
       reply.setCookie("sessionId", sessionId, getCookieOptions());
 
-      return reply.code(201).send({ user: { id: insertedUser.id, email: insertedUser.email } });
+      return reply.code(201).send({
+        user: {
+          id: insertedUser.id,
+          email: insertedUser.email,
+          username: insertedUser.username,
+        },
+      });
     },
   );
 
@@ -77,7 +107,12 @@ async function authRoutes(app: FastifyInstance) {
       const { email, password } = request.body;
 
       const user = db
-        .select({ id: users.id, email: users.email, passwordHash: users.passwordHash })
+        .select({
+          id: users.id,
+          email: users.email,
+          username: users.username,
+          passwordHash: users.passwordHash,
+        })
         .from(users)
         .where(eq(users.email, email))
         .get();
@@ -94,7 +129,9 @@ async function authRoutes(app: FastifyInstance) {
       const sessionId = createSession(user.id);
       reply.setCookie("sessionId", sessionId, getCookieOptions());
 
-      return reply.code(200).send({ user: { id: user.id, email: user.email } });
+      return reply
+        .code(200)
+        .send({ user: { id: user.id, email: user.email, username: user.username } });
     },
   );
 
@@ -119,7 +156,7 @@ async function authRoutes(app: FastifyInstance) {
     { preHandler: requireAuth },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const user = db
-        .select({ id: users.id, email: users.email })
+        .select({ id: users.id, email: users.email, username: users.username })
         .from(users)
         .where(eq(users.id, request.userId!))
         .get();
@@ -128,7 +165,9 @@ async function authRoutes(app: FastifyInstance) {
         return reply.code(401).send({ error: "Unauthorized" });
       }
 
-      return reply.code(200).send({ user: { id: user.id, email: user.email } });
+      return reply
+        .code(200)
+        .send({ user: { id: user.id, email: user.email, username: user.username } });
     },
   );
 }
