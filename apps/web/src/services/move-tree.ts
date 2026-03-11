@@ -10,6 +10,7 @@ export function buildTreeFromPgn(pgn: string): MoveTreeNode {
   const root: MoveTreeNode = {
     fen: chess.fen(),
     eval: null,
+    bestLine: null,
     classification: null,
     san: null,
     children: [],
@@ -22,6 +23,7 @@ export function buildTreeFromPgn(pgn: string): MoveTreeNode {
     const child: MoveTreeNode = {
       fen: chess.fen(),
       eval: null,
+      bestLine: null,
       classification: null,
       san,
       children: [],
@@ -38,6 +40,7 @@ export function serializeTree(root: MoveTreeNode): SerializedMoveTreeNode {
   return {
     fen: root.fen,
     eval: root.eval,
+    bestLine: root.bestLine,
     classification: root.classification,
     san: root.san,
     children: root.children.map((child) => serializeTree(child)),
@@ -51,6 +54,7 @@ export function deserializeTree(
   const node: MoveTreeNode = {
     fen: data.fen,
     eval: data.eval,
+    bestLine: data.bestLine,
     classification: data.classification,
     san: data.san,
     children: [],
@@ -70,6 +74,7 @@ export function addChild(parent: MoveTreeNode, san: string, fen: string): MoveTr
     fen,
     san,
     eval: null,
+    bestLine: null,
     classification: null,
     children: [],
     parent,

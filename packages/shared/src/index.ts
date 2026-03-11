@@ -258,6 +258,7 @@ export interface AnalyzedPosition {
 export interface MoveTreeNode {
   fen: string;
   eval: EvalScore | null;
+  bestLine: string[] | null;
   classification: MoveClassification | null;
   san: string | null;
   children: MoveTreeNode[];
@@ -267,6 +268,7 @@ export interface MoveTreeNode {
 export interface SerializedMoveTreeNode {
   fen: string;
   eval: EvalScore | null;
+  bestLine: string[] | null;
   classification: MoveClassification | null;
   san: string | null;
   children: SerializedMoveTreeNode[];

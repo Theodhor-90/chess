@@ -72,11 +72,16 @@ describe("buildTreeFromPgn", () => {
     }
   });
 
-  it("eval and classification are null on all nodes", () => {
+  it("eval, bestLine, and classification are null on all nodes", () => {
     const root = buildTreeFromPgn(SCHOLARS_MATE_PGN);
-    const nodes = walkMainLine(root) as { eval: unknown; classification: unknown }[];
+    const nodes = walkMainLine(root) as {
+      eval: unknown;
+      bestLine: unknown;
+      classification: unknown;
+    }[];
     for (const node of nodes) {
       expect(node.eval).toBeNull();
+      expect(node.bestLine).toBeNull();
       expect(node.classification).toBeNull();
     }
   });
@@ -121,6 +126,7 @@ describe("serializeTree", () => {
     expect(serialized.fen).toBe(chess.fen());
     expect(serialized.san).toBeNull();
     expect(serialized.eval).toBeNull();
+    expect(serialized.bestLine).toBeNull();
     expect(serialized.classification).toBeNull();
     expect(serialized.children).toHaveLength(1);
 
@@ -138,6 +144,7 @@ describe("deserializeTree", () => {
       fen: string;
       san: string | null;
       eval: unknown;
+      bestLine: unknown;
       classification: unknown;
     }[];
     const deserializedNodes = walkMainLine(deserialized) as typeof originalNodes;
@@ -147,6 +154,7 @@ describe("deserializeTree", () => {
       expect(deserializedNodes[i].fen).toBe(originalNodes[i].fen);
       expect(deserializedNodes[i].san).toBe(originalNodes[i].san);
       expect(deserializedNodes[i].eval).toEqual(originalNodes[i].eval);
+      expect(deserializedNodes[i].bestLine).toEqual(originalNodes[i].bestLine);
       expect(deserializedNodes[i].classification).toBe(originalNodes[i].classification);
     }
   });
@@ -186,6 +194,7 @@ describe("addChild", () => {
     expect(newNode.san).toBe("d5");
     expect(newNode.fen).toBe(expectedFen);
     expect(newNode.eval).toBeNull();
+    expect(newNode.bestLine).toBeNull();
     expect(newNode.classification).toBeNull();
     expect(newNode.children).toEqual([]);
     expect(newNode.parent).toBe(qh5Node);
