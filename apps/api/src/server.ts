@@ -11,6 +11,8 @@ import { authRoutesPlugin } from "./auth/routes.js";
 import { gameRoutesPlugin } from "./game/routes.js";
 import { analysisRoutesPlugin } from "./analysis/routes.js";
 import { userRoutesPlugin } from "./user/routes.js";
+import { enginePlugin } from "./engine/plugin.js";
+import { engineEvaluatePlugin, engineAnalyzePlugin } from "./engine/routes.js";
 import { setupSocketServer, type TypedSocketServer } from "./socket/index.js";
 
 const COOKIE_SECRET = process.env.SESSION_SECRET ?? "dev-fallback-secret-not-for-production";
@@ -34,6 +36,9 @@ export function buildApp(options?: BuildAppOptions): {
   app.register(gameRoutesPlugin, { prefix: "/api/games" });
   app.register(analysisRoutesPlugin, { prefix: "/api/games" });
   app.register(userRoutesPlugin, { prefix: "/api/users" });
+  app.register(enginePlugin);
+  app.register(engineEvaluatePlugin, { prefix: "/api/engine" });
+  app.register(engineAnalyzePlugin, { prefix: "/api/games" });
 
   const isProduction = process.env.NODE_ENV === "production";
 

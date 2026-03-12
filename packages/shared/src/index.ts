@@ -252,6 +252,64 @@ export interface AnalyzedPosition {
   centipawnLoss: number | null;
 }
 
+// ---------------------------------------------------------------------------
+// Engine API types (Phase 9.1)
+// ---------------------------------------------------------------------------
+
+export interface ServerEvaluateRequest {
+  fen: string;
+  depth?: number;
+}
+
+export interface ServerAnalyzeResponse {
+  positions: AnalyzedPosition[];
+  whiteAccuracy: number;
+  blackAccuracy: number;
+}
+
+// ---------------------------------------------------------------------------
+// Analysis utility functions (moved from apps/web/src/services/analysis.ts)
+// ---------------------------------------------------------------------------
+
+export function mateScoreToCp(mateValue: number): number {
+  if (mateValue === 0) return 0;
+  const sign = mateValue > 0 ? 1 : -1;
+  return sign * Math.round(100000 / Math.abs(mateValue));
+}
+
+export function evalToAbsoluteCp(score: EvalScore, isWhiteTurn: boolean): number {
+  const raw = score.type === "mate" ? mateScoreToCp(score.value) : score.value;
+  return isWhiteTurn ? raw : -raw;
+}
+
+export function classifyMove(
+  evalBefore: EvalScore,
+  evalAfter: EvalScore,
+  bestMoveSan: string,
+  playedMoveSan: string,
+  isWhiteTurn: boolean,
+): MoveClassification {
+  if (playedMoveSan === bestMoveSan) return "best";
+
+  const cpBefore = evalToAbsoluteCp(evalBefore, isWhiteTurn);
+  const cpAfter = evalToAbsoluteCp(evalAfter, !isWhiteTurn);
+  const loss = isWhiteTurn ? cpBefore - cpAfter : cpAfter - cpBefore;
+
+  if (loss <= 30) return "good";
+  if (loss <= 100) return "inaccuracy";
+  if (loss <= 250) return "mistake";
+  return "blunder";
+}
+
+export function computeAccuracy(centipawnLosses: number[]): number {
+  if (centipawnLosses.length === 0) return 100;
+  const total = centipawnLosses.reduce(
+    (sum, loss) => sum + Math.min(100, Math.max(0, 100 - loss)),
+    0,
+  );
+  return total / centipawnLosses.length;
+}
+
 // Move tree types (Phase 5.1)
 // ---------------------------------------------------------------------------
 
