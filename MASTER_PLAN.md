@@ -17,7 +17,7 @@ The feature ships in three milestones:
 - Live analysis during active games (this is cheating assistance)
 - Free analysis board (paste arbitrary FEN/PGN with no game reference)
 - Multiplayer / shared analysis sessions
-- Server-side engine execution (all computation is client-side via WASM)
+- ~~Server-side engine execution~~ → moved to M9 (native Stockfish replaces client-side WASM)
 - Opening book / database integration
 - Tablebase endgame lookup
 
@@ -213,11 +213,29 @@ Exit criteria:
 
 ---
 
+### M9: Server-Side Stockfish Engine
+
+**Goal:** Replace client-side WASM Stockfish with a native Stockfish binary running server-side. Native Stockfish with NNUE is 3-5x faster than the WASM build, provides consistent performance across devices, and unblocks future features (background analysis, bot opponents).
+
+#### Phase 9.1 — Engine Infrastructure, API & Frontend Migration
+
+Build a UCI engine wrapper that spawns native Stockfish as a child process, a pool to manage multiple engine instances, REST endpoints for single-position and batch game analysis, and migrate the frontend from WASM to server API calls.
+
+Exit criteria:
+
+- `UciEngine` class spawns Stockfish, communicates via UCI, returns `EvaluationResult`.
+- `EnginePool` manages N engines with request queuing and crash recovery.
+- `POST /engine/evaluate` evaluates a single FEN. `POST /games/:id/server-analyze` batch-analyzes a completed game.
+- Frontend uses server endpoints for all analysis. `lila-stockfish-web` is removed.
+- Analysis depth increased to 20 (from 18 client-side).
+
+---
+
 ## Cross-Milestone Standards
 
 - All existing platform conventions apply (ESM, strict TypeScript, named exports, Prettier, ESLint).
 - The analysis feature must not interfere with live gameplay — active game guard is enforced.
 - Stockfish WASM assets must be properly bundled/served by Vite (not loaded from external CDN).
-- No backend compute for engine evaluation — all Stockfish runs client-side.
+- ~~No backend compute for engine evaluation~~ — As of M9, Stockfish runs server-side via native binary.
 - Shared types for analysis data structures go in `@chess/shared`.
 - Tests cover engine service, move tree logic, and API endpoints.

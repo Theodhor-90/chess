@@ -316,7 +316,11 @@ function TrainingContent() {
         </button>
       </div>
       <div style={{ display: "flex", gap: "24px" }}>
-        {currentEval && <EvalBar score={currentEval} />}
+        {currentEval ? (
+          <EvalBar score={currentEval} />
+        ) : (
+          <div style={{ width: 30, minHeight: 400 }} />
+        )}
         <div
           ref={containerRef}
           data-testid="training-board"
