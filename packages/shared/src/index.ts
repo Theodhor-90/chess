@@ -268,8 +268,8 @@ export interface AnalysisProgressPayload {
   positions: AnalyzedPosition[];
   whiteAccuracy: number;
   blackAccuracy: number;
-  currentDepth: number;
-  targetDepth: number;
+  completedPositions: number;
+  totalPositions: number;
 }
 
 // ---------------------------------------------------------------------------

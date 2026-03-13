@@ -92,8 +92,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [variation, setVariation] = useState<VariationState | null>(null);
-  const [currentDepth, setCurrentDepth] = useState<number | null>(null);
-  const [targetDepth, setTargetDepth] = useState<number | null>(null);
+  const [completedPositions, setCompletedPositions] = useState<number | null>(null);
+  const [totalPositions, setTotalPositions] = useState<number | null>(null);
   const analyzingGameIdRef = useRef<number | null>(null);
 
   const {
@@ -128,11 +128,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
 
     const handleProgress = (data: AnalysisProgressPayload) => {
       if (data.gameId !== game.id) return;
-      setPositions(data.positions);
-      setWhiteAccuracy(data.whiteAccuracy);
-      setBlackAccuracy(data.blackAccuracy);
-      setCurrentDepth(data.currentDepth);
-      setTargetDepth(data.targetDepth);
+      setCompletedPositions(data.completedPositions);
+      setTotalPositions(data.totalPositions);
     };
 
     const handleComplete = (data: AnalysisProgressPayload) => {
@@ -140,8 +137,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       setPositions(data.positions);
       setWhiteAccuracy(data.whiteAccuracy);
       setBlackAccuracy(data.blackAccuracy);
-      setCurrentDepth(data.currentDepth);
-      setTargetDepth(data.targetDepth);
+      setCompletedPositions(data.completedPositions);
+      setTotalPositions(data.totalPositions);
       setAnalysisState("complete");
       analyzingGameIdRef.current = null;
     };
@@ -150,8 +147,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       if (data.gameId !== game.id) return;
       setAnalyzeError(data.error);
       setAnalysisState("idle");
-      setCurrentDepth(null);
-      setTargetDepth(null);
+      setCompletedPositions(null);
+      setTotalPositions(null);
       analyzingGameIdRef.current = null;
     };
 
@@ -222,8 +219,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     const socket = connectSocket();
     setAnalysisState("running");
     setAnalyzeError(null);
-    setCurrentDepth(null);
-    setTargetDepth(null);
+    setCompletedPositions(null);
+    setTotalPositions(null);
     setVariation(null);
     analyzingGameIdRef.current = game.id;
     socket.emit("startAnalysis", { gameId: game.id });
@@ -235,8 +232,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       socket.emit("cancelAnalysis", { gameId: analyzingGameIdRef.current });
     }
     setAnalysisState("idle");
-    setCurrentDepth(null);
-    setTargetDepth(null);
+    setCompletedPositions(null);
+    setTotalPositions(null);
     analyzingGameIdRef.current = null;
   }, []);
 
@@ -423,8 +420,8 @@ function AnalysisContent({ game }: { game: GameResponse }) {
           {analysisState === "running" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <div data-testid="analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
-                {currentDepth !== null && targetDepth !== null
-                  ? `Analyzing... Depth ${currentDepth}/${targetDepth}`
+                {completedPositions !== null && totalPositions !== null
+                  ? `Analyzing... ${completedPositions}/${totalPositions} positions`
                   : "Starting analysis..."}
               </div>
               <button

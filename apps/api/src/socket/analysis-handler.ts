@@ -10,7 +10,7 @@ import type {
   AnalyzedPosition,
   MoveClassification,
   SerializedAnalysisNode,
-  AnalysisProgressPayload,
+  EvaluationResult,
 } from "@chess/shared";
 import {
   ANALYSIS_DEPTH_THRESHOLDS,
@@ -196,39 +196,39 @@ export function registerAnalysisHandlers(
     activeAnalyses.set(gameId, abortController);
 
     const targetDepth = ANALYSIS_DEPTH_THRESHOLDS[ANALYSIS_DEPTH_THRESHOLDS.length - 1];
-    const positions: (AnalyzedPosition | undefined)[] = new Array(fens.length);
+    const rawEvals: (EvaluationResult | undefined)[] = new Array(fens.length);
+    let completedCount = 0;
 
     try {
-      for (let i = 0; i < fens.length; i++) {
-        if (abortController.signal.aborted) break;
+      // Evaluate all positions in parallel through the engine pool
+      const evalPromises = fens.map((fen, i) =>
+        app.engine.evaluate(fen, targetDepth).then((result) => {
+          if (abortController.signal.aborted) return;
+          rawEvals[i] = result;
+          completedCount++;
+          socket.emit("analysisProgress", {
+            gameId,
+            positions: [],
+            whiteAccuracy: 0,
+            blackAccuracy: 0,
+            completedPositions: completedCount,
+            totalPositions: fens.length,
+          });
+        }),
+      );
 
-        const evaluation = await app.engine.evaluateWithProgress(
-          fens[i],
-          targetDepth,
-          ANALYSIS_DEPTH_THRESHOLDS,
-          (partialEval, currentDepth) => {
-            positions[i] = buildAnalyzedPosition(fens, positions, playedMoves, i, partialEval);
-            const { whiteAccuracy, blackAccuracy } = computeAccuracies(positions);
-
-            const payload: AnalysisProgressPayload = {
-              gameId,
-              positions: positions.filter((p): p is AnalyzedPosition => p !== undefined),
-              whiteAccuracy,
-              blackAccuracy,
-              currentDepth,
-              targetDepth,
-            };
-            socket.emit("analysisProgress", payload);
-          },
-        );
-
-        positions[i] = buildAnalyzedPosition(fens, positions, playedMoves, i, evaluation);
-      }
-
+      await Promise.all(evalPromises);
       if (abortController.signal.aborted) return;
 
-      const finalPositions = positions.filter((p): p is AnalyzedPosition => p !== undefined);
-      const { whiteAccuracy, blackAccuracy } = computeAccuracies(positions);
+      // Build classified positions sequentially (instant, no engine needed)
+      const finalPositions: AnalyzedPosition[] = [];
+      for (let i = 0; i < fens.length; i++) {
+        const evaluation = rawEvals[i]!;
+        finalPositions.push(
+          buildAnalyzedPosition(fens, finalPositions, playedMoves, i, evaluation),
+        );
+      }
+      const { whiteAccuracy, blackAccuracy } = computeAccuracies(finalPositions);
 
       const analysisTree = JSON.stringify(
         positionsToAnalysisTree(fens, playedMoves, finalPositions),
@@ -259,8 +259,8 @@ export function registerAnalysisHandlers(
         positions: finalPositions,
         whiteAccuracy,
         blackAccuracy,
-        currentDepth: targetDepth,
-        targetDepth,
+        completedPositions: fens.length,
+        totalPositions: fens.length,
       });
     } catch (err) {
       if (!abortController.signal.aborted) {

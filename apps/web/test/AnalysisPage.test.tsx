@@ -247,8 +247,8 @@ async function setupCompletedAnalysis() {
   handler!({
     gameId: 10,
     ...analysisResultWithEngineLines,
-    currentDepth: 20,
-    targetDepth: 20,
+    completedPositions: 3,
+    totalPositions: 3,
   });
 
   await waitFor(() => {
@@ -562,8 +562,8 @@ describe("AnalysisPage", () => {
       ],
       whiteAccuracy: 87.3,
       blackAccuracy: 72.1,
-      currentDepth: 20,
-      targetDepth: 20,
+      completedPositions: 3,
+      totalPositions: 3,
     });
 
     await waitFor(() => {
