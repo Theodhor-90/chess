@@ -192,6 +192,8 @@ export interface ClientToServerEvents {
   acceptDraw: (data: { gameId: number }) => void;
   abort: (data: { gameId: number }) => void;
   pong: (data: { timestamp: number }) => void;
+  startAnalysis: (data: { gameId: number }) => void;
+  cancelAnalysis: (data: { gameId: number }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -217,6 +219,9 @@ export interface ServerToClientEvents {
   clockUpdate: (data: ClockState) => void;
   error: (data: { message: string }) => void;
   ping: (data: { timestamp: number }) => void;
+  analysisProgress: (data: AnalysisProgressPayload) => void;
+  analysisComplete: (data: AnalysisProgressPayload) => void;
+  analysisError: (data: { gameId: number; error: string }) => void;
 }
 
 export interface ServerSocketData {
@@ -250,6 +255,21 @@ export interface AnalyzedPosition {
   evaluation: EvaluationResult;
   classification: MoveClassification | null;
   centipawnLoss: number | null;
+}
+
+// ---------------------------------------------------------------------------
+// Progressive analysis types
+// ---------------------------------------------------------------------------
+
+export const ANALYSIS_DEPTH_THRESHOLDS = [10, 13, 16, 18, 20] as const;
+
+export interface AnalysisProgressPayload {
+  gameId: number;
+  positions: AnalyzedPosition[];
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  currentDepth: number;
+  targetDepth: number;
 }
 
 // ---------------------------------------------------------------------------

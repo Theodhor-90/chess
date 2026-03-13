@@ -1,10 +1,12 @@
 import { Server as SocketServer } from "socket.io";
 import type { Server as HttpServer } from "node:http";
+import type { FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
 import type { ClientToServerEvents, ServerToClientEvents, ServerSocketData } from "@chess/shared";
 import { getSession } from "../auth/session.js";
 import { addConnection, removeConnection, getUserSockets } from "./connections.js";
 import { registerGameHandlers } from "./handlers.js";
+import { registerAnalysisHandlers } from "./analysis-handler.js";
 
 type CookieUtils = {
   parse: (cookieHeader: string) => Record<string, string>;
@@ -26,7 +28,11 @@ export type TypedSocketServer = SocketServer<
   ServerSocketData
 >;
 
-export function setupSocketServer(httpServer: HttpServer, cookieSecret: string): TypedSocketServer {
+export function setupSocketServer(
+  httpServer: HttpServer,
+  cookieSecret: string,
+  app: FastifyInstance,
+): TypedSocketServer {
   const corsOrigin: string | boolean = process.env.CORS_ORIGIN ?? true;
 
   const io: TypedSocketServer = new SocketServer(httpServer, {
@@ -68,6 +74,7 @@ export function setupSocketServer(httpServer: HttpServer, cookieSecret: string):
     addConnection(userId, socket.id);
 
     registerGameHandlers(io, socket);
+    registerAnalysisHandlers(io, socket, app);
 
     // RTT measurement: ping every 5 seconds
     const pingInterval = setInterval(() => {

@@ -68,7 +68,7 @@ export function buildApp(options?: BuildAppOptions): {
     });
   }
 
-  const io = setupSocketServer(app.server, COOKIE_SECRET);
+  const io = setupSocketServer(app.server, COOKIE_SECRET, app);
 
   return { app, io };
 }

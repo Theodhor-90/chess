@@ -35,6 +35,7 @@ vi.mock("chess.js", () => ({
 
 const mockSocket = {
   on: vi.fn(),
+  off: vi.fn(),
   emit: vi.fn(),
   connected: true,
   disconnect: vi.fn(),
@@ -46,9 +47,16 @@ vi.mock("../src/socket.js", () => ({
   getSocket: vi.fn(() => mockSocket),
 }));
 
+function getSocketHandler(event: string) {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+  const call = mockSocket.on.mock.calls.find((c: unknown[]) => c[0] === event);
+  return call?.[1] as ((...args: unknown[]) => void) | undefined;
+}
+
 afterEach(() => {
   cleanup();
   mockSocket.on.mockClear();
+  mockSocket.off.mockClear();
   mockSocket.emit.mockClear();
   mockSocket.disconnect.mockClear();
   mockChessgroundSet.mockClear();
@@ -222,7 +230,6 @@ async function setupCompletedAnalysis() {
 
   queueCompletedGameFetches();
   mockFetchError({}, 404); // no stored analysis
-  mockFetchSuccess(analysisResultWithEngineLines);
 
   renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -230,6 +237,19 @@ async function setupCompletedAnalysis() {
     expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
   });
   fireEvent.click(screen.getByTestId("analyze-button"));
+
+  // Simulate socket analysisComplete event
+  await waitFor(() => {
+    expect(mockSocket.emit).toHaveBeenCalledWith("startAnalysis", { gameId: 10 });
+  });
+  const handler = getSocketHandler("analysisComplete");
+  expect(handler).toBeDefined();
+  handler!({
+    gameId: 10,
+    ...analysisResultWithEngineLines,
+    currentDepth: 20,
+    targetDepth: 20,
+  });
 
   await waitFor(() => {
     expect(screen.getByTestId("accuracy-display")).toBeInTheDocument();
@@ -487,7 +507,6 @@ describe("AnalysisPage", () => {
   it("shows server analysis progress while the request is running", async () => {
     queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
-    mockFetchPending();
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -497,17 +516,30 @@ describe("AnalysisPage", () => {
     fireEvent.click(screen.getByTestId("analyze-button"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("analysis-progress")).toHaveTextContent(
-        "Analyzing game on the server...",
-      );
+      expect(screen.getByTestId("analysis-progress")).toHaveTextContent("Starting analysis...");
     });
-    expect(screen.getByTestId("analyze-button")).toBeDisabled();
+    expect(screen.queryByTestId("analyze-button")).toBeNull();
+    expect(screen.getByTestId("cancel-analysis-button")).toBeInTheDocument();
   });
 
   it("displays accuracy scores and eval bar after server analysis completes", async () => {
     queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
-    mockFetchSuccess({
+
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("analyze-button"));
+
+    await waitFor(() => {
+      expect(mockSocket.emit).toHaveBeenCalledWith("startAnalysis", { gameId: 10 });
+    });
+
+    const handler = getSocketHandler("analysisComplete");
+    handler!({
+      gameId: 10,
       positions: [
         {
           fen: "start",
@@ -530,14 +562,9 @@ describe("AnalysisPage", () => {
       ],
       whiteAccuracy: 87.3,
       blackAccuracy: 72.1,
+      currentDepth: 20,
+      targetDepth: 20,
     });
-
-    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("analyze-button"));
 
     await waitFor(() => {
       expect(screen.getByTestId("accuracy-display")).toBeInTheDocument();
@@ -550,7 +577,6 @@ describe("AnalysisPage", () => {
   it("shows a clear message when the engine is unavailable", async () => {
     queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
-    mockFetchError({ error: "Engine not available" }, 503);
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -558,6 +584,13 @@ describe("AnalysisPage", () => {
       expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
     });
     fireEvent.click(screen.getByTestId("analyze-button"));
+
+    await waitFor(() => {
+      expect(mockSocket.emit).toHaveBeenCalledWith("startAnalysis", { gameId: 10 });
+    });
+
+    const handler = getSocketHandler("analysisError");
+    handler!({ gameId: 10, error: "Engine analysis is currently unavailable." });
 
     await waitFor(() => {
       expect(screen.getByTestId("analysis-error-message")).toHaveTextContent(

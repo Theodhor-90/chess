@@ -16,6 +16,8 @@ interface QueuedRequest {
   depth: number | undefined;
   resolve: (result: EvaluationResult) => void;
   reject: (err: Error) => void;
+  depthThresholds?: readonly number[];
+  onProgress?: (result: EvaluationResult, depth: number) => void;
 }
 
 interface EngineEntry {
@@ -98,6 +100,34 @@ export class EnginePool {
     });
   }
 
+  async evaluateWithProgress(
+    fen: string,
+    depth: number,
+    depthThresholds: readonly number[],
+    onProgress: (result: EvaluationResult, depth: number) => void,
+  ): Promise<EvaluationResult> {
+    if (this.shuttingDown) {
+      throw new Error("Engine pool is shutting down");
+    }
+    if (!this.initialized) {
+      throw new Error("Engine pool is not initialized. Call init() first.");
+    }
+
+    const idle = this.engines.find((entry) => !entry.busy && entry.engine.isReady);
+    if (idle) {
+      return this.runOnEngine(idle, fen, depth, depthThresholds, onProgress);
+    }
+
+    return new Promise<EvaluationResult>((resolve, reject) => {
+      this.queue.push({ fen, depth, resolve, reject, depthThresholds, onProgress });
+      if (this.queue.length > 50) {
+        console.warn(
+          `Engine pool: queue depth is ${this.queue.length} (exceeds 50 pending requests)`,
+        );
+      }
+    });
+  }
+
   shutdown(): void {
     this.shuttingDown = true;
     this.initialized = false;
@@ -122,10 +152,15 @@ export class EnginePool {
     entry: EngineEntry,
     fen: string,
     depth: number | undefined,
+    depthThresholds?: readonly number[],
+    onProgress?: (result: EvaluationResult, depth: number) => void,
   ): Promise<EvaluationResult> {
     entry.busy = true;
     try {
-      const result = await entry.engine.evaluate(fen, depth);
+      const result =
+        depthThresholds && onProgress && depth !== undefined
+          ? await entry.engine.evaluateWithProgress(fen, depth, depthThresholds, onProgress)
+          : await entry.engine.evaluate(fen, depth);
       return result;
     } catch (err) {
       if (!entry.engine.isReady && !this.shuttingDown) {
@@ -149,7 +184,13 @@ export class EnginePool {
     }
 
     const request = this.queue.shift()!;
-    this.runOnEngine(idle, request.fen, request.depth).then(request.resolve, request.reject);
+    this.runOnEngine(
+      idle,
+      request.fen,
+      request.depth,
+      request.depthThresholds,
+      request.onProgress,
+    ).then(request.resolve, request.reject);
   }
 
   private replaceEngine(entry: EngineEntry): void {
