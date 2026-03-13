@@ -10,24 +10,8 @@ import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { AppRoutes } from "../src/App.js";
 
-const mockDestroy = vi.fn();
 const mockChessgroundSet = vi.fn();
 const mockChessgroundDestroy = vi.fn();
-
-vi.mock("../src/services/stockfish.js", () => ({
-  StockfishService: vi.fn().mockImplementation(() => ({
-    ready: Promise.resolve(),
-    evaluate: vi.fn(),
-    destroy: mockDestroy,
-  })),
-}));
-
-const mockAnalyzeGame = vi.fn();
-
-vi.mock("../src/services/analysis.js", () => ({
-  analyzeGame: (...args: unknown[]) => mockAnalyzeGame(...args),
-  computeAccuracy: vi.fn(() => 85),
-}));
 
 vi.mock("chessground", () => ({
   Chessground: vi.fn(() => ({
@@ -67,10 +51,8 @@ afterEach(() => {
   mockSocket.on.mockClear();
   mockSocket.emit.mockClear();
   mockSocket.disconnect.mockClear();
-  mockDestroy.mockClear();
   mockChessgroundSet.mockClear();
   mockChessgroundDestroy.mockClear();
-  mockAnalyzeGame.mockReset();
   vi.clearAllMocks();
 });
 
@@ -173,6 +155,54 @@ const analysisResultWithEngineLines = {
   blackAccuracy: 72.1,
 };
 
+const storedAnalysisResponse = {
+  gameId: 10,
+  analysisTree: {
+    fen: analysisResultWithEngineLines.positions[0].fen,
+    san: null,
+    evaluation: analysisResultWithEngineLines.positions[0].evaluation,
+    classification: null,
+    children: [
+      {
+        fen: analysisResultWithEngineLines.positions[1].fen,
+        san: "e4",
+        evaluation: analysisResultWithEngineLines.positions[1].evaluation,
+        classification: analysisResultWithEngineLines.positions[1].classification,
+        children: [
+          {
+            fen: analysisResultWithEngineLines.positions[2].fen,
+            san: "e5",
+            evaluation: analysisResultWithEngineLines.positions[2].evaluation,
+            classification: analysisResultWithEngineLines.positions[2].classification,
+            children: [],
+          },
+        ],
+      },
+    ],
+  },
+  whiteAccuracy: analysisResultWithEngineLines.whiteAccuracy,
+  blackAccuracy: analysisResultWithEngineLines.blackAccuracy,
+  engineDepth: 18,
+  createdAt: 1700000000,
+};
+
+function queueCompletedGameFetches() {
+  mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
+  mockFetchSuccess({
+    id: 10,
+    status: "checkmate",
+    pgn: "1. e4 e5",
+    fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    moves: ["e4", "e5"],
+    players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
+    currentTurn: "white",
+    inviteToken: "tok",
+    drawOffer: null,
+    createdAt: 1700000000,
+  });
+  mockFetchSuccess([]);
+}
+
 async function setupCompletedAnalysis() {
   vi.mocked(Chess).mockImplementation(
     () =>
@@ -190,23 +220,9 @@ async function setupCompletedAnalysis() {
       }) as unknown as Chess,
   );
 
-  mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
-  mockFetchSuccess({
-    id: 10,
-    status: "checkmate",
-    pgn: "1. e4 e5",
-    fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-    moves: ["e4", "e5"],
-    players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
-    currentTurn: "white",
-    inviteToken: "tok",
-    drawOffer: null,
-    createdAt: 1700000000,
-  });
-  mockFetchSuccess([]);
+  queueCompletedGameFetches();
   mockFetchError({}, 404); // no stored analysis
-
-  mockAnalyzeGame.mockResolvedValue(analysisResultWithEngineLines);
+  mockFetchSuccess(analysisResultWithEngineLines);
 
   renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -434,23 +450,7 @@ describe("AnalysisPage", () => {
   });
 
   it("renders analysis page for completed game", async () => {
-    // Auth succeeds
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
-    // Game fetch returns completed game
-    mockFetchSuccess({
-      id: 10,
-      status: "checkmate",
-      pgn: "1. e4 e5",
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      moves: ["e4", "e5"],
-      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
-      currentTurn: "white",
-      inviteToken: "tok",
-      drawOffer: null,
-      createdAt: 1700000000,
-    });
-    // myGames returns no active games
-    mockFetchSuccess([]);
+    queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
@@ -473,20 +473,7 @@ describe("AnalysisPage", () => {
   });
 
   it("shows enabled Analyze button for completed game", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
-    mockFetchSuccess({
-      id: 10,
-      status: "checkmate",
-      pgn: "1. e4 e5",
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      moves: ["e4", "e5"],
-      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
-      currentTurn: "white",
-      inviteToken: "tok",
-      drawOffer: null,
-      createdAt: 1700000000,
-    });
-    mockFetchSuccess([]);
+    queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
@@ -497,34 +484,10 @@ describe("AnalysisPage", () => {
     expect(screen.getByTestId("analyze-button")).not.toBeDisabled();
   });
 
-  it("shows progress during analysis", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
-    mockFetchSuccess({
-      id: 10,
-      status: "checkmate",
-      pgn: "1. e4 e5",
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      moves: ["e4", "e5"],
-      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
-      currentTurn: "white",
-      inviteToken: "tok",
-      drawOffer: null,
-      createdAt: 1700000000,
-    });
-    mockFetchSuccess([]);
+  it("shows server analysis progress while the request is running", async () => {
+    queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
-
-    mockAnalyzeGame.mockImplementation(
-      (
-        _service: unknown,
-        _fens: unknown,
-        _moves: unknown,
-        onProgress: (c: number, t: number) => void,
-      ) => {
-        onProgress(2, 3);
-        return new Promise(() => {});
-      },
-    );
+    mockFetchPending();
 
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
@@ -534,28 +497,17 @@ describe("AnalysisPage", () => {
     fireEvent.click(screen.getByTestId("analyze-button"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("analysis-progress")).toHaveTextContent("Analyzing move");
+      expect(screen.getByTestId("analysis-progress")).toHaveTextContent(
+        "Analyzing game on the server...",
+      );
     });
+    expect(screen.getByTestId("analyze-button")).toBeDisabled();
   });
 
-  it("displays accuracy scores and eval bar after analysis completes", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
-    mockFetchSuccess({
-      id: 10,
-      status: "checkmate",
-      pgn: "1. e4 e5",
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      moves: ["e4", "e5"],
-      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
-      currentTurn: "white",
-      inviteToken: "tok",
-      drawOffer: null,
-      createdAt: 1700000000,
-    });
-    mockFetchSuccess([]);
+  it("displays accuracy scores and eval bar after server analysis completes", async () => {
+    queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
-
-    mockAnalyzeGame.mockResolvedValue({
+    mockFetchSuccess({
       positions: [
         {
           fen: "start",
@@ -595,37 +547,12 @@ describe("AnalysisPage", () => {
     expect(screen.getByTestId("eval-bar")).toBeInTheDocument();
   });
 
-  it("cleans up StockfishService on unmount", async () => {
-    mockFetchSuccess({ user: { id: 1, email: "a@b.com" } });
-    mockFetchSuccess({
-      id: 10,
-      status: "checkmate",
-      pgn: "1. e4 e5",
-      fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-      moves: ["e4", "e5"],
-      players: { white: { userId: 1, color: "white" }, black: { userId: 2, color: "black" } },
-      currentTurn: "white",
-      inviteToken: "tok",
-      drawOffer: null,
-      createdAt: 1700000000,
-    });
-    mockFetchSuccess([]);
+  it("shows a clear message when the engine is unavailable", async () => {
+    queueCompletedGameFetches();
     mockFetchError({}, 404); // no stored analysis
+    mockFetchError({ error: "Engine not available" }, 503);
 
-    mockAnalyzeGame.mockResolvedValue({
-      positions: [
-        {
-          fen: "start",
-          evaluation: { score: { type: "cp", value: 0 }, bestLine: ["e4"], depth: 18 },
-          classification: null,
-          centipawnLoss: null,
-        },
-      ],
-      whiteAccuracy: 100,
-      blackAccuracy: 100,
-    });
-
-    const { unmount } = renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
     await waitFor(() => {
       expect(screen.getByTestId("analyze-button")).toBeInTheDocument();
@@ -633,12 +560,25 @@ describe("AnalysisPage", () => {
     fireEvent.click(screen.getByTestId("analyze-button"));
 
     await waitFor(() => {
+      expect(screen.getByTestId("analysis-error-message")).toHaveTextContent(
+        "Engine analysis is currently unavailable.",
+      );
+    });
+    expect(screen.getByTestId("analyze-button")).not.toBeDisabled();
+  });
+
+  it("loads saved analysis on revisit", async () => {
+    queueCompletedGameFetches();
+    mockFetchSuccess(storedAnalysisResponse);
+
+    renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
+
+    await waitFor(() => {
       expect(screen.getByTestId("accuracy-display")).toBeInTheDocument();
     });
 
-    unmount();
-
-    expect(mockDestroy).toHaveBeenCalled();
+    expect(screen.getByTestId("accuracy-display")).toHaveTextContent("White: 87.3%");
+    expect(screen.queryByTestId("analyze-button")).toBeNull();
   });
 
   it("shows variation indicator when engine line is clicked", async () => {

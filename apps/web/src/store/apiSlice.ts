@@ -15,6 +15,9 @@ import type {
   GameHistoryQuery,
   GameHistoryResponse,
   PlayerStatsResponse,
+  ServerAnalyzeResponse,
+  ServerEvaluateRequest,
+  EvaluationResult,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -110,6 +113,21 @@ export const apiSlice = createApi({
       query: (id) => `/users/${id}/stats`,
     }),
 
+    serverAnalyze: builder.mutation<ServerAnalyzeResponse, number>({
+      query: (gameId) => ({
+        url: `/games/${gameId}/server-analyze`,
+        method: "POST",
+      }),
+    }),
+
+    evaluatePosition: builder.mutation<EvaluationResult, ServerEvaluateRequest>({
+      query: (body) => ({
+        url: "/engine/evaluate",
+        method: "POST",
+        body,
+      }),
+    }),
+
     getAnalysis: builder.query<GetAnalysisResponse | null, number>({
       queryFn: async (gameId, _queryApi, _extraOptions, baseQuery) => {
         const result = await baseQuery(`/games/${gameId}/analysis`);
@@ -139,4 +157,6 @@ export const {
   useSaveAnalysisMutation,
   useGetAnalysisQuery,
   useGetUserStatsQuery,
+  useServerAnalyzeMutation,
+  useEvaluatePositionMutation,
 } = apiSlice;
