@@ -8,11 +8,10 @@ import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
-import { StockfishService } from "../services/stockfish.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
-import { useGetMyGamesQuery } from "../store/apiSlice.js";
-import type { EvalScore, EngineLineInfo, EvaluationResult } from "@chess/shared";
+import { useEvaluatePositionMutation, useGetMyGamesQuery } from "../store/apiSlice.js";
+import type { EvalScore, EngineLineInfo } from "@chess/shared";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -59,6 +58,28 @@ function computeArrowShapes(engineLines: EngineLineInfo[] | undefined, fen: stri
   return shapes;
 }
 
+function getEvaluationErrorMessage(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("status" in error)) {
+    return "Failed to evaluate position.";
+  }
+
+  const status = (error as { status?: number }).status;
+  const data = (error as { data?: unknown }).data;
+
+  if (status === 503) {
+    return "Engine analysis is currently unavailable.";
+  }
+
+  if (typeof data === "object" && data !== null && "error" in data) {
+    const message = (data as { error?: unknown }).error;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+
+  return "Failed to evaluate position.";
+}
+
 export function TrainingPage() {
   const { data: myGames, isLoading: gamesLoading } = useGetMyGamesQuery();
 
@@ -83,59 +104,48 @@ export function TrainingPage() {
 }
 
 function TrainingContent() {
-  const chessRef = useRef(new Chess());
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const [moves, setMoves] = useState<string[]>([]);
   const [fens, setFens] = useState<string[]>([STARTING_FEN]);
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
-  const stockfishRef = useRef<StockfishService | null>(null);
-  const [engineReady, setEngineReady] = useState(false);
   const [currentEval, setCurrentEval] = useState<EvalScore | null>(null);
   const [currentEngineLines, setCurrentEngineLines] = useState<EngineLineInfo[] | undefined>(
     undefined,
   );
+  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [evaluatePosition] = useEvaluatePositionMutation();
   const evalRequestId = useRef(0);
 
   const currentFen = fens[currentMoveIndex] ?? STARTING_FEN;
   const turnColor = currentFen.includes(" w ") ? "white" : "black";
 
-  // Initialize Stockfish once
   useEffect(() => {
-    const service = new StockfishService();
-    stockfishRef.current = service;
-    service.ready.then(() => setEngineReady(true)).catch(() => {});
-    return () => {
-      service.destroy();
-      stockfishRef.current = null;
-    };
-  }, []);
-
-  // Run live evaluation whenever currentFen changes
-  useEffect(() => {
-    if (!engineReady || !stockfishRef.current) return;
-
     const id = ++evalRequestId.current;
-    const service = stockfishRef.current;
+    setIsEvaluating(true);
+    setEvaluationError(null);
 
-    // Stop any in-progress eval
-    service.stop();
-
-    // Small delay to let the stop settle before starting new eval
-    const timeout = setTimeout(async () => {
+    const timeout = window.setTimeout(async () => {
       if (evalRequestId.current !== id) return;
+
       try {
-        const result: EvaluationResult = await service.evaluate(currentFen);
+        const result = await evaluatePosition({ fen: currentFen }).unwrap();
         if (evalRequestId.current !== id) return;
         setCurrentEval(result.score);
         setCurrentEngineLines(result.engineLines);
-      } catch {
-        // Evaluation was cancelled or engine destroyed — ignore
+        setIsEvaluating(false);
+      } catch (error) {
+        if (evalRequestId.current !== id) return;
+        setCurrentEval(null);
+        setCurrentEngineLines(undefined);
+        setEvaluationError(getEvaluationErrorMessage(error));
+        setIsEvaluating(false);
       }
     }, 50);
 
-    return () => clearTimeout(timeout);
-  }, [currentFen, engineReady]);
+    return () => window.clearTimeout(timeout);
+  }, [currentFen, evaluatePosition]);
 
   const dests = useMemo(() => {
     const chess = new Chess(currentFen);
@@ -167,13 +177,9 @@ function TrainingContent() {
       setMoves(newMoves);
       setFens(newFens);
       setCurrentMoveIndex(newMoves.length);
-
-      // Update the main chess instance
-      chessRef.current = chess;
-
-      // Clear eval for new position (will be recalculated by effect)
       setCurrentEval(null);
       setCurrentEngineLines(undefined);
+      setEvaluationError(null);
     },
     [currentFen, moves, fens, currentMoveIndex],
   );
@@ -185,17 +191,18 @@ function TrainingContent() {
     setMoves(newMoves);
     setFens(newFens);
     setCurrentMoveIndex(newMoves.length);
-    const chess = new Chess(newFens[newFens.length - 1]);
-    chessRef.current = chess;
+    setCurrentEval(null);
+    setCurrentEngineLines(undefined);
+    setEvaluationError(null);
   }, [moves, fens]);
 
   const handleReset = useCallback(() => {
-    chessRef.current = new Chess();
     setMoves([]);
     setFens([STARTING_FEN]);
     setCurrentMoveIndex(0);
     setCurrentEval(null);
     setCurrentEngineLines(undefined);
+    setEvaluationError(null);
   }, []);
 
   const handleLineSelect = useCallback(
@@ -215,9 +222,9 @@ function TrainingContent() {
       setMoves(newMoves);
       setFens(newFens);
       setCurrentMoveIndex(newMoves.length);
-      chessRef.current = chess;
       setCurrentEval(null);
       setCurrentEngineLines(undefined);
+      setEvaluationError(null);
     },
     [currentEngineLines, currentFen, moves, fens, currentMoveIndex],
   );
@@ -336,12 +343,17 @@ function TrainingContent() {
             }}
             classifications={undefined}
           />
-          {!engineReady && (
+          {isEvaluating && (
             <div data-testid="engine-loading" style={{ fontSize: "14px", color: "#666" }}>
-              Loading engine...
+              Analyzing position...
             </div>
           )}
-          {engineReady && moves.length === 0 && (
+          {evaluationError && (
+            <div data-testid="engine-error" style={{ fontSize: "14px", color: "#d32f2f" }}>
+              {evaluationError}
+            </div>
+          )}
+          {!isEvaluating && !evaluationError && moves.length === 0 && (
             <div style={{ fontSize: "14px", color: "#666" }}>
               Make a move on the board to get started.
             </div>

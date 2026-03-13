@@ -11,12 +11,11 @@ import {
   useGetGameQuery,
   useGetMyGamesQuery,
   useGetAnalysisQuery,
-  useSaveAnalysisMutation,
+  useServerAnalyzeMutation,
+  useEvaluatePositionMutation,
 } from "../store/apiSlice.js";
-import { treeToPositions, positionsToTree } from "../services/analysisSerializer.js";
+import { treeToPositions } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
-import { StockfishService } from "../services/stockfish.js";
-import { analyzeGame } from "../services/analysis.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
 import type {
@@ -45,6 +44,28 @@ interface VariationState {
   line: EngineLineInfo;
   fens: string[];
   stepIndex: number;
+}
+
+function getAnalysisErrorMessage(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("status" in error)) {
+    return "Failed to analyze game.";
+  }
+
+  const status = (error as { status?: number }).status;
+  const data = (error as { data?: unknown }).data;
+
+  if (status === 503) {
+    return "Engine analysis is currently unavailable.";
+  }
+
+  if (typeof data === "object" && data !== null && "error" in data) {
+    const message = (data as { error?: unknown }).error;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+
+  return "Failed to analyze game.";
 }
 
 function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
@@ -92,15 +113,13 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
   const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
-  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [positions, setPositions] = useState<AnalyzedPosition[] | null>(null);
   const [whiteAccuracy, setWhiteAccuracy] = useState<number | null>(null);
   const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
-  const stockfishRef = useRef<StockfishService | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const wasComputedLocally = useRef(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [variation, setVariation] = useState<VariationState | null>(null);
-  const [saveAnalysis] = useSaveAnalysisMutation();
+  const [serverAnalyze] = useServerAnalyzeMutation();
+  const [_evaluatePosition] = useEvaluatePositionMutation();
 
   const {
     data: storedAnalysis,
@@ -155,80 +174,34 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     : (fens[currentMoveIndex] ?? fens[0]);
 
   useEffect(() => {
-    return () => {
-      if (stockfishRef.current) {
-        stockfishRef.current.destroy();
-        stockfishRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (storedAnalysis && analysisState === "idle") {
       const restoredPositions = treeToPositions(storedAnalysis.analysisTree);
       setPositions(restoredPositions);
       setWhiteAccuracy(storedAnalysis.whiteAccuracy);
       setBlackAccuracy(storedAnalysis.blackAccuracy);
+      setAnalyzeError(null);
       setAnalysisState("complete");
     }
   }, [storedAnalysis, analysisState]);
-
-  useEffect(() => {
-    if (
-      analysisState !== "complete" ||
-      !positions ||
-      whiteAccuracy === null ||
-      blackAccuracy === null ||
-      !wasComputedLocally.current
-    ) {
-      return;
-    }
-
-    const tree = positionsToTree(fens, moves, positions);
-
-    saveAnalysis({
-      gameId: game.id,
-      body: {
-        analysisTree: tree,
-        whiteAccuracy,
-        blackAccuracy,
-        engineDepth: 18,
-      },
-    })
-      .unwrap()
-      .then(() => {
-        setSaveError(null);
-      })
-      .catch(() => {
-        setSaveError("Failed to save analysis results.");
-      });
-  }, [analysisState, positions, whiteAccuracy, blackAccuracy, fens, moves, game.id, saveAnalysis]);
 
   const handleAnalyze = useCallback(async () => {
     if (analysisState !== "idle") return;
 
     setAnalysisState("running");
-    setSaveError(null);
-
-    const service = new StockfishService();
-    stockfishRef.current = service;
+    setAnalyzeError(null);
 
     try {
-      await service.ready;
-
-      const result = await analyzeGame(service, fens, moves, (current, total) => {
-        setProgress({ current, total });
-      });
-
+      const result = await serverAnalyze(game.id).unwrap();
       setPositions(result.positions);
       setWhiteAccuracy(result.whiteAccuracy);
       setBlackAccuracy(result.blackAccuracy);
-      wasComputedLocally.current = true;
+      setVariation(null);
       setAnalysisState("complete");
-    } catch {
+    } catch (error) {
+      setAnalyzeError(getAnalysisErrorMessage(error));
       setAnalysisState("idle");
     }
-  }, [analysisState, fens, moves]);
+  }, [analysisState, game.id, serverAnalyze]);
 
   const currentEval: EvalScore | null = variation
     ? variation.line.score
@@ -392,10 +365,11 @@ function AnalysisContent({ game }: { game: GameResponse }) {
               Loading saved analysis...
             </div>
           )}
-          {analysisState === "idle" && !analysisLoading && (
+          {(analysisState === "idle" || analysisState === "running") && !analysisLoading && (
             <button
               data-testid="analyze-button"
               onClick={handleAnalyze}
+              disabled={analysisState === "running"}
               style={{
                 backgroundColor: "#4CAF50",
                 color: "white",
@@ -404,15 +378,16 @@ function AnalysisContent({ game }: { game: GameResponse }) {
                 borderRadius: "4px",
                 fontSize: "16px",
                 fontWeight: "bold",
-                cursor: "pointer",
+                cursor: analysisState === "running" ? "default" : "pointer",
+                opacity: analysisState === "running" ? 0.7 : 1,
               }}
             >
-              Analyze
+              {analysisState === "running" ? "Analyzing..." : "Analyze"}
             </button>
           )}
-          {analysisState === "running" && progress && (
+          {analysisState === "running" && (
             <div data-testid="analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
-              Analyzing move {progress.current}/{progress.total}...
+              Analyzing game on the server...
             </div>
           )}
           {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (
@@ -420,9 +395,12 @@ function AnalysisContent({ game }: { game: GameResponse }) {
               White: {whiteAccuracy.toFixed(1)}% — Black: {blackAccuracy.toFixed(1)}%
             </div>
           )}
-          {saveError && (
-            <div data-testid="save-error" style={{ fontSize: "14px", color: "#d32f2f" }}>
-              {saveError}
+          {analyzeError && (
+            <div
+              data-testid="analysis-error-message"
+              style={{ fontSize: "14px", color: "#d32f2f" }}
+            >
+              {analyzeError}
             </div>
           )}
         </div>
