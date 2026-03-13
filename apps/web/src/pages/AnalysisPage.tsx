@@ -7,13 +7,8 @@ import type { DrawShape } from "chessground/draw";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
-import {
-  useGetGameQuery,
-  useGetMyGamesQuery,
-  useGetAnalysisQuery,
-  useServerAnalyzeMutation,
-  useEvaluatePositionMutation,
-} from "../store/apiSlice.js";
+import { useGetGameQuery, useGetMyGamesQuery, useGetAnalysisQuery } from "../store/apiSlice.js";
+import { connectSocket, getSocket } from "../socket.js";
 import { treeToPositions } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { EvalBar } from "../components/EvalBar.js";
@@ -25,6 +20,7 @@ import type {
   EvalScore,
   MoveClassification,
   EngineLineInfo,
+  AnalysisProgressPayload,
 } from "@chess/shared";
 
 function isTerminalStatus(status: GameStatus): boolean {
@@ -44,28 +40,6 @@ interface VariationState {
   line: EngineLineInfo;
   fens: string[];
   stepIndex: number;
-}
-
-function getAnalysisErrorMessage(error: unknown): string {
-  if (typeof error !== "object" || error === null || !("status" in error)) {
-    return "Failed to analyze game.";
-  }
-
-  const status = (error as { status?: number }).status;
-  const data = (error as { data?: unknown }).data;
-
-  if (status === 503) {
-    return "Engine analysis is currently unavailable.";
-  }
-
-  if (typeof data === "object" && data !== null && "error" in data) {
-    const message = (data as { error?: unknown }).error;
-    if (typeof message === "string" && message.length > 0) {
-      return message;
-    }
-  }
-
-  return "Failed to analyze game.";
 }
 
 function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
@@ -118,8 +92,9 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [blackAccuracy, setBlackAccuracy] = useState<number | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [variation, setVariation] = useState<VariationState | null>(null);
-  const [serverAnalyze] = useServerAnalyzeMutation();
-  const [_evaluatePosition] = useEvaluatePositionMutation();
+  const [currentDepth, setCurrentDepth] = useState<number | null>(null);
+  const [targetDepth, setTargetDepth] = useState<number | null>(null);
+  const analyzingGameIdRef = useRef<number | null>(null);
 
   const {
     data: storedAnalysis,
@@ -145,6 +120,63 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     }
     return { moves: history, fens: fenList };
   }, [game.pgn]);
+
+  // Socket.io analysis listeners
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleProgress = (data: AnalysisProgressPayload) => {
+      if (data.gameId !== game.id) return;
+      setPositions(data.positions);
+      setWhiteAccuracy(data.whiteAccuracy);
+      setBlackAccuracy(data.blackAccuracy);
+      setCurrentDepth(data.currentDepth);
+      setTargetDepth(data.targetDepth);
+    };
+
+    const handleComplete = (data: AnalysisProgressPayload) => {
+      if (data.gameId !== game.id) return;
+      setPositions(data.positions);
+      setWhiteAccuracy(data.whiteAccuracy);
+      setBlackAccuracy(data.blackAccuracy);
+      setCurrentDepth(data.currentDepth);
+      setTargetDepth(data.targetDepth);
+      setAnalysisState("complete");
+      analyzingGameIdRef.current = null;
+    };
+
+    const handleError = (data: { gameId: number; error: string }) => {
+      if (data.gameId !== game.id) return;
+      setAnalyzeError(data.error);
+      setAnalysisState("idle");
+      setCurrentDepth(null);
+      setTargetDepth(null);
+      analyzingGameIdRef.current = null;
+    };
+
+    socket.on("analysisProgress", handleProgress);
+    socket.on("analysisComplete", handleComplete);
+    socket.on("analysisError", handleError);
+
+    return () => {
+      socket.off("analysisProgress", handleProgress);
+      socket.off("analysisComplete", handleComplete);
+      socket.off("analysisError", handleError);
+    };
+  }, [game.id]);
+
+  // Cancel analysis on unmount
+  useEffect(() => {
+    return () => {
+      if (analyzingGameIdRef.current !== null) {
+        const socket = getSocket();
+        if (socket) {
+          socket.emit("cancelAnalysis", { gameId: analyzingGameIdRef.current });
+        }
+      }
+    };
+  }, []);
 
   const handleLineSelect = useCallback(
     (lineIndex: number) => {
@@ -184,24 +216,29 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     }
   }, [storedAnalysis, analysisState]);
 
-  const handleAnalyze = useCallback(async () => {
+  const handleAnalyze = useCallback(() => {
     if (analysisState !== "idle") return;
 
+    const socket = connectSocket();
     setAnalysisState("running");
     setAnalyzeError(null);
+    setCurrentDepth(null);
+    setTargetDepth(null);
+    setVariation(null);
+    analyzingGameIdRef.current = game.id;
+    socket.emit("startAnalysis", { gameId: game.id });
+  }, [analysisState, game.id]);
 
-    try {
-      const result = await serverAnalyze(game.id).unwrap();
-      setPositions(result.positions);
-      setWhiteAccuracy(result.whiteAccuracy);
-      setBlackAccuracy(result.blackAccuracy);
-      setVariation(null);
-      setAnalysisState("complete");
-    } catch (error) {
-      setAnalyzeError(getAnalysisErrorMessage(error));
-      setAnalysisState("idle");
+  const handleCancel = useCallback(() => {
+    const socket = getSocket();
+    if (socket && analyzingGameIdRef.current !== null) {
+      socket.emit("cancelAnalysis", { gameId: analyzingGameIdRef.current });
     }
-  }, [analysisState, game.id, serverAnalyze]);
+    setAnalysisState("idle");
+    setCurrentDepth(null);
+    setTargetDepth(null);
+    analyzingGameIdRef.current = null;
+  }, []);
 
   const currentEval: EvalScore | null = variation
     ? variation.line.score
@@ -365,11 +402,10 @@ function AnalysisContent({ game }: { game: GameResponse }) {
               Loading saved analysis...
             </div>
           )}
-          {(analysisState === "idle" || analysisState === "running") && !analysisLoading && (
+          {analysisState === "idle" && !analysisLoading && (
             <button
               data-testid="analyze-button"
               onClick={handleAnalyze}
-              disabled={analysisState === "running"}
               style={{
                 backgroundColor: "#4CAF50",
                 color: "white",
@@ -378,16 +414,34 @@ function AnalysisContent({ game }: { game: GameResponse }) {
                 borderRadius: "4px",
                 fontSize: "16px",
                 fontWeight: "bold",
-                cursor: analysisState === "running" ? "default" : "pointer",
-                opacity: analysisState === "running" ? 0.7 : 1,
+                cursor: "pointer",
               }}
             >
-              {analysisState === "running" ? "Analyzing..." : "Analyze"}
+              Analyze
             </button>
           )}
           {analysisState === "running" && (
-            <div data-testid="analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
-              Analyzing game on the server...
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div data-testid="analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
+                {currentDepth !== null && targetDepth !== null
+                  ? `Analyzing... Depth ${currentDepth}/${targetDepth}`
+                  : "Starting analysis..."}
+              </div>
+              <button
+                data-testid="cancel-analysis-button"
+                onClick={handleCancel}
+                style={{
+                  backgroundColor: "#f44336",
+                  color: "white",
+                  padding: "8px 16px",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
             </div>
           )}
           {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (

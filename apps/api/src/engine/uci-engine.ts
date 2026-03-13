@@ -30,6 +30,9 @@ export class UciEngine {
     resolve: (line: string) => void;
     reject: (err: Error) => void;
   } | null = null;
+  private progressCallback: ((result: EvaluationResult, depth: number) => void) | null = null;
+  private progressThresholds: readonly number[] = [];
+  private reportedThresholds = new Set<number>();
 
   constructor(config?: Partial<UciEngineConfig>) {
     this.binaryPath = config?.binaryPath ?? DEFAULT_BINARY_PATH;
@@ -112,6 +115,37 @@ export class UciEngine {
       this.evalReject = reject;
       this.sendCommand(`position fen ${fen}`);
       this.sendCommand(`go depth ${depth ?? this.defaultDepth}`);
+    });
+  }
+
+  async evaluateWithProgress(
+    fen: string,
+    depth: number,
+    depthThresholds: readonly number[],
+    onProgress: (result: EvaluationResult, depth: number) => void,
+  ): Promise<EvaluationResult> {
+    if (!this._isReady) {
+      throw new Error("Engine is not initialized. Call init() first.");
+    }
+    if (this.evaluating) {
+      throw new Error("Evaluation already in progress");
+    }
+    if (/[\r\n]/.test(fen)) {
+      throw new Error("FEN must not contain newline characters");
+    }
+
+    this.evaluating = true;
+    this.currentFen = fen;
+    this.pvData.clear();
+    this.progressCallback = onProgress;
+    this.progressThresholds = depthThresholds;
+    this.reportedThresholds.clear();
+
+    return new Promise<EvaluationResult>((resolve, reject) => {
+      this.evalResolve = resolve;
+      this.evalReject = reject;
+      this.sendCommand(`position fen ${fen}`);
+      this.sendCommand(`go depth ${depth}`);
     });
   }
 
@@ -206,35 +240,27 @@ export class UciEngine {
 
     if (line.startsWith("bestmove")) {
       try {
-        const pv1 = this.pvData.get(1);
-        const score: EvalScore = pv1?.score ?? { type: "cp", value: 0 };
-        const depth = pv1?.depth ?? 0;
-        const bestLine = pv1 ? this.uciMovesToSan(this.currentFen, pv1.pv) : [];
-
-        const engineLines: EngineLineInfo[] = [];
-        for (let i = 1; i <= 3; i++) {
-          const pvEntry = this.pvData.get(i);
-          if (!pvEntry) break;
-          engineLines.push({
-            score: pvEntry.score,
-            moves: this.uciMovesToSan(this.currentFen, pvEntry.pv),
-            depth: pvEntry.depth,
-          });
-        }
+        const result = this.snapshotCurrentEval();
 
         this.evaluating = false;
         this.pvData.clear();
         this.currentFen = "";
+        this.progressCallback = null;
+        this.progressThresholds = [];
+        this.reportedThresholds.clear();
 
         const resolve = this.evalResolve;
         this.evalResolve = null;
         this.evalReject = null;
-        resolve!({ score, bestLine, depth, engineLines });
+        resolve!(result);
       } catch {
         const reject = this.evalReject;
         this.evaluating = false;
         this.pvData.clear();
         this.currentFen = "";
+        this.progressCallback = null;
+        this.progressThresholds = [];
+        this.reportedThresholds.clear();
         this.evalResolve = null;
         this.evalReject = null;
         reject?.(new Error("Invalid FEN: unable to convert engine PV to SAN"));
@@ -258,7 +284,40 @@ export class UciEngine {
       if (!existing || depth >= existing.depth) {
         this.pvData.set(multipv, { depth, score, pv });
       }
+
+      if (multipv === 1 && this.progressCallback) {
+        for (const threshold of this.progressThresholds) {
+          if (depth >= threshold && !this.reportedThresholds.has(threshold)) {
+            this.reportedThresholds.add(threshold);
+            try {
+              this.progressCallback(this.snapshotCurrentEval(), threshold);
+            } catch {
+              // Progress callback errors should not break evaluation
+            }
+          }
+        }
+      }
     }
+  }
+
+  private snapshotCurrentEval(): EvaluationResult {
+    const pv1 = this.pvData.get(1);
+    const score: EvalScore = pv1?.score ?? { type: "cp", value: 0 };
+    const depth = pv1?.depth ?? 0;
+    const bestLine = pv1 ? this.uciMovesToSan(this.currentFen, pv1.pv) : [];
+
+    const engineLines: EngineLineInfo[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const pvEntry = this.pvData.get(i);
+      if (!pvEntry) break;
+      engineLines.push({
+        score: pvEntry.score,
+        moves: this.uciMovesToSan(this.currentFen, pvEntry.pv),
+        depth: pvEntry.depth,
+      });
+    }
+
+    return { score, bestLine, depth, engineLines };
   }
 
   private handleProcessExit(code: number | null, signal: string | null): void {
