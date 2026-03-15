@@ -7,6 +7,7 @@ import { getSession } from "../auth/session.js";
 import { addConnection, removeConnection, getUserSockets } from "./connections.js";
 import { registerGameHandlers } from "./handlers.js";
 import { registerAnalysisHandlers } from "./analysis-handler.js";
+import { registerEvaluateHandlers } from "./evaluate-handler.js";
 
 type CookieUtils = {
   parse: (cookieHeader: string) => Record<string, string>;
@@ -75,6 +76,7 @@ export function setupSocketServer(
 
     registerGameHandlers(io, socket);
     registerAnalysisHandlers(io, socket, app);
+    registerEvaluateHandlers(io, socket, app);
 
     // RTT measurement: ping every 5 seconds
     const pingInterval = setInterval(() => {

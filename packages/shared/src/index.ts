@@ -194,6 +194,8 @@ export interface ClientToServerEvents {
   pong: (data: { timestamp: number }) => void;
   startAnalysis: (data: { gameId: number }) => void;
   cancelAnalysis: (data: { gameId: number }) => void;
+  evaluatePosition: (data: { fen: string; requestId: string }) => void;
+  cancelEvaluation: (data: { requestId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -222,6 +224,13 @@ export interface ServerToClientEvents {
   analysisProgress: (data: AnalysisProgressPayload) => void;
   analysisComplete: (data: AnalysisProgressPayload) => void;
   analysisError: (data: { gameId: number; error: string }) => void;
+  positionEvaluation: (data: {
+    requestId: string;
+    result: EvaluationResult;
+    depth: number;
+    final: boolean;
+  }) => void;
+  positionEvalError: (data: { requestId: string; error: string }) => void;
 }
 
 export interface ServerSocketData {

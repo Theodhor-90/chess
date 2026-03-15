@@ -10,7 +10,8 @@ import "chessground/assets/chessground.cburnett.css";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
-import { useEvaluatePositionMutation, useGetMyGamesQuery } from "../store/apiSlice.js";
+import { useGetMyGamesQuery } from "../store/apiSlice.js";
+import { connectSocket, getSocket } from "../socket.js";
 import type { EvalScore, EngineLineInfo } from "@chess/shared";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -58,28 +59,6 @@ function computeArrowShapes(engineLines: EngineLineInfo[] | undefined, fen: stri
   return shapes;
 }
 
-function getEvaluationErrorMessage(error: unknown): string {
-  if (typeof error !== "object" || error === null || !("status" in error)) {
-    return "Failed to evaluate position.";
-  }
-
-  const status = (error as { status?: number }).status;
-  const data = (error as { data?: unknown }).data;
-
-  if (status === 503) {
-    return "Engine analysis is currently unavailable.";
-  }
-
-  if (typeof data === "object" && data !== null && "error" in data) {
-    const message = (data as { error?: unknown }).error;
-    if (typeof message === "string" && message.length > 0) {
-      return message;
-    }
-  }
-
-  return "Failed to evaluate position.";
-}
-
 export function TrainingPage() {
   const { data: myGames, isLoading: gamesLoading } = useGetMyGamesQuery();
 
@@ -115,7 +94,7 @@ function TrainingContent() {
   );
   const [evaluationError, setEvaluationError] = useState<string | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [evaluatePosition] = useEvaluatePositionMutation();
+  const [evalDepth, setEvalDepth] = useState<number | null>(null);
   const evalRequestId = useRef(0);
 
   const currentFen = fens[currentMoveIndex] ?? STARTING_FEN;
@@ -123,29 +102,54 @@ function TrainingContent() {
 
   useEffect(() => {
     const id = ++evalRequestId.current;
+    const requestId = `training-${id}`;
     setIsEvaluating(true);
     setEvaluationError(null);
+    setEvalDepth(null);
 
-    const timeout = window.setTimeout(async () => {
+    const timeout = window.setTimeout(() => {
       if (evalRequestId.current !== id) return;
 
-      try {
-        const result = await evaluatePosition({ fen: currentFen }).unwrap();
-        if (evalRequestId.current !== id) return;
-        setCurrentEval(result.score);
-        setCurrentEngineLines(result.engineLines);
-        setIsEvaluating(false);
-      } catch (error) {
-        if (evalRequestId.current !== id) return;
+      const socket = connectSocket();
+
+      const onResult = (data: {
+        requestId: string;
+        result: { score: EvalScore; engineLines?: EngineLineInfo[] };
+        depth: number;
+        final: boolean;
+      }) => {
+        if (data.requestId !== requestId || evalRequestId.current !== id) return;
+        setCurrentEval(data.result.score);
+        setCurrentEngineLines(data.result.engineLines);
+        setEvalDepth(data.depth);
+        if (data.final) {
+          setIsEvaluating(false);
+        }
+      };
+
+      const onError = (data: { requestId: string; error: string }) => {
+        if (data.requestId !== requestId || evalRequestId.current !== id) return;
         setCurrentEval(null);
         setCurrentEngineLines(undefined);
-        setEvaluationError(getEvaluationErrorMessage(error));
+        setEvaluationError(data.error);
         setIsEvaluating(false);
-      }
+      };
+
+      socket.on("positionEvaluation", onResult);
+      socket.on("positionEvalError", onError);
+      socket.emit("evaluatePosition", { fen: currentFen, requestId });
     }, 50);
 
-    return () => window.clearTimeout(timeout);
-  }, [currentFen, evaluatePosition]);
+    return () => {
+      window.clearTimeout(timeout);
+      const socket = getSocket();
+      if (socket) {
+        socket.emit("cancelEvaluation", { requestId });
+        socket.off("positionEvaluation");
+        socket.off("positionEvalError");
+      }
+    };
+  }, [currentFen]);
 
   const dests = useMemo(() => {
     const chess = new Chess(currentFen);
@@ -345,7 +349,7 @@ function TrainingContent() {
           />
           {isEvaluating && (
             <div data-testid="engine-loading" style={{ fontSize: "14px", color: "#666" }}>
-              Analyzing position...
+              Analyzing position...{evalDepth !== null ? ` (depth ${evalDepth})` : ""}
             </div>
           )}
           {evaluationError && (
