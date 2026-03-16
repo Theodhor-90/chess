@@ -440,3 +440,10 @@ export interface PaginatedResponse<T> {
 export type DatabaseGameSortField = "date" | "whiteElo" | "blackElo" | "opening" | "eco";
 
 export type SortOrder = "asc" | "desc";
+
+export interface DatabaseGamesQuery extends DatabaseGameFilter {
+  page?: number;
+  limit?: number;
+  sort?: DatabaseGameSortField;
+  order?: SortOrder;
+}

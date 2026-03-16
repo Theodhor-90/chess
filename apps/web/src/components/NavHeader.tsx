@@ -32,9 +32,18 @@ export function NavHeader() {
         borderBottom: "1px solid #ccc",
       }}
     >
-      <Link to="/" style={{ textDecoration: "none", color: "inherit", fontWeight: "bold" }}>
-        Chess Platform
-      </Link>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <Link to="/" style={{ textDecoration: "none", color: "inherit", fontWeight: "bold" }}>
+          Chess Platform
+        </Link>
+        <Link
+          to="/database"
+          data-testid="nav-database"
+          style={{ textDecoration: "none", color: "#1a73e8", fontSize: "14px" }}
+        >
+          Database
+        </Link>
+      </div>
       <div>
         {isAuthenticated ? (
           <>

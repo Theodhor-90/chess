@@ -18,6 +18,9 @@ import type {
   ServerAnalyzeResponse,
   ServerEvaluateRequest,
   EvaluationResult,
+  DatabaseGame,
+  DatabaseGamesQuery,
+  PaginatedResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -140,6 +143,35 @@ export const apiSlice = createApi({
         return { data: result.data as GetAnalysisResponse };
       },
     }),
+    getDatabaseGames: builder.query<
+      PaginatedResponse<Omit<DatabaseGame, "pgn">>,
+      DatabaseGamesQuery
+    >({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params.page !== undefined) searchParams.set("page", String(params.page));
+        if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
+        if (params.player) searchParams.set("player", params.player);
+        if (params.white) searchParams.set("white", params.white);
+        if (params.black) searchParams.set("black", params.black);
+        if (params.minElo !== undefined) searchParams.set("minElo", String(params.minElo));
+        if (params.maxElo !== undefined) searchParams.set("maxElo", String(params.maxElo));
+        if (params.result) searchParams.set("result", params.result);
+        if (params.eco) searchParams.set("eco", params.eco);
+        if (params.opening) searchParams.set("opening", params.opening);
+        if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+        if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+        if (params.timeControl) searchParams.set("timeControl", params.timeControl);
+        if (params.termination) searchParams.set("termination", params.termination);
+        if (params.sort) searchParams.set("sort", params.sort);
+        if (params.order) searchParams.set("order", params.order);
+        const qs = searchParams.toString();
+        return `/database/games${qs ? `?${qs}` : ""}`;
+      },
+    }),
+    getDatabaseGame: builder.query<DatabaseGame, number>({
+      query: (id) => `/database/games/${id}`,
+    }),
   }),
 });
 
@@ -159,4 +191,6 @@ export const {
   useGetUserStatsQuery,
   useServerAnalyzeMutation,
   useEvaluatePositionMutation,
+  useGetDatabaseGamesQuery,
+  useGetDatabaseGameQuery,
 } = apiSlice;
