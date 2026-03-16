@@ -196,6 +196,8 @@ export interface ClientToServerEvents {
   cancelAnalysis: (data: { gameId: number }) => void;
   evaluatePosition: (data: { fen: string; requestId: string }) => void;
   cancelEvaluation: (data: { requestId: string }) => void;
+  analyzePgn: (data: { pgn: string; requestId: string }) => void;
+  cancelPgnAnalysis: (data: { requestId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -231,6 +233,9 @@ export interface ServerToClientEvents {
     final: boolean;
   }) => void;
   positionEvalError: (data: { requestId: string; error: string }) => void;
+  pgnAnalysisProgress: (data: PgnAnalysisProgressPayload) => void;
+  pgnAnalysisComplete: (data: PgnAnalysisProgressPayload) => void;
+  pgnAnalysisError: (data: { requestId: string; error: string }) => void;
 }
 
 export interface ServerSocketData {
@@ -274,6 +279,15 @@ export const ANALYSIS_DEPTH_THRESHOLDS = [10, 13, 16, 18, 20] as const;
 
 export interface AnalysisProgressPayload {
   gameId: number;
+  positions: AnalyzedPosition[];
+  whiteAccuracy: number;
+  blackAccuracy: number;
+  completedPositions: number;
+  totalPositions: number;
+}
+
+export interface PgnAnalysisProgressPayload {
+  requestId: string;
   positions: AnalyzedPosition[];
   whiteAccuracy: number;
   blackAccuracy: number;

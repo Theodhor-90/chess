@@ -11,6 +11,7 @@ import type {
   MoveClassification,
   SerializedAnalysisNode,
   EvaluationResult,
+  PgnAnalysisProgressPayload,
 } from "@chess/shared";
 import {
   ANALYSIS_DEPTH_THRESHOLDS,
@@ -31,7 +32,13 @@ type TypedSocket = Socket<
 
 const TERMINAL_STATUSES = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
 
-const activeAnalyses = new Map<number, AbortController>();
+interface ActiveAnalysisEntry {
+  controller: AbortController;
+  socketId: string;
+}
+
+const activeAnalyses = new Map<number, ActiveAnalysisEntry>();
+const activePgnAnalyses = new Map<string, ActiveAnalysisEntry>();
 
 function hasActiveGame(userId: number): boolean {
   const row = db
@@ -193,7 +200,10 @@ export function registerAnalysisHandlers(
     }
 
     const abortController = new AbortController();
-    activeAnalyses.set(gameId, abortController);
+    activeAnalyses.set(gameId, {
+      controller: abortController,
+      socketId: socket.id,
+    });
 
     const targetDepth = ANALYSIS_DEPTH_THRESHOLDS[ANALYSIS_DEPTH_THRESHOLDS.length - 1];
     const rawEvals: (EvaluationResult | undefined)[] = new Array(fens.length);
@@ -275,18 +285,149 @@ export function registerAnalysisHandlers(
   });
 
   socket.on("cancelAnalysis", (data) => {
-    const controller = activeAnalyses.get(data.gameId);
-    if (controller) {
-      controller.abort();
+    const analysis = activeAnalyses.get(data.gameId);
+    if (analysis && analysis.socketId === socket.id) {
+      analysis.controller.abort();
       activeAnalyses.delete(data.gameId);
     }
   });
 
+  socket.on("analyzePgn", async (data) => {
+    const userId = socket.data.userId;
+    const { pgn, requestId } = data;
+
+    if (!app.hasDecorator("engine")) {
+      socket.emit("pgnAnalysisError", {
+        requestId,
+        error: "Engine analysis is currently unavailable.",
+      });
+      return;
+    }
+
+    if (activePgnAnalyses.has(requestId)) {
+      socket.emit("pgnAnalysisError", {
+        requestId,
+        error: "Analysis already in progress for this request.",
+      });
+      return;
+    }
+
+    if (hasActiveGame(userId)) {
+      socket.emit("pgnAnalysisError", {
+        requestId,
+        error: "Cannot analyze while in an active game",
+      });
+      return;
+    }
+
+    const chess = new Chess();
+    try {
+      chess.loadPgn(pgn);
+    } catch {
+      socket.emit("pgnAnalysisError", { requestId, error: "Invalid PGN" });
+      return;
+    }
+
+    const history = chess.history();
+    const replayChess = new Chess();
+    const fens: string[] = [replayChess.fen()];
+    const playedMoves: string[] = [];
+
+    for (const san of history) {
+      try {
+        replayChess.move(san);
+      } catch {
+        socket.emit("pgnAnalysisError", { requestId, error: "Failed to replay game moves" });
+        return;
+      }
+      fens.push(replayChess.fen());
+      playedMoves.push(san);
+    }
+
+    if (playedMoves.length === 0) {
+      socket.emit("pgnAnalysisError", { requestId, error: "PGN contains no moves" });
+      return;
+    }
+
+    const abortController = new AbortController();
+    activePgnAnalyses.set(requestId, {
+      controller: abortController,
+      socketId: socket.id,
+    });
+
+    const targetDepth = ANALYSIS_DEPTH_THRESHOLDS[ANALYSIS_DEPTH_THRESHOLDS.length - 1];
+    const rawEvals: (EvaluationResult | undefined)[] = new Array(fens.length);
+    let completedCount = 0;
+
+    try {
+      const evalPromises = fens.map((fen, i) =>
+        app.engine.evaluate(fen, targetDepth).then((result) => {
+          if (abortController.signal.aborted) return;
+          rawEvals[i] = result;
+          completedCount++;
+          const progressPayload: PgnAnalysisProgressPayload = {
+            requestId,
+            positions: [],
+            whiteAccuracy: 0,
+            blackAccuracy: 0,
+            completedPositions: completedCount,
+            totalPositions: fens.length,
+          };
+          socket.emit("pgnAnalysisProgress", progressPayload);
+        }),
+      );
+
+      await Promise.all(evalPromises);
+      if (abortController.signal.aborted) return;
+
+      const finalPositions: AnalyzedPosition[] = [];
+      for (let i = 0; i < fens.length; i++) {
+        const evaluation = rawEvals[i]!;
+        finalPositions.push(
+          buildAnalyzedPosition(fens, finalPositions, playedMoves, i, evaluation),
+        );
+      }
+      const { whiteAccuracy, blackAccuracy } = computeAccuracies(finalPositions);
+
+      const completePayload: PgnAnalysisProgressPayload = {
+        requestId,
+        positions: finalPositions,
+        whiteAccuracy,
+        blackAccuracy,
+        completedPositions: fens.length,
+        totalPositions: fens.length,
+      };
+      socket.emit("pgnAnalysisComplete", completePayload);
+    } catch (err) {
+      if (!abortController.signal.aborted) {
+        socket.emit("pgnAnalysisError", {
+          requestId,
+          error: err instanceof Error ? err.message : "Analysis failed",
+        });
+      }
+    } finally {
+      activePgnAnalyses.delete(requestId);
+    }
+  });
+
+  socket.on("cancelPgnAnalysis", (data) => {
+    const analysis = activePgnAnalyses.get(data.requestId);
+    if (analysis && analysis.socketId === socket.id) {
+      analysis.controller.abort();
+      activePgnAnalyses.delete(data.requestId);
+    }
+  });
+
   socket.on("disconnect", () => {
-    // Clean up any active analyses for this socket's user
-    for (const [gameId, controller] of activeAnalyses) {
-      controller.abort();
+    for (const [gameId, analysis] of activeAnalyses) {
+      if (analysis.socketId !== socket.id) continue;
+      analysis.controller.abort();
       activeAnalyses.delete(gameId);
+    }
+    for (const [requestId, analysis] of activePgnAnalyses) {
+      if (analysis.socketId !== socket.id) continue;
+      analysis.controller.abort();
+      activePgnAnalyses.delete(requestId);
     }
   });
 }
