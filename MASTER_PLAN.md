@@ -231,6 +231,34 @@ Exit criteria:
 
 ---
 
+### M10: Game Database Browser
+
+**Goal:** Users can browse, search, and view games from external PGN databases (Lichess elite database). Games are imported into a separate SQLite database via CLI, queryable through a REST API, and viewable in the existing analysis board with optional engine evaluation.
+
+#### Phase 10.1 — PGN Import & Storage
+
+Parse large PGN files and store games in a separate SQLite database (`databases/games.db`) for fast querying. Provide a streaming PGN parser, a CLI import tool, and shared types.
+
+Exit criteria:
+
+- `database_games` table in a separate SQLite database with indexed columns for all header fields.
+- Streaming PGN parser handles 400MB+ files without loading them into memory.
+- CLI import script processes ~425K games in under 2 minutes with progress reporting and duplicate skipping.
+- `DatabaseGame`, `DatabaseGameFilter`, `PaginatedResponse` types exported from `@chess/shared`.
+
+#### Phase 10.2 — Browse API & Game Viewer
+
+REST API for querying imported games with filtering, sorting, and pagination. Frontend browser page with a filterable table. Game viewer that reuses the analysis page infrastructure.
+
+Exit criteria:
+
+- `GET /database/games` supports filtering by player, Elo range, ECO, opening, result, date range, time control, termination. Paginated and sortable.
+- `/database` page renders a filterable, paginated game table with URL-persisted filter state.
+- Clicking a game opens a viewer with Chessground board and move-by-move navigation.
+- "Analyze with engine" triggers server-side Stockfish evaluation on the database game.
+
+---
+
 ## Cross-Milestone Standards
 
 - All existing platform conventions apply (ESM, strict TypeScript, named exports, Prettier, ESLint).
