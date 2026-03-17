@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router";
 import { useGetMeQuery, useLogoutMutation } from "../store/apiSlice.js";
 import { useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
+import styles from "./NavHeader.module.css";
 
 export function NavHeader() {
   const navigate = useNavigate();
@@ -22,25 +23,12 @@ export function NavHeader() {
   }
 
   return (
-    <nav
-      data-testid="nav-header"
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "8px 16px",
-        borderBottom: "1px solid #ccc",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-        <Link to="/" style={{ textDecoration: "none", color: "inherit", fontWeight: "bold" }}>
+    <nav data-testid="nav-header" className={styles.nav}>
+      <div className={styles.leftGroup}>
+        <Link to="/" className={styles.titleLink}>
           Chess Platform
         </Link>
-        <Link
-          to="/database"
-          data-testid="nav-database"
-          style={{ textDecoration: "none", color: "#1a73e8", fontSize: "14px" }}
-        >
+        <Link to="/database" data-testid="nav-database" className={styles.navLink}>
           Database
         </Link>
       </div>
@@ -50,7 +38,7 @@ export function NavHeader() {
             <Link
               to={`/profile/${meData.user.id}`}
               data-testid="user-display-name"
-              style={{ textDecoration: "none", color: "inherit" }}
+              className={styles.userLink}
             >
               {meData.user.username}
             </Link>{" "}

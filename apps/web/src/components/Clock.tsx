@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import styles from "./Clock.module.css";
 
 function formatTime(ms: number): string {
   if (ms < 10000) {
@@ -51,22 +52,12 @@ export function Clock({
 
   const isLowTime = displayTime < 30000;
   const formatted = formatTime(displayTime);
+  const className = [styles.clock, isActive ? styles.active : "", isLowTime ? styles.lowTime : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div
-      data-testid="clock"
-      style={{
-        padding: "8px 16px",
-        fontSize: "24px",
-        fontFamily: "monospace",
-        fontWeight: isActive ? "bold" : "normal",
-        backgroundColor: isActive ? "#e8e8e8" : "transparent",
-        color: isLowTime ? "#c00" : "#000",
-        borderRadius: "4px",
-        minWidth: "100px",
-        textAlign: "center",
-      }}
-    >
+    <div data-testid="clock" className={className}>
       {formatted}
     </div>
   );
