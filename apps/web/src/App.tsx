@@ -13,6 +13,8 @@ import { AnalysisPage } from "./pages/AnalysisPage.js";
 import { TrainingPage } from "./pages/TrainingPage.js";
 import { HistoryPage } from "./pages/HistoryPage.js";
 import { ProfilePage } from "./pages/ProfilePage.js";
+import { DatabasePage } from "./pages/DatabasePage.js";
+import { DatabaseGameViewerPage } from "./pages/DatabaseGameViewerPage.js";
 
 export function AppRoutes() {
   return (
@@ -69,6 +71,8 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/database" element={<DatabasePage />} />
+        <Route path="/database/games/:id/view" element={<DatabaseGameViewerPage />} />
         <Route
           path="/"
           element={
