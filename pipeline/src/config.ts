@@ -2,7 +2,7 @@
 
 export const CONFIG = {
   maxPlanIterations: 3,
-  maxImplIterations: 3,
+  maxImplIterations: 4,
   timeoutMs: 20 * 60_000, // 20 minutes per CLI call
 
   claude: {
@@ -11,6 +11,7 @@ export const CONFIG = {
     defaultMaxTurns: 25,
   },
 
+  // codex config retained for reference but no longer used — all steps use claude
   codex: {
     bin: "codex",
     defaultSandbox: "read-only" as const,
@@ -21,9 +22,9 @@ export const CONFIG = {
     planDraft: { tools: ["Read", "Glob", "Grep"] },
     planChallenge: { tools: ["Read", "Glob", "Grep"] },
     planRefine: { tools: ["Read", "Glob", "Grep"] },
-    implement: { sandbox: "workspace-write" as const },
-    implementFix: { sandbox: "workspace-write" as const },
-    review: { sandbox: "workspace-write" as const },
+    implement: { tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"] },
+    implementFix: { tools: ["Read", "Glob", "Grep", "Edit", "Write", "Bash"] },
+    review: { tools: ["Read", "Glob", "Grep", "Bash"] },
   },
 };
 

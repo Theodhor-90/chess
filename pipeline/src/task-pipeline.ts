@@ -11,7 +11,7 @@ import {
 } from "./state.js";
 import { CONFIG } from "./config.js";
 import { loadTemplate } from "./templates.js";
-import { claude, codex } from "./cli.js";
+import { claude } from "./cli.js";
 import { parseDecision } from "./schemas.js";
 import { log } from "./logger.js";
 
@@ -369,7 +369,7 @@ function runImplementationLoop(
 
       let prompt: string;
       if (i === 1) {
-        log(context, "implementing", "Codex implementing", {
+        log(context, "implementing", "Opus implementing", {
           current: i,
           total: getTask(state, milestoneId, phaseId, taskId).totalImplAttempts,
         });
@@ -378,7 +378,7 @@ function runImplementationLoop(
           SPEC_PATH: artifactPath(dir, "spec.md"),
         });
       } else {
-        log(context, "implementing", "Codex fixing implementation", {
+        log(context, "implementing", "Opus fixing implementation", {
           current: i,
           total: getTask(state, milestoneId, phaseId, taskId).totalImplAttempts,
         });
@@ -389,8 +389,8 @@ function runImplementationLoop(
         });
       }
 
-      const result = codex(prompt, {
-        sandbox: CONFIG.steps.implement.sandbox,
+      const result = claude(prompt, {
+        tools: CONFIG.steps.implement.tools,
       });
       writeFileSync(implFile, result.raw, "utf-8");
       checkpoint(STATE_PATH, state, `impl-notes-v${i} written`);
@@ -398,7 +398,7 @@ function runImplementationLoop(
 
     // Step 2: Review (skip if artifact already exists)
     if (!existsSync(reviewFile)) {
-      log(context, "implementing", "Codex reviewing implementation", {
+      log(context, "implementing", "Opus reviewing implementation", {
         current: i,
         total: getTask(state, milestoneId, phaseId, taskId).totalImplAttempts,
       });
@@ -409,8 +409,8 @@ function runImplementationLoop(
         SPEC_PATH: artifactPath(dir, "spec.md"),
       });
 
-      const result = codex(reviewPrompt, {
-        sandbox: CONFIG.steps.review.sandbox,
+      const result = claude(reviewPrompt, {
+        tools: CONFIG.steps.review.tools,
         schema: "review-decision.json",
       });
       writeFileSync(reviewFile, result.raw, "utf-8");
