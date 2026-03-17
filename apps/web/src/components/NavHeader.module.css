@@ -1,0 +1,30 @@
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.leftGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.titleLink {
+  text-decoration: none;
+  color: inherit;
+  font-weight: var(--font-weight-bold);
+}
+
+.navLink {
+  text-decoration: none;
+  color: var(--color-text-link);
+  font-size: var(--font-size-sm);
+}
+
+.userLink {
+  text-decoration: none;
+  color: inherit;
+}

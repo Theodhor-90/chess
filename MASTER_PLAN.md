@@ -1,16 +1,29 @@
-# Master Plan — Game Analysis Feature
+# Master Plan — Chess Platform
 
 ## Product Goal
 
-Allow users to analyze their completed games with a Stockfish-powered analysis board. Engine evaluates every move, classifies accuracy, and lets users explore alternative lines — similar to chess.com's post-game analysis.
+Online chess platform: two authenticated users play a live game via a shareable invite link. Server-authoritative rules, real-time moves, chess clocks, reconnection support. Post-game analysis with Stockfish engine, game database browser, and a polished, responsive UI.
 
-## MVP Scope
+## MVP Scope (M0–M10)
 
-The feature ships in three milestones:
+The core platform and analysis features ship in milestones M0–M10:
 
-1. **Linear analysis** — Client-side Stockfish evaluates the game move-by-move. Eval bar, move classifications, accuracy scores, interactive move navigation.
-2. **Branching** — Users can play alternative moves from any position, building a move tree with engine evaluation on each branch.
-3. **Persistence** — Analysis results (including branches) are stored server-side so users don't recompute on revisit.
+1. **Core platform** (M0–M3) — Auth, game creation, real-time play, chess clocks, reconnection.
+2. **Linear analysis** (M4) — Client-side Stockfish evaluates the game move-by-move. Eval bar, move classifications, accuracy scores, interactive move navigation.
+3. **Branching** (M5) — Users can play alternative moves from any position, building a move tree with engine evaluation on each branch.
+4. **Persistence** (M6) — Analysis results (including branches) are stored server-side so users don't recompute on revisit.
+5. **Game history & profiles** (M8) — Usernames, game history with filtering, player profile pages.
+6. **Server-side Stockfish** (M9) — Native Stockfish binary replaces client-side WASM.
+7. **Game database browser** (M10) — PGN import, search, and viewer for external databases.
+
+## UI Overhaul Scope (M11–M14)
+
+The UI overhaul ships in four milestones:
+
+1. **Design system foundation** (M11) — CSS Modules, design tokens, theme infrastructure, shared UI component library.
+2. **Core page redesign** (M12) — Restyle every page using the design system: auth, dashboard, game, analysis, history, profile, database.
+3. **Responsive design & mobile** (M13) — Flexible layouts, responsive board sizing, mobile navigation, touch UX.
+4. **Theming, polish & accessibility** (M14) — Dark mode, board/piece themes, animations, sounds, WCAG accessibility.
 
 ## Non-Goals
 
@@ -256,6 +269,189 @@ Exit criteria:
 - `/database` page renders a filterable, paginated game table with URL-persisted filter state.
 - Clicking a game opens a viewer with Chessground board and move-by-move navigation.
 - "Analyze with engine" triggers server-side Stockfish evaluation on the database game.
+
+---
+
+### M11: Design System Foundation
+
+**Goal:** Replace the current inline-styles-everywhere approach with a maintainable styling architecture. Establish CSS Modules, a design token system with CSS custom properties, a theme provider, and a shared UI component library that all subsequent milestones build on.
+
+#### Phase 11.1 — CSS Modules, Design Tokens & Theme Provider
+
+Adopt CSS Modules as the styling approach. Extract all hardcoded colors, spacing, typography, and radii into a design token system using CSS custom properties. Build a ThemeProvider that toggles a `data-theme` attribute on `<html>`. Migrate a few existing components as proof the pattern works end-to-end.
+
+Exit criteria:
+
+- Design tokens defined as CSS custom properties in a global stylesheet (`apps/web/src/styles/tokens.css`) covering colors, spacing, typography, borders, shadows.
+- Global reset and base styles applied via `apps/web/src/styles/global.css`.
+- `ThemeProvider` component sets `data-theme` on `<html>` (light only for now — dark tokens wired in M14).
+- `NavHeader` and `Clock` migrated from inline styles to CSS Modules as proof of concept.
+- All existing functionality preserved — no visual regressions in behavior.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 11.2 — Shared UI Component Library
+
+Build a reusable component library using the design token system: Button, Card, Input, Select, Badge, Table, Modal, and Toast.
+
+Exit criteria:
+
+- `Button` component with variants (primary, secondary, danger, ghost), sizes (sm, md, lg), and loading state.
+- `Card` component with optional header, consistent padding and shadow.
+- `Input` and `Select` components with labels, placeholder, error state, disabled state.
+- `Badge` component for colored chips (Win/Loss/Draw, time control labels).
+- `Table` component with sortable columns, pagination, and horizontal scroll on overflow.
+- `Modal` component with backdrop, focus trap, close on Escape, accessible markup.
+- `Toast` notification system for ephemeral messages with auto-dismiss.
+- All components use CSS Modules and design tokens. No inline styles.
+- Components exported from a shared barrel file (`apps/web/src/components/ui/index.ts`).
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M12: Core Page Redesign
+
+**Goal:** Restyle every page in the application using the M11 design system and component library. Each phase tackles a logical group of pages, migrating from inline styles to CSS Modules and replacing raw HTML elements with shared UI components.
+
+#### Phase 12.1 — Layout Shell & Auth Pages
+
+Redesign the app-level layout (NavHeader, page container) and the authentication pages (Login, Register).
+
+Exit criteria:
+
+- `NavHeader` redesigned: logo area, nav links with active route indicator, user dropdown (username + logout), structured for future mobile hamburger.
+- App-level layout wrapper provides centered container with consistent page padding.
+- `LoginPage` redesigned: centered card layout, styled form inputs, validation error display, branded appearance.
+- `RegisterPage` redesigned: consistent with LoginPage, username field prominently placed.
+- All inline styles removed from these components, replaced with CSS Modules + design tokens.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 12.2 — Dashboard & Game Management
+
+Restyle the dashboard, game creation, game list, waiting screen, and join page.
+
+Exit criteria:
+
+- `DashboardPage` redesigned: game creation as a prominent Card with better form UX using shared Input/Select/Button.
+- `GameList` redesigned: polished table (or card layout) showing opponent name, time control Badge, game status chip, result Badge for finished games.
+- `WaitingScreen` redesigned: better invite link presentation with copy-to-clipboard Button, visual loading state.
+- `JoinPage` redesigned: loading and error states with proper visual treatment using shared components.
+- All inline styles removed from these components.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 12.3 — Game Page
+
+Restyle the entire game page: board surroundings, clocks, move list, game actions, overlays, and add a promotion modal.
+
+Exit criteria:
+
+- Player info bars above and below the board showing username, clock, and captured pieces.
+- `Clock` redesigned: styled clock face with urgency colors (red at low time), active/idle visual states.
+- `MoveList` redesigned: alternating row colors, current-move highlight, smooth auto-scroll.
+- `GameActions` redesigned: clear Button group for resign, draw offer, draw accept/decline.
+- `GameOverOverlay` redesigned: proper Modal with game summary (result, reason, accuracy link), "Back to Dashboard" and "Analyze" CTAs.
+- Promotion modal when a pawn reaches the last rank (currently auto-queens silently).
+- `DisconnectBanner` and `ConnectionStatus` restyled with shared components.
+- All inline styles removed from these components.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 12.4 — Analysis, Training & Database Pages
+
+Restyle analysis, training, history, profile, and database pages.
+
+Exit criteria:
+
+- `AnalysisPage` redesigned: polished panel layout with Cards, better eval bar styling, engine lines in styled panels.
+- `TrainingPage` redesigned: consistent layout with AnalysisPage, styled action buttons.
+- `HistoryPage` redesigned: filter UI with shared Select/Badge components, result Badges in Table rows.
+- `ProfilePage` redesigned: stat Cards with visual hierarchy, win/loss/draw breakdown with Badges.
+- `DatabasePage` redesigned: filter panel in a Card with organized Input/Select groups, sortable Table with pagination.
+- `DatabaseGameViewerPage` redesigned: consistent with AnalysisPage, metadata displayed in Cards.
+- All inline styles removed from these components.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M13: Responsive Design & Mobile
+
+**Goal:** Make the entire application work well on all screen sizes, from desktop to mobile phones. Flexible board sizing, stacked layouts on small screens, mobile navigation, and touch-friendly interactions.
+
+#### Phase 13.1 — Responsive Layouts & Flexible Board
+
+Replace fixed-width layouts with responsive designs. Make the chess board scale to the viewport.
+
+Exit criteria:
+
+- Chess board uses responsive sizing (`min(400px, 100vw - 2rem)`) instead of fixed 400px across all pages (game, analysis, training, database viewer).
+- Game page stacks vertically on small screens: board on top, info panel (clocks, move list, actions) below.
+- Dashboard uses single-column layout on mobile.
+- Analysis and training pages stack board above engine panel on narrow screens.
+- All Tables scroll horizontally with visual affordance on narrow screens.
+- Typography scale adjustments for smaller viewports.
+- Breakpoints defined as design tokens for consistency.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 13.2 — Mobile Navigation & Touch UX
+
+Add mobile-specific navigation and touch interactions.
+
+Exit criteria:
+
+- `NavHeader` shows hamburger menu on mobile with slide-out or dropdown nav panel.
+- All interactive elements meet 44px minimum touch target size.
+- Swipe left/right gestures for move navigation on game and analysis pages.
+- Bottom action bar on game page for mobile (resign, draw buttons accessible without scrolling).
+- Promotion selector optimized for touch (large piece icons).
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M14: Theming, Polish & Accessibility
+
+**Goal:** Add dark mode and board theme customization, visual polish through animations and sound effects, and comprehensive accessibility support.
+
+#### Phase 14.1 — Dark Mode & Board Themes
+
+Wire the ThemeProvider with dark mode values and add a user settings page for theme preferences.
+
+Exit criteria:
+
+- Dark mode token values defined in `tokens.css` under `[data-theme="dark"]`.
+- Settings page at `/settings` with: theme toggle (light/dark/system), board theme picker (brown/blue/green/ic from Chessground CSS), piece set selector.
+- Theme preference persisted in localStorage and optionally on user record via API.
+- `prefers-color-scheme` media query respected when set to "system".
+- All components render correctly in both light and dark themes.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 14.2 — Animations & Sound
+
+Add micro-interactions, transitions, and sound effects throughout the application.
+
+Exit criteria:
+
+- Page route transition animations (fade or slide).
+- Button hover and press micro-interactions (scale, color shift).
+- Clock urgency animation (pulse or glow at low time).
+- Move list smooth scroll to current move.
+- Toast notification slide-in/out animation.
+- Game over Modal entrance animation.
+- Loading skeletons replace all "Loading..." text strings.
+- Sound effects: move, capture, check, castle, game start, game end. Audio files in `apps/web/public/sounds/`.
+- Mute toggle in settings page and persisted in localStorage.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 14.3 — Accessibility
+
+Comprehensive accessibility audit and improvements to meet WCAG AA.
+
+Exit criteria:
+
+- ARIA labels on all interactive elements (buttons, links, form controls, board squares).
+- Keyboard navigation for move list (arrow keys), game actions (Tab + Enter), and modals (Tab trap).
+- Focus management: focus moves to modal on open, returns on close. Focus ring visible on all interactive elements.
+- Screen reader announcements for moves, game state changes (check, checkmate, draw), and clock warnings.
+- Color contrast audit — all text/background combinations meet WCAG AA (4.5:1 for normal text, 3:1 for large text).
+- `prefers-reduced-motion` media query disables all animations from Phase 14.2.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
 
 ---
 

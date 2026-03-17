@@ -23,6 +23,14 @@ import { Chessground } from "chessground";
 import { Chess } from "chess.js";
 import type { GameState, ClockState, ClockConfig } from "@chess/shared";
 
+vi.mock("../src/components/Clock.module.css", () => ({
+  default: {
+    clock: "clock",
+    active: "active",
+    lowTime: "lowTime",
+  },
+}));
+
 vi.mock("chessground", () => ({
   Chessground: vi.fn(() => ({
     set: vi.fn(),
@@ -183,19 +191,25 @@ describe("Clock", () => {
   it("applies red color when time < 30 seconds", () => {
     render(<Clock timeMs={25000} isActive={false} lastUpdate={Date.now()} />);
     const clock = screen.getByTestId("clock");
-    expect(clock.style.color).toBe("rgb(204, 0, 0)");
+    expect(clock).toHaveClass("clock");
+    expect(clock).toHaveClass("lowTime");
+    expect(clock).not.toHaveClass("active");
   });
 
   it("applies bold font when active", () => {
     render(<Clock timeMs={300000} isActive={true} lastUpdate={Date.now()} />);
     const clock = screen.getByTestId("clock");
-    expect(clock.style.fontWeight).toBe("bold");
+    expect(clock).toHaveClass("clock");
+    expect(clock).toHaveClass("active");
+    expect(clock).not.toHaveClass("lowTime");
   });
 
   it("applies normal font when not active", () => {
     render(<Clock timeMs={300000} isActive={false} lastUpdate={Date.now()} />);
     const clock = screen.getByTestId("clock");
-    expect(clock.style.fontWeight).toBe("normal");
+    expect(clock).toHaveClass("clock");
+    expect(clock).not.toHaveClass("active");
+    expect(clock).not.toHaveClass("lowTime");
   });
 });
 
