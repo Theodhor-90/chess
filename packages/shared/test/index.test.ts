@@ -6,6 +6,11 @@ import type {
   ServerToClientEvents,
   ServerSocketData,
   GameState,
+  DatabaseGame,
+  DatabaseGameFilter,
+  PaginatedResponse,
+  DatabaseGameSortField,
+  SortOrder,
 } from "../src/index.js";
 
 describe("@chess/shared", () => {
@@ -52,5 +57,65 @@ describe("@chess/shared", () => {
 
   it("GameState includes optional clockState field", () => {
     expectTypeOf<GameState>().toHaveProperty("clockState").toEqualTypeOf<ClockState | undefined>();
+  });
+});
+
+describe("Database Browser Types", () => {
+  it("exports DatabaseGame with all fields", () => {
+    expectTypeOf<DatabaseGame>().toHaveProperty("id").toBeNumber();
+    expectTypeOf<DatabaseGame>().toHaveProperty("white").toBeString();
+    expectTypeOf<DatabaseGame>().toHaveProperty("black").toBeString();
+    expectTypeOf<DatabaseGame>().toHaveProperty("whiteElo").toBeNumber();
+    expectTypeOf<DatabaseGame>().toHaveProperty("blackElo").toBeNumber();
+    expectTypeOf<DatabaseGame>().toHaveProperty("result").toBeString();
+    expectTypeOf<DatabaseGame>().toHaveProperty("eco").toEqualTypeOf<string | null>();
+    expectTypeOf<DatabaseGame>().toHaveProperty("opening").toEqualTypeOf<string | null>();
+    expectTypeOf<DatabaseGame>().toHaveProperty("date").toEqualTypeOf<string | null>();
+    expectTypeOf<DatabaseGame>().toHaveProperty("timeControl").toEqualTypeOf<string | null>();
+    expectTypeOf<DatabaseGame>().toHaveProperty("termination").toEqualTypeOf<string | null>();
+    expectTypeOf<DatabaseGame>().toHaveProperty("lichessUrl").toBeString();
+    expectTypeOf<DatabaseGame>().toHaveProperty("pgn").toBeString();
+  });
+
+  it("exports DatabaseGameFilter with all optional fields", () => {
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("player").toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("white").toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("black").toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("minElo").toEqualTypeOf<number | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("maxElo").toEqualTypeOf<number | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("result").toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("eco").toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>()
+      .toHaveProperty("opening")
+      .toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>()
+      .toHaveProperty("dateFrom")
+      .toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>().toHaveProperty("dateTo").toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>()
+      .toHaveProperty("timeControl")
+      .toEqualTypeOf<string | undefined>();
+    expectTypeOf<DatabaseGameFilter>()
+      .toHaveProperty("termination")
+      .toEqualTypeOf<string | undefined>();
+  });
+
+  it("exports PaginatedResponse as a generic type", () => {
+    type TestResponse = PaginatedResponse<DatabaseGame>;
+    expectTypeOf<TestResponse>().toHaveProperty("data").toEqualTypeOf<DatabaseGame[]>();
+    expectTypeOf<TestResponse>().toHaveProperty("total").toBeNumber();
+    expectTypeOf<TestResponse>().toHaveProperty("page").toBeNumber();
+    expectTypeOf<TestResponse>().toHaveProperty("limit").toBeNumber();
+    expectTypeOf<TestResponse>().toHaveProperty("totalPages").toBeNumber();
+  });
+
+  it("exports DatabaseGameSortField as a union of column names", () => {
+    expectTypeOf<DatabaseGameSortField>().toEqualTypeOf<
+      "date" | "whiteElo" | "blackElo" | "opening" | "eco"
+    >();
+  });
+
+  it("exports SortOrder as asc | desc", () => {
+    expectTypeOf<SortOrder>().toEqualTypeOf<"asc" | "desc">();
   });
 });

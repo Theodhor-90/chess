@@ -393,3 +393,50 @@ export interface GetAnalysisResponse {
   engineDepth: number;
   createdAt: number;
 }
+
+// ---------------------------------------------------------------------------
+// Database Browser Types (Phase 10.1)
+// ---------------------------------------------------------------------------
+
+export interface DatabaseGame {
+  id: number;
+  white: string;
+  black: string;
+  whiteElo: number;
+  blackElo: number;
+  result: string;
+  eco: string | null;
+  opening: string | null;
+  date: string | null;
+  timeControl: string | null;
+  termination: string | null;
+  lichessUrl: string;
+  pgn: string;
+}
+
+export interface DatabaseGameFilter {
+  player?: string;
+  white?: string;
+  black?: string;
+  minElo?: number;
+  maxElo?: number;
+  result?: string;
+  eco?: string;
+  opening?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  timeControl?: string;
+  termination?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export type DatabaseGameSortField = "date" | "whiteElo" | "blackElo" | "opening" | "eco";
+
+export type SortOrder = "asc" | "desc";
