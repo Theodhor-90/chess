@@ -1,0 +1,57 @@
+/* === Wrapper === */
+.wrapper {
+  overflow-x: auto;
+}
+
+/* === Table === */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* === Header === */
+.th {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-secondary);
+  border-bottom: var(--border-width) solid var(--color-border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sortable {
+  cursor: pointer;
+}
+
+.sortable:hover {
+  color: var(--color-text);
+}
+
+/* === Cells === */
+.td {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+  border-bottom: var(--border-width) solid var(--color-border-light);
+}
+
+/* === Clickable rows === */
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:hover {
+  background-color: var(--color-surface-hover);
+}
+
+/* === Empty state === */
+.empty {
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+  font-size: var(--font-size-md);
+  color: var(--color-text-secondary);
+}

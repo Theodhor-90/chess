@@ -8,3 +8,7 @@ export { Select } from "./Select.js";
 export type { SelectProps } from "./Select.js";
 export { Badge } from "./Badge.js";
 export type { BadgeProps } from "./Badge.js";
+export { Table } from "./Table.js";
+export type { TableColumn, TableProps } from "./Table.js";
+export { Pagination } from "./Pagination.js";
+export type { PaginationProps } from "./Pagination.js";
