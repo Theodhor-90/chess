@@ -1,0 +1,20 @@
+.clock {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-xl);
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-normal);
+  background-color: transparent;
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  min-width: 100px;
+  text-align: center;
+}
+
+.active {
+  font-weight: var(--font-weight-bold);
+  background-color: var(--color-gray-200);
+}
+
+.lowTime {
+  color: var(--color-error);
+}

@@ -48,7 +48,6 @@ vi.mock("../src/socket.js", () => ({
 }));
 
 function getSocketHandler(event: string) {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
   const call = mockSocket.on.mock.calls.find((c: unknown[]) => c[0] === event);
   return call?.[1] as ((...args: unknown[]) => void) | undefined;
 }
