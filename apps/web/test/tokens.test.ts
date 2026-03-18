@@ -62,4 +62,11 @@ describe("tokens.css", () => {
     expect(tokensCss).toContain("--transition-easing:");
     expect(tokensCss).toContain("--transition-default:");
   });
+
+  it("defines breakpoint tokens", () => {
+    expect(tokensCss).toContain("--bp-sm:");
+    expect(tokensCss).toContain("--bp-md:");
+    expect(tokensCss).toContain("--bp-lg:");
+    expect(tokensCss).toContain("--bp-xl:");
+  });
 });

@@ -142,12 +142,19 @@ vi.mock("../src/components/ConnectionStatus.module.css", () => ({
   },
 }));
 
+vi.mock("../src/components/GameBoard.module.css", () => ({
+  default: {
+    boardContainer: "boardContainer",
+  },
+}));
+
 vi.mock("chessground", () => ({
   Chessground: vi.fn(() => ({
     set: vi.fn(),
     destroy: vi.fn(),
     state: {},
     getFen: vi.fn(() => ""),
+    redrawAll: vi.fn(),
   })),
 }));
 
@@ -184,6 +191,7 @@ beforeEach(() => {
         destroy: vi.fn(),
         state: {},
         getFen: vi.fn(() => ""),
+        redrawAll: vi.fn(),
       }) as never,
   );
 
@@ -551,6 +559,26 @@ describe("GamePage", () => {
     expect(store.getState().game.currentGame).not.toBeNull();
     unmount();
     expect(store.getState().game.currentGame).toBeNull();
+  });
+
+  it("board container has no inline styles (uses CSS module)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("game-board").getAttribute("style")).toBeNull();
   });
 });
 

@@ -6,6 +6,7 @@ import type { Key } from "chessground/types";
 import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
+import styles from "./GameBoard.module.css";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
 import { PromotionModal } from "./PromotionModal.js";
@@ -160,13 +161,21 @@ export function GameBoard({
     });
   }, [fen, currentTurn, isGameActive, playerColor, dests, onMove]);
 
+  // Redraw Chessground when container resizes
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver(() => {
+      apiRef.current?.redrawAll();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
-      <div
-        ref={containerRef}
-        data-testid="game-board"
-        style={{ width: "400px", height: "400px" }}
-      />
+      <div ref={containerRef} data-testid="game-board" className={styles.boardContainer} />
       {pendingPromotion && (
         <PromotionModal
           color={playerColor ?? "white"}

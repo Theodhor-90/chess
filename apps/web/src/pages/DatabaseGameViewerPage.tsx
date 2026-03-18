@@ -353,6 +353,18 @@ function DatabaseGameViewer({
     });
   }, [currentFen, arrowShapes]);
 
+  // Redraw Chessground when container resizes
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver(() => {
+      apiRef.current?.redrawAll();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div data-testid="db-game-viewer" className={styles.page}>
       <h1 className={styles.title}>Database Game</h1>

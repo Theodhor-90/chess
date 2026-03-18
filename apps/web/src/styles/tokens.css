@@ -99,6 +99,12 @@
   --transition-duration: 150ms;
   --transition-easing: ease-in-out;
   --transition-default: var(--transition-duration) var(--transition-easing);
+
+  /* --- Breakpoints (documentation only — cannot be used in @media queries) --- */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
 }
 
 /* --- Dark theme placeholder (wired in M14) ---
