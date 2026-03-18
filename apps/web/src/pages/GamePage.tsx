@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { useGetMeQuery } from "../store/apiSlice.js";
 import { socketActions } from "../store/socketMiddleware.js";
 import { clearGame, clearError } from "../store/gameSlice.js";
 import { GameBoard } from "../components/GameBoard.js";
-import { Clock } from "../components/Clock.js";
+import { PlayerInfoBar } from "../components/PlayerInfoBar.js";
 import { MoveList } from "../components/MoveList.js";
 import { GameActions } from "../components/GameActions.js";
 import { GameOverOverlay } from "../components/GameOverOverlay.js";
 import { DisconnectBanner } from "../components/DisconnectBanner.js";
 import { ConnectionStatus } from "../components/ConnectionStatus.js";
+import styles from "./GamePage.module.css";
 import type { PlayerColor } from "@chess/shared";
 
 export function GamePage() {
@@ -80,56 +81,48 @@ export function GamePage() {
   const lastUpdate = clockState?.lastUpdate ?? Date.now();
 
   return (
-    <div>
+    <div className={styles.page}>
       {/* Disconnect banner at top */}
       <DisconnectBanner />
 
-      <div style={{ display: "flex", gap: "24px", padding: "16px", justifyContent: "center" }}>
+      <div className={styles.layout}>
         {/* Board column */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-          {/* Opponent clock (top) */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {topPlayer ? (
-              <Link
-                to={`/profile/${topPlayer.userId}`}
-                data-testid="top-player-label"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                {topLabel}
-              </Link>
-            ) : (
-              <span data-testid="top-player-label">{topLabel}</span>
-            )}
-            <Clock timeMs={topClockTime} isActive={topClockActive} lastUpdate={lastUpdate} />
-          </div>
+        <div className={styles.boardColumn}>
+          {/* Opponent info bar (top) */}
+          <PlayerInfoBar
+            username={topLabel}
+            userId={topPlayer?.userId ?? null}
+            timeMs={topClockTime}
+            isActive={topClockActive}
+            lastUpdate={lastUpdate}
+            fen={game.fen}
+            color={topClockColor}
+            testIdPrefix="top"
+          />
 
           {/* Board */}
           <GameBoard gameId={gameId} playerColor={playerColor} />
 
-          {/* Player clock (bottom) */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Clock timeMs={bottomClockTime} isActive={bottomClockActive} lastUpdate={lastUpdate} />
-            {bottomPlayer ? (
-              <Link
-                to={`/profile/${bottomPlayer.userId}`}
-                data-testid="bottom-player-label"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                {bottomLabel}
-              </Link>
-            ) : (
-              <span data-testid="bottom-player-label">{bottomLabel}</span>
-            )}
-          </div>
+          {/* Player info bar (bottom) */}
+          <PlayerInfoBar
+            username={bottomLabel}
+            userId={bottomPlayer?.userId ?? null}
+            timeMs={bottomClockTime}
+            isActive={bottomClockActive}
+            lastUpdate={lastUpdate}
+            fen={game.fen}
+            color={bottomClockColor}
+            testIdPrefix="bottom"
+          />
         </div>
 
         {/* Side panel */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
+        <div className={styles.sidePanel}>
           {/* Connection status */}
           <ConnectionStatus />
 
           {/* Game info */}
-          <div>
+          <div className={styles.gameInfo}>
             <strong>Status:</strong> {game.status}
             {game.currentTurn && game.status === "active" && (
               <span> - {game.currentTurn}&apos;s turn</span>
@@ -138,15 +131,7 @@ export function GamePage() {
 
           {/* Error banner */}
           {error && (
-            <div
-              role="alert"
-              style={{
-                padding: "8px",
-                backgroundColor: "#fee",
-                color: "#c00",
-                borderRadius: "4px",
-              }}
-            >
+            <div role="alert" className={styles.errorBanner}>
               {error}
             </div>
           )}

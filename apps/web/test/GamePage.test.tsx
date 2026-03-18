@@ -13,6 +13,7 @@ import {
 } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { Clock } from "../src/components/Clock.js";
+import { computeCapturedPieces, PlayerInfoBar } from "../src/components/PlayerInfoBar.js";
 import { MoveList } from "../src/components/MoveList.js";
 import { GameActions } from "../src/components/GameActions.js";
 import { GameOverOverlay } from "../src/components/GameOverOverlay.js";
@@ -28,6 +29,28 @@ vi.mock("../src/components/Clock.module.css", () => ({
     clock: "clock",
     active: "active",
     lowTime: "lowTime",
+  },
+}));
+
+vi.mock("../src/components/PlayerInfoBar.module.css", () => ({
+  default: {
+    bar: "bar",
+    playerInfo: "playerInfo",
+    usernameLink: "usernameLink",
+    username: "username",
+    captured: "captured",
+    capturedPiece: "capturedPiece",
+  },
+}));
+
+vi.mock("../src/pages/GamePage.module.css", () => ({
+  default: {
+    page: "page",
+    layout: "layout",
+    boardColumn: "boardColumn",
+    sidePanel: "sidePanel",
+    gameInfo: "gameInfo",
+    errorBanner: "errorBanner",
   },
 }));
 
@@ -286,6 +309,8 @@ describe("GamePage", () => {
     });
     expect(screen.getAllByTestId("clock")).toHaveLength(2);
     expect(screen.getByTestId("move-list")).toBeInTheDocument();
+    expect(screen.getByTestId("top-player-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("bottom-player-bar")).toBeInTheDocument();
   });
 
   it("updates board orientation when player color resolves after mount", async () => {
@@ -845,5 +870,158 @@ describe("ConnectionStatus", () => {
     // Default connectionStatus is "disconnected"
     expect(screen.getByTestId("connection-label")).toHaveTextContent("Disconnected");
     expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(220, 53, 69)");
+  });
+});
+
+describe("computeCapturedPieces", () => {
+  it("returns empty array for starting position", () => {
+    const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    expect(computeCapturedPieces(fen, "white")).toEqual([]);
+    expect(computeCapturedPieces(fen, "black")).toEqual([]);
+  });
+
+  it("returns captured pawns", () => {
+    const fen = "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2";
+    expect(computeCapturedPieces(fen, "white")).toEqual(["\u265F"]);
+    expect(computeCapturedPieces(fen, "black")).toEqual([]);
+  });
+
+  it("returns captured queens", () => {
+    const fen = "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1";
+    expect(computeCapturedPieces(fen, "white")).toEqual(["\u265B"]);
+    expect(computeCapturedPieces(fen, "black")).toEqual(["\u2655"]);
+  });
+
+  it("handles multiple captures of same piece type", () => {
+    const fen = "rnbqkbnr/6pp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    expect(computeCapturedPieces(fen, "white")).toEqual([
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+    ]);
+  });
+
+  it("orders pieces by value (queen, rook, bishop, knight, pawn)", () => {
+    const fen = "4k3/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1";
+    const result = computeCapturedPieces(fen, "white");
+    expect(result).toEqual([
+      "\u265B",
+      "\u265C",
+      "\u265C",
+      "\u265D",
+      "\u265D",
+      "\u265E",
+      "\u265E",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+    ]);
+  });
+});
+
+describe("PlayerInfoBar", () => {
+  it("renders username as link when userId is provided", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={5}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    const label = screen.getByTestId("top-player-label");
+    expect(label).toHaveTextContent("alice");
+    expect(label.tagName).toBe("A");
+    expect(label.getAttribute("href")).toContain("/profile/5");
+  });
+
+  it("renders username as span when userId is null", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="Unknown"
+          userId={null}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="white"
+          testIdPrefix="bottom"
+        />
+      </MemoryRouter>,
+    );
+    const label = screen.getByTestId("bottom-player-label");
+    expect(label).toHaveTextContent("Unknown");
+    expect(label.tagName).toBe("SPAN");
+  });
+
+  it("renders captured pieces from FEN", () => {
+    const fen = "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={1}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen={fen}
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("top-captured")).toHaveTextContent("\u265B");
+  });
+
+  it("renders empty captured area for starting position", () => {
+    const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={1}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen={fen}
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("top-captured")).toHaveTextContent("");
+  });
+
+  it("renders Clock component", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={1}
+          timeMs={120000}
+          isActive={true}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("clock")).toBeInTheDocument();
   });
 });
