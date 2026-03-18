@@ -222,4 +222,10 @@
   .hamburger {
     display: flex;
   }
+
+  .brand {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
 }

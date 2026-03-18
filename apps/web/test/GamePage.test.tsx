@@ -52,6 +52,10 @@ vi.mock("../src/pages/GamePage.module.css", () => ({
     sidePanel: "sidePanel",
     gameInfo: "gameInfo",
     errorBanner: "errorBanner",
+    viewingMoveIndicator: "viewingMoveIndicator",
+    backToLiveButton: "backToLiveButton",
+    desktopActions: "desktopActions",
+    mobileActionBar: "mobileActionBar",
   },
 }));
 
@@ -162,6 +166,8 @@ vi.mock("chess.js", () => ({
   Chess: vi.fn().mockImplementation(() => ({
     moves: vi.fn(() => []),
     get: vi.fn(() => null),
+    move: vi.fn(() => ({ from: "e2", to: "e4", san: "e4" })),
+    fen: vi.fn(() => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"),
   })),
 }));
 
@@ -200,6 +206,8 @@ beforeEach(() => {
       ({
         moves: vi.fn(() => []),
         get: vi.fn(() => null),
+        move: vi.fn(() => ({ from: "e2", to: "e4", san: "e4" })),
+        fen: vi.fn(() => "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"),
       }) as never,
   );
 });
@@ -579,6 +587,71 @@ describe("GamePage", () => {
     });
 
     expect(screen.getByTestId("game-board").getAttribute("style")).toBeNull();
+  });
+
+  it("renders mobile action bar when game is active and player is assigned", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("mobile-action-bar")).toBeInTheDocument();
+    });
+    // The action bar should contain resign and draw buttons
+    const actionBar = screen.getByTestId("mobile-action-bar");
+    expect(actionBar.querySelector('[data-testid="resign-button"]')).toBeInTheDocument();
+    expect(actionBar.querySelector('[data-testid="draw-button"]')).toBeInTheDocument();
+  });
+
+  it("does not render mobile action bar when game is finished", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("mobile-action-bar")).not.toBeInTheDocument();
+  });
+
+  it("does not render mobile action bar when playerColor is null (spectator)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 999, email: "spectator@test.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("mobile-action-bar")).not.toBeInTheDocument();
   });
 });
 

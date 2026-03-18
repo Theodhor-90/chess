@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams } from "react-router";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { useGetMeQuery } from "../store/apiSlice.js";
@@ -11,6 +11,8 @@ import { GameActions } from "../components/GameActions.js";
 import { GameOverOverlay } from "../components/GameOverOverlay.js";
 import { DisconnectBanner } from "../components/DisconnectBanner.js";
 import { ConnectionStatus } from "../components/ConnectionStatus.js";
+import { Chess } from "chess.js";
+import { useSwipeGesture } from "../hooks/useSwipeGesture.js";
 import styles from "./GamePage.module.css";
 import type { PlayerColor } from "@chess/shared";
 
@@ -34,6 +36,52 @@ export function GamePage() {
           ? "black"
           : null
       : null;
+
+  const boardColumnRef = useRef<HTMLDivElement>(null);
+  const [viewedMoveIndex, setViewedMoveIndex] = useState<number | null>(null);
+
+  const fens = useMemo(() => {
+    if (!game) return [];
+    const chess = new Chess();
+    const fenList = [chess.fen()];
+    for (const san of game.moves) {
+      try {
+        chess.move(san);
+        fenList.push(chess.fen());
+      } catch {
+        break;
+      }
+    }
+    return fenList;
+  }, [game?.moves.length]);
+
+  useEffect(() => {
+    setViewedMoveIndex(null);
+  }, [game?.moves.length]);
+
+  const handleSwipeLeft = useCallback(() => {
+    if (!game) return;
+    const maxIndex = game.moves.length;
+    setViewedMoveIndex((prev) => {
+      const current = prev ?? maxIndex;
+      return current < maxIndex ? current + 1 : null;
+    });
+  }, [game?.moves.length]);
+
+  const handleSwipeRight = useCallback(() => {
+    if (!game) return;
+    setViewedMoveIndex((prev) => {
+      const current = prev ?? game.moves.length;
+      return current > 0 ? current - 1 : 0;
+    });
+  }, [game?.moves.length]);
+
+  useSwipeGesture(boardColumnRef, {
+    onSwipeLeft: handleSwipeLeft,
+    onSwipeRight: handleSwipeRight,
+  });
+
+  const overrideFen = viewedMoveIndex !== null ? fens[viewedMoveIndex] : undefined;
 
   // Join/leave room on mount/unmount
   useEffect(() => {
@@ -87,7 +135,7 @@ export function GamePage() {
 
       <div className={styles.layout}>
         {/* Board column */}
-        <div className={styles.boardColumn}>
+        <div ref={boardColumnRef} className={styles.boardColumn}>
           {/* Opponent info bar (top) */}
           <PlayerInfoBar
             username={topLabel}
@@ -101,7 +149,7 @@ export function GamePage() {
           />
 
           {/* Board */}
-          <GameBoard gameId={gameId} playerColor={playerColor} />
+          <GameBoard gameId={gameId} playerColor={playerColor} overrideFen={overrideFen} />
 
           {/* Player info bar (bottom) */}
           <PlayerInfoBar
@@ -114,6 +162,20 @@ export function GamePage() {
             color={bottomClockColor}
             testIdPrefix="bottom"
           />
+          {viewedMoveIndex !== null && (
+            <div className={styles.viewingMoveIndicator}>
+              <span>
+                Viewing move {viewedMoveIndex} of {game.moves.length}
+              </span>
+              <button
+                type="button"
+                className={styles.backToLiveButton}
+                onClick={() => setViewedMoveIndex(null)}
+              >
+                Back to live
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Side panel */}
@@ -139,14 +201,23 @@ export function GamePage() {
           {/* Move list */}
           <MoveList moves={game.moves} />
 
-          {/* Game actions */}
-          <GameActions gameId={gameId} playerColor={playerColor} />
+          {/* Game actions — hidden on mobile (shown in fixed bottom bar instead) */}
+          <div className={styles.desktopActions}>
+            <GameActions gameId={gameId} playerColor={playerColor} />
+          </div>
         </div>
       </div>
 
       {/* Game over overlay */}
       {showOverlay && (
         <GameOverOverlay playerColor={playerColor} onDismiss={() => setShowOverlay(false)} />
+      )}
+
+      {/* Mobile action bar — fixed at bottom, visible only at mobile breakpoints during active games */}
+      {playerColor && game.status === "active" && (
+        <div className={styles.mobileActionBar} data-testid="mobile-action-bar">
+          <GameActions gameId={gameId} playerColor={playerColor} />
+        </div>
       )}
     </div>
   );

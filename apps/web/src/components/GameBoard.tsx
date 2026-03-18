@@ -35,9 +35,11 @@ function toColor(turn: PlayerColor): "white" | "black" {
 export function GameBoard({
   gameId,
   playerColor,
+  overrideFen,
 }: {
   gameId: number;
   playerColor: PlayerColor | null;
+  overrideFen?: string;
 }) {
   const dispatch = useAppDispatch();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -144,6 +146,15 @@ export function GameBoard({
   // Update Chessground when state changes
   useEffect(() => {
     if (!apiRef.current) return;
+    if (overrideFen) {
+      apiRef.current.set({
+        fen: overrideFen,
+        orientation: playerColor ?? "white",
+        viewOnly: true,
+        movable: { free: false, dests: new Map() },
+      });
+      return;
+    }
     apiRef.current.set({
       fen,
       orientation: playerColor ?? "white",
@@ -159,7 +170,7 @@ export function GameBoard({
         },
       },
     });
-  }, [fen, currentTurn, isGameActive, playerColor, dests, onMove]);
+  }, [fen, currentTurn, isGameActive, playerColor, dests, onMove, overrideFen]);
 
   // Redraw Chessground when container resizes
   useEffect(() => {

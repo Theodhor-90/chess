@@ -69,3 +69,20 @@
 .indicatorBlunder {
   background-color: var(--color-error);
 }
+
+@media (max-width: 768px) {
+  .moveCell {
+    padding: var(--space-3) var(--space-2);
+    min-height: 44px;
+  }
+
+  .moveCellEmpty {
+    padding: var(--space-3) var(--space-2);
+    min-height: 44px;
+  }
+
+  .moveNumber {
+    padding: var(--space-3) var(--space-2);
+    min-height: 44px;
+  }
+}
