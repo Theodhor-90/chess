@@ -1302,6 +1302,41 @@ describe("PromotionModal", () => {
 
     expect(screen.getByTestId("promotion-modal").getAttribute("style")).toBeNull();
   });
+
+  it("piece buttons are accessible buttons with aria-labels", () => {
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    const queenBtn = screen.getByTestId("promote-q");
+    const rookBtn = screen.getByTestId("promote-r");
+    const bishopBtn = screen.getByTestId("promote-b");
+    const knightBtn = screen.getByTestId("promote-n");
+
+    expect(queenBtn.tagName).toBe("BUTTON");
+    expect(rookBtn.tagName).toBe("BUTTON");
+    expect(bishopBtn.tagName).toBe("BUTTON");
+    expect(knightBtn.tagName).toBe("BUTTON");
+
+    expect(queenBtn).toHaveAttribute("aria-label", "Promote to Queen");
+    expect(rookBtn).toHaveAttribute("aria-label", "Promote to Rook");
+    expect(bishopBtn).toHaveAttribute("aria-label", "Promote to Bishop");
+    expect(knightBtn).toHaveAttribute("aria-label", "Promote to Knight");
+  });
+
+  it("piece buttons have type='button' attribute", () => {
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByTestId("promote-q")).toHaveAttribute("type", "button");
+    expect(screen.getByTestId("promote-r")).toHaveAttribute("type", "button");
+    expect(screen.getByTestId("promote-b")).toHaveAttribute("type", "button");
+    expect(screen.getByTestId("promote-n")).toHaveAttribute("type", "button");
+  });
+
+  it("renders overlay with correct data-testid for backdrop click", () => {
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    const overlay = screen.getByTestId("promotion-modal");
+    expect(overlay).toHaveClass("overlay");
+  });
 });
 
 describe("computeCapturedPieces", () => {

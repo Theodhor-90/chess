@@ -54,3 +54,41 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* === Mobile Bottom Sheet === */
+@media (max-width: 768px) {
+  .overlay {
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+
+  .panel {
+    width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: var(--space-5) var(--space-4) var(--space-6);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 30vh;
+    transform: translateY(0);
+    animation: slideUp var(--transition-duration) var(--transition-easing);
+  }
+
+  .pieces {
+    justify-content: center;
+    gap: var(--space-4);
+  }
+
+  .pieceButton {
+    width: 64px;
+    height: 64px;
+    font-size: 42px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
