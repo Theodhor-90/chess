@@ -12,6 +12,11 @@ interface InputProps {
   disabled?: boolean;
   type?: string;
   className?: string;
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  title?: string;
 }
 
 function Input({
@@ -24,6 +29,11 @@ function Input({
   disabled = false,
   type = "text",
   className,
+  required,
+  minLength,
+  maxLength,
+  pattern,
+  title,
 }: InputProps) {
   const generatedId = useId();
   const inputId = `input-${generatedId}`;
@@ -45,6 +55,11 @@ function Input({
         placeholder={placeholder}
         disabled={disabled}
         className={inputClassNames}
+        required={required}
+        minLength={minLength}
+        maxLength={maxLength}
+        pattern={pattern}
+        title={title}
       />
       {error && (
         <span role="alert" className={styles.errorMessage}>

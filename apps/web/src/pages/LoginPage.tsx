@@ -3,6 +3,10 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useLoginMutation } from "../store/apiSlice.js";
 import { useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
+import { Card } from "../components/ui/Card.js";
+import { Input } from "../components/ui/Input.js";
+import { Button } from "../components/ui/Button.js";
+import styles from "./LoginPage.module.css";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -32,46 +36,49 @@ export function LoginPage() {
         : "";
 
   return (
-    <div>
-      <h1>Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
+    <div className={styles.page}>
+      <Card padding="lg" className={styles.card}>
+        <h1 className={styles.title}>Login</h1>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <Input
+            label="Email"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
+          <Input
+            label="Password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-        </div>
-        {errorMessage && <p role="alert">{errorMessage}</p>}
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? "Logging in…" : "Login"}
-        </button>
-      </form>
-      <p>
-        Don&apos;t have an account?{" "}
-        <Link
-          to={
-            searchParams.get("redirect")
-              ? `/register?redirect=${searchParams.get("redirect")}`
-              : "/register"
-          }
-        >
-          Register
-        </Link>
-      </p>
+          {errorMessage && (
+            <p role="alert" className={styles.error}>
+              {errorMessage}
+            </p>
+          )}
+          <Button type="submit" loading={isLoading}>
+            {isLoading ? "Logging in…" : "Login"}
+          </Button>
+        </form>
+        <p className={styles.footer}>
+          Don&apos;t have an account?{" "}
+          <Link
+            to={
+              searchParams.get("redirect")
+                ? `/register?redirect=${searchParams.get("redirect")}`
+                : "/register"
+            }
+            className={styles.footerLink}
+          >
+            Register
+          </Link>
+        </p>
+      </Card>
     </div>
   );
 }

@@ -1,11 +1,20 @@
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useGetMeQuery, useLogoutMutation } from "../store/apiSlice.js";
 import { useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
+import { Button } from "./ui/Button.js";
 import styles from "./NavHeader.module.css";
+
+const NAV_LINKS = [
+  { to: "/", label: "Dashboard" },
+  { to: "/history", label: "History" },
+  { to: "/training", label: "Training" },
+  { to: "/database", label: "Database" },
+] as const;
 
 export function NavHeader() {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const { data: meData } = useGetMeQuery();
   const [logout] = useLogoutMutation();
@@ -22,17 +31,30 @@ export function NavHeader() {
     navigate("/login");
   }
 
+  function isActive(path: string): boolean {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  }
+
   return (
-    <nav data-testid="nav-header" className={styles.nav}>
-      <div className={styles.leftGroup}>
-        <Link to="/" className={styles.titleLink}>
-          Chess Platform
-        </Link>
-        <Link to="/database" data-testid="nav-database" className={styles.navLink}>
-          Database
-        </Link>
-      </div>
-      <div>
+    <header data-testid="nav-header" className={styles.header}>
+      <Link to="/" className={styles.brand}>
+        Chess Platform
+      </Link>
+
+      <nav className={styles.nav}>
+        {NAV_LINKS.map((link) => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className={`${styles.navLink} ${isActive(link.to) ? styles.navLinkActive : ""}`}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </nav>
+
+      <div className={styles.userArea}>
         {isAuthenticated ? (
           <>
             <Link
@@ -41,15 +63,17 @@ export function NavHeader() {
               className={styles.userLink}
             >
               {meData.user.username}
-            </Link>{" "}
-            <button data-testid="logout-button" onClick={handleLogout}>
+            </Link>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
               Logout
-            </button>
+            </Button>
           </>
         ) : (
-          <Link to="/login">Login</Link>
+          <Link to="/login" className={styles.navLink}>
+            Login
+          </Link>
         )}
       </div>
-    </nav>
+    </header>
   );
 }
