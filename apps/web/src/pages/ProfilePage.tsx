@@ -1,5 +1,21 @@
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, Link } from "react-router";
 import { useGetUserStatsQuery } from "../store/apiSlice.js";
+import type { RecentGameItem } from "@chess/shared";
+import type { TableColumn } from "../components/ui/Table.js";
+import { Card } from "../components/ui/Card.js";
+import { Badge } from "../components/ui/Badge.js";
+import { Table } from "../components/ui/Table.js";
+import styles from "./ProfilePage.module.css";
+
+function resultBadge(result: "win" | "loss" | "draw") {
+  const map = {
+    win: { variant: "success" as const, label: "W" },
+    loss: { variant: "danger" as const, label: "L" },
+    draw: { variant: "neutral" as const, label: "D" },
+  };
+  const { variant, label } = map[result];
+  return <Badge variant={variant}>{label}</Badge>;
+}
 
 export function ProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -9,10 +25,7 @@ export function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{ maxWidth: "800px", margin: "0 auto", padding: "16px" }}
-        data-testid="profile-loading"
-      >
+      <div className={styles.page} data-testid="profile-loading">
         Loading...
       </div>
     );
@@ -20,62 +33,80 @@ export function ProfilePage() {
 
   if (isError || !data) {
     return (
-      <div
-        style={{ maxWidth: "800px", margin: "0 auto", padding: "16px" }}
-        data-testid="profile-error"
-      >
+      <div className={styles.page} data-testid="profile-error">
         User not found.
       </div>
     );
   }
 
-  const cardStyle = {
-    padding: "16px",
-    border: "1px solid #e0e0e0",
-    borderRadius: "8px",
-    minWidth: "180px",
-    flex: "1",
-  };
-
   const pct = (count: number) =>
     data.totalGames > 0 ? ((count / data.totalGames) * 100).toFixed(1) : "0.0";
 
+  const recentColumns: TableColumn<RecentGameItem>[] = [
+    {
+      key: "opponentUsername",
+      header: "Opponent",
+      render: (row) => (
+        <Link
+          to={`/profile/${row.opponentId}`}
+          onClick={(e) => e.stopPropagation()}
+          className={styles.opponentLink}
+        >
+          {row.opponentUsername}
+        </Link>
+      ),
+    },
+    {
+      key: "result",
+      header: "Result",
+      render: (row) => resultBadge(row.result),
+    },
+    {
+      key: "resultReason",
+      header: "Reason",
+      render: (row) => row.resultReason.charAt(0).toUpperCase() + row.resultReason.slice(1),
+    },
+    {
+      key: "playedAt",
+      header: "Date",
+      render: (row) => new Date(row.playedAt * 1000).toLocaleDateString(),
+    },
+  ];
+
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "16px" }}>
-      <h1>{data.username}</h1>
+    <div className={styles.page}>
+      <h1 className={styles.title}>{data.username}</h1>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "32px" }}>
-        <div style={cardStyle}>
-          <div style={{ color: "#757575", marginBottom: "4px" }}>Total Games</div>
-          <div style={{ fontSize: "24px", fontWeight: "bold" }}>{data.totalGames}</div>
-        </div>
+      <div className={styles.statsGrid}>
+        <Card className={styles.statCard}>
+          <div className={styles.statLabel}>Total Games</div>
+          <div className={styles.statValue}>{data.totalGames}</div>
+        </Card>
 
-        <div style={cardStyle}>
-          <div style={{ color: "#757575", marginBottom: "4px" }}>Win Rate</div>
-          <div style={{ fontSize: "24px", fontWeight: "bold" }}>{data.winRate}%</div>
-        </div>
+        <Card className={styles.statCard}>
+          <div className={styles.statLabel}>Win Rate</div>
+          <div className={`${styles.statValue} ${styles.statValueSuccess}`}>{data.winRate}%</div>
+        </Card>
 
-        <div style={cardStyle}>
-          <div style={{ color: "#757575", marginBottom: "4px" }}>Record</div>
-          <div>
-            <span style={{ color: "#4CAF50", fontWeight: "bold" }}>
+        <Card className={styles.statCard}>
+          <div className={styles.statLabel}>Record</div>
+          <div className={styles.recordLine}>
+            <Badge variant="success">
               {data.wins}W ({pct(data.wins)}%)
-            </span>
-            {" / "}
-            <span style={{ color: "#d32f2f", fontWeight: "bold" }}>
+            </Badge>
+            <Badge variant="danger">
               {data.losses}L ({pct(data.losses)}%)
-            </span>
-            {" / "}
-            <span style={{ color: "#757575", fontWeight: "bold" }}>
+            </Badge>
+            <Badge variant="neutral">
               {data.draws}D ({pct(data.draws)}%)
-            </span>
+            </Badge>
           </div>
-        </div>
+        </Card>
 
-        <div style={cardStyle}>
-          <div style={{ color: "#757575", marginBottom: "4px" }}>Avg Accuracy</div>
+        <Card className={styles.statCard}>
+          <div className={styles.statLabel}>Avg Accuracy</div>
           {data.avgAccuracy.white === null && data.avgAccuracy.black === null ? (
-            <div>N/A</div>
+            <div className={styles.statValue}>N/A</div>
           ) : (
             <div>
               <div>
@@ -86,58 +117,17 @@ export function ProfilePage() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
-      <h2>Recent Games</h2>
+      <h2 className={styles.sectionTitle}>Recent Games</h2>
 
-      {data.recentGames.length === 0 ? (
-        <div data-testid="profile-no-games">No games played yet.</div>
-      ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ padding: "8px", textAlign: "left" }}>Opponent</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Result</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Reason</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.recentGames.map((game) => (
-              <tr
-                key={game.gameId}
-                data-testid={`profile-game-${game.gameId}`}
-                onClick={() => navigate(`/analysis/${game.gameId}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <td style={{ padding: "8px" }}>{game.opponentUsername}</td>
-                <td style={{ padding: "8px" }}>
-                  <span
-                    style={{
-                      color:
-                        game.result === "win"
-                          ? "#4CAF50"
-                          : game.result === "loss"
-                            ? "#d32f2f"
-                            : "#757575",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {game.result === "win" ? "W" : game.result === "loss" ? "L" : "D"}
-                  </span>
-                </td>
-                <td style={{ padding: "8px" }}>
-                  {game.resultReason.charAt(0).toUpperCase() + game.resultReason.slice(1)}
-                </td>
-                <td style={{ padding: "8px" }}>
-                  {new Date(game.playedAt * 1000).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <Table<RecentGameItem>
+        columns={recentColumns}
+        data={data.recentGames}
+        onRowClick={(row) => navigate(`/analysis/${row.gameId}`)}
+        emptyMessage="No games played yet."
+      />
     </div>
   );
 }
