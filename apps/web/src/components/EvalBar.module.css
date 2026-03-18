@@ -38,3 +38,13 @@
 .scoreLabelLight {
   color: var(--color-gray-100);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .blackFill {
+    transition: none;
+  }
+
+  .whiteFill {
+    transition: none;
+  }
+}

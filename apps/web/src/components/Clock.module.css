@@ -42,3 +42,13 @@
 .urgentPulse {
   animation: clockPulse 2s ease-in-out infinite;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .clock {
+    transition: none;
+  }
+
+  .urgentPulse {
+    animation: none;
+  }
+}

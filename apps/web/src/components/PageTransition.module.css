@@ -10,3 +10,9 @@
 .transition {
   animation: fadeIn 200ms ease-out;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .transition {
+    animation: none;
+  }
+}

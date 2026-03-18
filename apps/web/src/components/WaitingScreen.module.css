@@ -42,3 +42,9 @@
 .actions {
   padding-top: var(--space-2);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

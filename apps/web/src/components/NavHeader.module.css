@@ -246,3 +246,33 @@
     align-items: center;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .navLink {
+    transition: none;
+  }
+
+  .settingsLink {
+    transition: none;
+  }
+
+  .hamburger {
+    transition: none;
+  }
+
+  .hamburgerLine {
+    transition: none;
+  }
+
+  .menuBackdrop {
+    transition: none;
+  }
+
+  .mobileMenu {
+    transition: none;
+  }
+
+  .mobileMenuLink {
+    transition: none;
+  }
+}

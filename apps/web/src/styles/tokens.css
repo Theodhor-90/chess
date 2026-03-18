@@ -8,15 +8,15 @@
   --color-primary: #1a73e8;
   --color-primary-hover: #1557b0;
   --color-primary-active: #104a96;
-  --color-primary-light: #e8f0fe;
+  --color-primary-light: #d4e4fc;
 
   /* --- Colors: Semantic --- */
-  --color-success: #4caf50;
+  --color-success: #2e7d32;
   --color-success-light: #e8f5e9;
   --color-error: #d32f2f;
   --color-error-hover: #b71c1c;
   --color-error-active: #9a1515;
-  --color-error-light: #fdecea;
+  --color-error-light: #f9ddd9;
   --color-warning: #ffc107;
   --color-warning-light: #fff8e1;
 
@@ -43,7 +43,7 @@
   /* --- Colors: Text --- */
   --color-text: #212121;
   --color-text-secondary: #616161;
-  --color-text-disabled: #9e9e9e;
+  --color-text-disabled: #767676;
   --color-text-inverse: #ffffff;
   --color-text-link: #1a73e8;
 
@@ -102,7 +102,7 @@
   --color-shadow-subtle: rgba(0, 0, 0, 0.1);
 
   /* --- Move classifications --- */
-  --color-mistake: #f97316;
+  --color-mistake: #c2410c;
 
   /* --- Transitions --- */
   --transition-duration: 150ms;
@@ -140,7 +140,7 @@
   --color-error: #ef5350;
   --color-error-hover: #e53935;
   --color-error-active: #c62828;
-  --color-error-light: #3e1a1a;
+  --color-error-light: #4a1f1f;
   --color-warning: #ffca28;
   --color-warning-light: #3e3215;
 
@@ -167,7 +167,7 @@
   /* --- Colors: Text --- */
   --color-text: #e0e0e0;
   --color-text-secondary: #a0a0a0;
-  --color-text-disabled: #6e6e6e;
+  --color-text-disabled: #757575;
   --color-text-inverse: #121212;
   --color-text-link: #8ab4f8;
 
