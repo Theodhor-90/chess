@@ -180,7 +180,7 @@ describe("DatabaseGameViewerPage", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("pgn-accuracy-display")).toHaveTextContent(
-        "White: 91.4% — Black: 84.2%",
+        "White: 91.4% Black: 84.2%",
       );
     });
   });

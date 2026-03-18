@@ -21,6 +21,10 @@ import type {
   EngineLineInfo,
   PgnAnalysisProgressPayload,
 } from "@chess/shared";
+import { Card } from "../components/ui/Card.js";
+import { Button } from "../components/ui/Button.js";
+import { Badge } from "../components/ui/Badge.js";
+import styles from "./DatabaseGameViewerPage.module.css";
 
 function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
   const chess = new Chess(branchFen);
@@ -85,12 +89,12 @@ export function DatabaseGameViewerPage() {
   const isAuthenticated = !!meData?.user;
 
   if (isNaN(gameId)) {
-    return <div style={{ padding: "16px" }}>Invalid game ID</div>;
+    return <div className={styles.statusMessage}>Invalid game ID</div>;
   }
 
   if (isLoading) {
     return (
-      <div data-testid="db-viewer-loading" style={{ padding: "16px" }}>
+      <div data-testid="db-viewer-loading" className={styles.statusMessage}>
         Loading game...
       </div>
     );
@@ -98,7 +102,7 @@ export function DatabaseGameViewerPage() {
 
   if (isError || !game) {
     return (
-      <div data-testid="db-viewer-error" style={{ padding: "16px" }}>
+      <div data-testid="db-viewer-error" className={styles.statusMessage}>
         Game not found.
       </div>
     );
@@ -350,156 +354,124 @@ function DatabaseGameViewer({
   }, [currentFen, arrowShapes]);
 
   return (
-    <div
-      data-testid="db-game-viewer"
-      style={{ padding: "16px", maxWidth: "1000px", margin: "0 auto" }}
-    >
-      <h1>Database Game</h1>
-      <div data-testid="db-game-metadata" style={{ fontSize: "14px", marginBottom: "8px" }}>
-        <div>
-          <strong>{game.white}</strong> ({game.whiteElo}) vs <strong>{game.black}</strong> (
-          {game.blackElo})
-        </div>
-        <div style={{ color: "#666", marginTop: "4px" }}>
-          {game.opening && (
-            <span>
-              {game.eco ? `${game.eco}: ` : ""}
-              {game.opening} ·{" "}
-            </span>
-          )}
-          {game.result}
-          {game.date && <span> · {game.date}</span>}
-          {game.timeControl && <span> · {game.timeControl}</span>}
-          {game.termination && <span> · {game.termination}</span>}
-        </div>
-        <div style={{ marginTop: "4px" }}>
-          <a
-            href={game.lichessUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="lichess-link"
-            style={{ color: "#1a73e8", fontSize: "13px" }}
-          >
-            View on Lichess
-          </a>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: "24px" }}>
-        {currentEval && <EvalBar score={currentEval} />}
-        <div
-          ref={containerRef}
-          data-testid="db-viewer-board"
-          style={{ width: "400px", height: "400px", flexShrink: 0 }}
-        />
-        <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
-          {variation && (
-            <div
-              data-testid="variation-indicator"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 12px",
-                backgroundColor: "#e8f0fe",
-                borderRadius: "4px",
-                fontSize: "13px",
-              }}
+    <div data-testid="db-game-viewer" className={styles.page}>
+      <h1 className={styles.title}>Database Game</h1>
+
+      <Card className={styles.metadata}>
+        <div data-testid="db-game-metadata">
+          <div className={styles.metadataPlayers}>
+            {game.white} ({game.whiteElo}) vs {game.black} ({game.blackElo})
+          </div>
+          <div className={styles.metadataDetails}>
+            {game.opening && (
+              <span>
+                {game.eco ? `${game.eco}: ` : ""}
+                {game.opening} ·{" "}
+              </span>
+            )}
+            <Badge
+              variant={
+                game.result === "1-0" ? "success" : game.result === "0-1" ? "danger" : "neutral"
+              }
             >
-              <span style={{ color: "#1a73e8" }}>Viewing engine line</span>
+              {game.result}
+            </Badge>
+            {game.date && <span> · {game.date}</span>}
+            {game.timeControl && <span> · {game.timeControl}</span>}
+            {game.termination && <span> · {game.termination}</span>}
+          </div>
+          <div>
+            <a
+              href={game.lichessUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="lichess-link"
+              className={styles.lichessLink}
+            >
+              View on Lichess ↗
+            </a>
+          </div>
+        </div>
+      </Card>
+
+      <div className={styles.layout}>
+        <div className={styles.boardArea}>
+          {currentEval && <EvalBar score={currentEval} />}
+          <div ref={containerRef} data-testid="db-viewer-board" className={styles.board} />
+        </div>
+        <div className={styles.sidePanel}>
+          <Card header="Engine Lines">
+            <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
+          </Card>
+          {variation && (
+            <div data-testid="variation-indicator" className={styles.variationIndicator}>
+              <span className={styles.variationLabel}>Viewing engine line</span>
               <button
                 data-testid="back-to-main-line"
                 onClick={() => setVariation(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#1a73e8",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  textDecoration: "underline",
-                  padding: 0,
-                }}
+                className={styles.backToMainLine}
               >
                 Back to main line
               </button>
             </div>
           )}
-          <AnalysisMoveList
-            moves={moves}
-            currentMoveIndex={currentMoveIndex}
-            onMoveClick={(index: number) => {
-              setVariation(null);
-              setCurrentMoveIndex(index);
-            }}
-            classifications={classifications}
-          />
+          <Card header="Moves">
+            <AnalysisMoveList
+              moves={moves}
+              currentMoveIndex={currentMoveIndex}
+              onMoveClick={(index: number) => {
+                setVariation(null);
+                setCurrentMoveIndex(index);
+              }}
+              classifications={classifications}
+            />
+          </Card>
           {analysisState === "idle" &&
             (isAuthenticated ? (
-              <button
+              <Button
                 data-testid="analyze-pgn-button"
                 onClick={handleAnalyze}
-                style={{
-                  backgroundColor: "#4CAF50",
-                  color: "white",
-                  padding: "12px 24px",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                }}
+                variant="primary"
+                size="lg"
               >
                 Analyze with engine
-              </button>
+              </Button>
             ) : (
-              <div style={{ fontSize: "14px", color: "#666" }}>
-                <Link to="/login" style={{ color: "#1a73e8" }}>
+              <div className={styles.loginPrompt}>
+                <Link to="/login" className={styles.loginLink}>
                   Log in
                 </Link>{" "}
                 to analyze with engine
               </div>
             ))}
           {analysisState === "running" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div data-testid="pgn-analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
+            <div className={styles.buttonGroup}>
+              <div data-testid="pgn-analysis-progress" className={styles.progressText}>
                 {completedPositions !== null && totalPositions !== null
                   ? `Analyzing... ${completedPositions}/${totalPositions} positions`
                   : "Starting analysis..."}
               </div>
-              <button
+              <Button
                 data-testid="cancel-pgn-analysis-button"
                 onClick={handleCancel}
-                style={{
-                  backgroundColor: "#f44336",
-                  color: "white",
-                  padding: "8px 16px",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                }}
+                variant="danger"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
           {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (
-            <div
-              data-testid="pgn-accuracy-display"
-              style={{ fontSize: "14px", fontWeight: "bold" }}
-            >
-              White: {whiteAccuracy.toFixed(1)}% — Black: {blackAccuracy.toFixed(1)}%
+            <div data-testid="pgn-accuracy-display" className={styles.accuracyDisplay}>
+              <Badge variant="neutral">White: {whiteAccuracy.toFixed(1)}%</Badge>{" "}
+              <Badge variant="neutral">Black: {blackAccuracy.toFixed(1)}%</Badge>
             </div>
           )}
           {analyzeError && (
-            <div data-testid="pgn-analysis-error" style={{ fontSize: "14px", color: "#d32f2f" }}>
+            <div data-testid="pgn-analysis-error" className={styles.errorMessage}>
               {analyzeError}
             </div>
           )}
-          <Link
-            to="/database"
-            style={{ color: "#1a73e8", fontSize: "14px", textDecoration: "none" }}
-          >
+          <Link to="/database" className={styles.backLink}>
             ← Back to database
           </Link>
         </div>

@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import type { DatabaseGameSortField, SortOrder } from "@chess/shared";
+import type { DatabaseGameSortField, SortOrder, DatabaseGame } from "@chess/shared";
+
+type DatabaseGameRow = Omit<DatabaseGame, "pgn">;
 import { useGetDatabaseGamesQuery } from "../store/apiSlice.js";
+import type { TableColumn } from "../components/ui/Table.js";
+import { Card } from "../components/ui/Card.js";
+import { Input } from "../components/ui/Input.js";
+import { Select } from "../components/ui/Select.js";
+import { Table } from "../components/ui/Table.js";
+import { Badge } from "../components/ui/Badge.js";
+import { Pagination } from "../components/ui/Pagination.js";
+import styles from "./DatabasePage.module.css";
 
 const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 300;
@@ -61,6 +71,19 @@ function buildSearchParams(
   if (sort !== "date") params.set("sort", sort);
   if (order !== "desc") params.set("order", order);
   return params;
+}
+
+const RESULT_OPTIONS = [
+  { value: "", label: "All" },
+  { value: "1-0", label: "White wins" },
+  { value: "0-1", label: "Black wins" },
+  { value: "1/2-1/2", label: "Draw" },
+];
+
+function resultBadge(result: string) {
+  if (result === "1-0") return <Badge variant="success">{result}</Badge>;
+  if (result === "0-1") return <Badge variant="danger">{result}</Badge>;
+  return <Badge variant="neutral">{result}</Badge>;
 }
 
 export function DatabasePage() {
@@ -129,7 +152,8 @@ export function DatabasePage() {
     setFilters((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleSort(field: DatabaseGameSortField) {
+  function handleSort(columnKey: string) {
+    const field = columnKey as DatabaseGameSortField;
     if (sort === field) {
       setOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
@@ -138,37 +162,9 @@ export function DatabasePage() {
     }
   }
 
-  const containerStyle = { maxWidth: "1100px", margin: "0 auto", padding: "16px" };
-  const labelStyle = {
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "2px",
-    fontSize: "12px",
-    color: "#666",
-  };
-  const inputStyle = {
-    padding: "4px 8px",
-    fontSize: "14px",
-    border: "1px solid #ccc",
-    borderRadius: "4px",
-    width: "140px",
-  };
-  const thStyle = {
-    padding: "8px",
-    textAlign: "left" as const,
-    cursor: "pointer",
-    userSelect: "none" as const,
-  };
-  const tdStyle = { padding: "8px" };
-
-  function sortIndicator(field: DatabaseGameSortField): string {
-    if (sort !== field) return "";
-    return order === "asc" ? " ↑" : " ↓";
-  }
-
   if (isLoading) {
     return (
-      <div style={containerStyle} data-testid="db-loading">
+      <div className={styles.page} data-testid="db-loading">
         Loading...
       </div>
     );
@@ -178,238 +174,169 @@ export function DatabasePage() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const columns: TableColumn<DatabaseGameRow>[] = [
+    {
+      key: "whiteElo",
+      header: "White (Elo)",
+      sortable: true,
+      render: (row) => `${row.white} (${row.whiteElo})`,
+    },
+    {
+      key: "blackElo",
+      header: "Black (Elo)",
+      sortable: true,
+      render: (row) => `${row.black} (${row.blackElo})`,
+    },
+    {
+      key: "eco",
+      header: "ECO",
+      sortable: true,
+      render: (row) => row.eco ?? "—",
+    },
+    {
+      key: "opening",
+      header: "Opening",
+      sortable: true,
+      render: (row) => row.opening ?? "—",
+    },
+    {
+      key: "result",
+      header: "Result",
+      render: (row) => resultBadge(row.result),
+    },
+    {
+      key: "date",
+      header: "Date",
+      sortable: true,
+      render: (row) => row.date ?? "—",
+    },
+    {
+      key: "timeControl",
+      header: "Time Control",
+      render: (row) => row.timeControl ?? "—",
+    },
+  ];
+
   return (
-    <div style={containerStyle}>
-      <h1>Game Database</h1>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
-        <label style={labelStyle}>
-          Player
-          <input
-            type="text"
+    <div className={styles.page}>
+      <h1 className={styles.title}>Game Database</h1>
+
+      <Card className={styles.filterCard} header="Filters">
+        <div className={styles.filterGrid}>
+          <Input
+            label="Player"
+            name="filter-player"
             value={filters.player}
             onChange={(e) => handleFilterChange("player", e.target.value)}
             placeholder="Any player..."
-            style={inputStyle}
-            data-testid="filter-player"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          White
-          <input
-            type="text"
+          <Input
+            label="White"
+            name="filter-white"
             value={filters.white}
             onChange={(e) => handleFilterChange("white", e.target.value)}
             placeholder="White player..."
-            style={inputStyle}
-            data-testid="filter-white"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Black
-          <input
-            type="text"
+          <Input
+            label="Black"
+            name="filter-black"
             value={filters.black}
             onChange={(e) => handleFilterChange("black", e.target.value)}
             placeholder="Black player..."
-            style={inputStyle}
-            data-testid="filter-black"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Min Elo
-          <input
-            type="number"
+          <Input
+            label="Min Elo"
+            name="filter-min-elo"
             value={filters.minElo}
             onChange={(e) => handleFilterChange("minElo", e.target.value)}
             placeholder="e.g. 2000"
-            style={inputStyle}
-            data-testid="filter-min-elo"
-          />
-        </label>
-        <label style={labelStyle}>
-          Max Elo
-          <input
             type="number"
+            className={styles.filterField}
+          />
+          <Input
+            label="Max Elo"
+            name="filter-max-elo"
             value={filters.maxElo}
             onChange={(e) => handleFilterChange("maxElo", e.target.value)}
             placeholder="e.g. 2800"
-            style={inputStyle}
-            data-testid="filter-max-elo"
+            type="number"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Result
-          <select
+          <Select
+            label="Result"
+            name="filter-result"
             value={filters.result}
             onChange={(e) => handleFilterChange("result", e.target.value)}
-            style={inputStyle}
-            data-testid="filter-result"
-          >
-            <option value="">All</option>
-            <option value="1-0">White wins</option>
-            <option value="0-1">Black wins</option>
-            <option value="1/2-1/2">Draw</option>
-          </select>
-        </label>
-        <label style={labelStyle}>
-          ECO
-          <input
-            type="text"
+            options={RESULT_OPTIONS}
+            className={styles.filterField}
+          />
+          <Input
+            label="ECO"
+            name="filter-eco"
             value={filters.eco}
             onChange={(e) => handleFilterChange("eco", e.target.value)}
             placeholder="e.g. C50"
-            style={inputStyle}
-            data-testid="filter-eco"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Opening
-          <input
-            type="text"
+          <Input
+            label="Opening"
+            name="filter-opening"
             value={filters.opening}
             onChange={(e) => handleFilterChange("opening", e.target.value)}
             placeholder="Opening name..."
-            style={inputStyle}
-            data-testid="filter-opening"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Date from
-          <input
-            type="text"
+          <Input
+            label="Date from"
+            name="filter-date-from"
             value={filters.dateFrom}
             onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
             placeholder="YYYY.MM.DD"
-            style={inputStyle}
-            data-testid="filter-date-from"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Date to
-          <input
-            type="text"
+          <Input
+            label="Date to"
+            name="filter-date-to"
             value={filters.dateTo}
             onChange={(e) => handleFilterChange("dateTo", e.target.value)}
             placeholder="YYYY.MM.DD"
-            style={inputStyle}
-            data-testid="filter-date-to"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Time control
-          <input
-            type="text"
+          <Input
+            label="Time control"
+            name="filter-time-control"
             value={filters.timeControl}
             onChange={(e) => handleFilterChange("timeControl", e.target.value)}
             placeholder="e.g. 600+0"
-            style={inputStyle}
-            data-testid="filter-time-control"
+            className={styles.filterField}
           />
-        </label>
-        <label style={labelStyle}>
-          Termination
-          <input
-            type="text"
+          <Input
+            label="Termination"
+            name="filter-termination"
             value={filters.termination}
             onChange={(e) => handleFilterChange("termination", e.target.value)}
             placeholder="e.g. Normal"
-            style={inputStyle}
-            data-testid="filter-termination"
+            className={styles.filterField}
           />
-        </label>
-      </div>
-      {games.length === 0 ? (
-        <div data-testid="db-empty">No games found.</div>
-      ) : (
-        <>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={thStyle} onClick={() => handleSort("whiteElo")}>
-                  White (Elo)
-                  {sortIndicator("whiteElo")}
-                </th>
-                <th style={thStyle} onClick={() => handleSort("blackElo")}>
-                  Black (Elo)
-                  {sortIndicator("blackElo")}
-                </th>
-                <th style={thStyle} onClick={() => handleSort("eco")}>
-                  ECO
-                  {sortIndicator("eco")}
-                </th>
-                <th style={thStyle} onClick={() => handleSort("opening")}>
-                  Opening
-                  {sortIndicator("opening")}
-                </th>
-                <th style={{ ...thStyle, cursor: "default" }}>Result</th>
-                <th style={thStyle} onClick={() => handleSort("date")}>
-                  Date
-                  {sortIndicator("date")}
-                </th>
-                <th style={{ ...thStyle, cursor: "default" }}>Time Control</th>
-              </tr>
-            </thead>
-            <tbody>
-              {games.map((game) => (
-                <tr
-                  key={game.id}
-                  data-testid={`db-game-row-${game.id}`}
-                  onClick={() => navigate(`/database/games/${game.id}/view`)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <td style={tdStyle}>
-                    {game.white} ({game.whiteElo})
-                  </td>
-                  <td style={tdStyle}>
-                    {game.black} ({game.blackElo})
-                  </td>
-                  <td style={tdStyle}>{game.eco ?? "—"}</td>
-                  <td style={tdStyle}>{game.opening ?? "—"}</td>
-                  <td style={tdStyle}>
-                    <span
-                      style={{
-                        color:
-                          game.result === "1-0"
-                            ? "#4CAF50"
-                            : game.result === "0-1"
-                              ? "#d32f2f"
-                              : "#757575",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {game.result}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>{game.date ?? "—"}</td>
-                  <td style={tdStyle}>{game.timeControl ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div
-            data-testid="db-pagination"
-            style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px" }}
-          >
-            <button
-              data-testid="db-prev"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </button>
-            <span data-testid="db-page-info">
-              Page {page} of {totalPages} ({total} total games)
-            </span>
-            <button
-              data-testid="db-next"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </button>
-          </div>
-        </>
-      )}
+        </div>
+      </Card>
+
+      <div className={styles.totalInfo}>{total} total games</div>
+
+      <Table<DatabaseGameRow>
+        columns={columns}
+        data={games}
+        sortColumn={sort}
+        sortDirection={order}
+        onSort={handleSort}
+        onRowClick={(row) => navigate(`/database/games/${row.id}/view`)}
+        emptyMessage="No games found."
+      />
+
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

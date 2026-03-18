@@ -1,0 +1,32 @@
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.filterGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.filterCard {
+  margin-bottom: var(--space-4);
+}
+
+.filterField {
+  width: 140px;
+}
+
+.totalInfo {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
