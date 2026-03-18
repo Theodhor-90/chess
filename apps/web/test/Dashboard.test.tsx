@@ -10,6 +10,7 @@ import { DashboardPage } from "../src/pages/DashboardPage.js";
 import { CreateGameForm } from "../src/components/CreateGameForm.js";
 import { InviteLink } from "../src/components/InviteLink.js";
 import { GameList } from "../src/components/GameList.js";
+import { ToastProvider } from "../src/components/ui/ToastProvider.js";
 import type { ClockConfig, ClockState, GameState } from "@chess/shared";
 
 const mockSocket = {
@@ -51,7 +52,9 @@ function renderWithProviders(ui: React.ReactElement, { route = "/" } = {}) {
     store,
     ...render(
       <Provider store={store}>
-        <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        <MemoryRouter initialEntries={[route]}>
+          <ToastProvider>{ui}</ToastProvider>
+        </MemoryRouter>
       </Provider>,
     ),
   };
@@ -188,8 +191,7 @@ describe("InviteLink", () => {
     );
   });
 
-  it("copy button changes text after click", async () => {
-    vi.useFakeTimers();
+  it("shows toast feedback after copy click", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -199,16 +201,11 @@ describe("InviteLink", () => {
     renderWithProviders(<InviteLink inviteToken="test-token-123" />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("copy-link-button"));
-    });
-    expect(screen.getByTestId("copy-link-button")).toHaveTextContent("Copied!");
-
-    await act(async () => {
-      vi.advanceTimersByTime(2000);
+      fireEvent.click(screen.getByRole("button", { name: "Copy Link" }));
     });
 
-    expect(screen.getByTestId("copy-link-button")).toHaveTextContent("Copy Link");
     expect(writeText).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Link copied to clipboard!")).toBeInTheDocument();
   });
 });
 
@@ -397,7 +394,7 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("cancel-game-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Game" }));
 
     expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
     expect(screen.queryByTestId("create-game-form")).not.toBeInTheDocument();
@@ -438,7 +435,7 @@ describe("DashboardPage", () => {
       store.dispatch(setGameState(makeWaitingGameState(5)));
     });
 
-    fireEvent.click(screen.getByTestId("cancel-game-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Game" }));
     act(() => {
       store.dispatch(setError("Game can only be aborted while waiting"));
     });

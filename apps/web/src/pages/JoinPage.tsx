@@ -7,7 +7,9 @@ import {
   useGetGameQuery,
 } from "../store/apiSlice.js";
 import { InviteLink } from "../components/InviteLink.js";
+import { Card } from "../components/ui/Card.js";
 import type { GameStatus } from "@chess/shared";
+import styles from "./JoinPage.module.css";
 
 const TERMINAL_STATUSES: GameStatus[] = [
   "checkmate",
@@ -17,6 +19,15 @@ const TERMINAL_STATUSES: GameStatus[] = [
   "timeout",
   "aborted",
 ];
+
+function LoadingState() {
+  return (
+    <div data-testid="join-loading" className={styles.centered}>
+      <span className={styles.spinner} aria-hidden="true" />
+      <p className={styles.message}>Joining game...</p>
+    </div>
+  );
+}
 
 export function JoinPage() {
   const { inviteToken } = useParams<{ inviteToken: string }>();
@@ -73,106 +84,128 @@ export function JoinPage() {
     }
   }, [activeGameData, data, meData, navigate]);
 
-  if (isLoading) {
-    return (
-      <div data-testid="join-loading" style={{ padding: "16px", textAlign: "center" }}>
-        <p>Joining game...</p>
-      </div>
-    );
-  }
+  function renderContent() {
+    if (isLoading) {
+      return <LoadingState />;
+    }
 
-  if (isError) {
-    const errMsg =
-      error && "data" in error ? (error.data as { error: string }).error : "Invalid invite link";
-    return (
-      <div data-testid="join-error" style={{ padding: "16px", textAlign: "center" }}>
-        <p>{errMsg}</p>
-        <Link to="/">Go to Dashboard</Link>
-      </div>
-    );
-  }
-
-  // Game is in a terminal state (completed)
-  if (data && TERMINAL_STATUSES.includes(data.status)) {
-    return (
-      <div data-testid="join-ended" style={{ padding: "16px", textAlign: "center" }}>
-        <p>This game has already ended.</p>
-        <Link to={`/game/${data.gameId}`}>View Game</Link>
-        {" | "}
-        <Link to="/">Go to Dashboard</Link>
-      </div>
-    );
-  }
-
-  // Game is active (already started, someone reused the link)
-  if (data && data.status === "active") {
-    if (isMeLoading || isMeFetching) {
+    if (isError) {
+      const errMsg =
+        error && "data" in error ? (error.data as { error: string }).error : "Invalid invite link";
       return (
-        <div data-testid="join-loading" style={{ padding: "16px", textAlign: "center" }}>
-          <p>Joining game...</p>
-        </div>
+        <Card header="Error">
+          <div data-testid="join-error" className={styles.centered}>
+            <p className={styles.message}>{errMsg}</p>
+            <Link to="/" className={styles.link}>
+              Go to Dashboard
+            </Link>
+          </div>
+        </Card>
       );
     }
 
-    if (meData?.user?.id && (isActiveGameLoading || isActiveGameFetching)) {
+    // Game is in a terminal state (completed)
+    if (data && TERMINAL_STATUSES.includes(data.status)) {
       return (
-        <div data-testid="join-loading" style={{ padding: "16px", textAlign: "center" }}>
-          <p>Joining game...</p>
-        </div>
+        <Card header="Game Ended">
+          <div data-testid="join-ended" className={styles.centered}>
+            <p className={styles.message}>This game has already ended.</p>
+            <div className={styles.links}>
+              <Link to={`/game/${data.gameId}`} className={styles.link}>
+                View Game
+              </Link>
+              <span className={styles.separator}>|</span>
+              <Link to="/" className={styles.link}>
+                Go to Dashboard
+              </Link>
+            </div>
+          </div>
+        </Card>
       );
     }
 
-    return (
-      <div data-testid="join-already-started" style={{ padding: "16px", textAlign: "center" }}>
-        <p>This game is already in progress.</p>
-        <Link to={`/game/${data.gameId}`}>Go to Game</Link>
-        {" | "}
-        <Link to="/">Go to Dashboard</Link>
-      </div>
-    );
+    // Game is active (already started, someone reused the link)
+    if (data && data.status === "active") {
+      if (isMeLoading || isMeFetching) {
+        return <LoadingState />;
+      }
+
+      if (meData?.user?.id && (isActiveGameLoading || isActiveGameFetching)) {
+        return <LoadingState />;
+      }
+
+      return (
+        <Card header="Game In Progress">
+          <div data-testid="join-already-started" className={styles.centered}>
+            <p className={styles.message}>This game is already in progress.</p>
+            <div className={styles.links}>
+              <Link to={`/game/${data.gameId}`} className={styles.link}>
+                Go to Game
+              </Link>
+              <span className={styles.separator}>|</span>
+              <Link to="/" className={styles.link}>
+                Go to Dashboard
+              </Link>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // Creator opened their own invite link
+    if (isOwnGame && data) {
+      return (
+        <Card header="Your Game">
+          <div data-testid="join-own-game" className={styles.centered}>
+            <p className={styles.message}>
+              You created this game — share the link with your opponent.
+            </p>
+            <div className={styles.ownGameInvite}>
+              <InviteLink inviteToken={inviteToken!} />
+            </div>
+            <div className={styles.links}>
+              <Link to={`/game/${data.gameId}`} className={styles.link}>
+                Go to Game
+              </Link>
+              <span className={styles.separator}>|</span>
+              <Link to="/" className={styles.link}>
+                Go to Dashboard
+              </Link>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // Generic join error
+    if (joinError && !isOwnGame) {
+      const errMsg =
+        joinError && "data" in joinError
+          ? (joinError.data as { error: string }).error
+          : "Failed to join game";
+      return (
+        <Card header="Error">
+          <div data-testid="join-error" className={styles.centered}>
+            <p className={styles.message}>{errMsg}</p>
+            <Link to="/" className={styles.link}>
+              Go to Dashboard
+            </Link>
+          </div>
+        </Card>
+      );
+    }
+
+    if (isJoining) {
+      return <LoadingState />;
+    }
+
+    // Fallback while waiting for the effect to fire
+    return <LoadingState />;
   }
 
-  // Creator opened their own invite link
-  if (isOwnGame && data) {
-    return (
-      <div data-testid="join-own-game" style={{ padding: "16px", textAlign: "center" }}>
-        <p>You created this game — share the link with your opponent.</p>
-        <InviteLink inviteToken={inviteToken!} />
-        <div style={{ marginTop: "12px" }}>
-          <Link to={`/game/${data.gameId}`}>Go to Game</Link>
-          {" | "}
-          <Link to="/">Go to Dashboard</Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Generic join error
-  if (joinError && !isOwnGame) {
-    const errMsg =
-      joinError && "data" in joinError
-        ? (joinError.data as { error: string }).error
-        : "Failed to join game";
-    return (
-      <div data-testid="join-error" style={{ padding: "16px", textAlign: "center" }}>
-        <p>{errMsg}</p>
-        <Link to="/">Go to Dashboard</Link>
-      </div>
-    );
-  }
-
-  if (isJoining) {
-    return (
-      <div data-testid="join-loading" style={{ padding: "16px", textAlign: "center" }}>
-        <p>Joining game...</p>
-      </div>
-    );
-  }
-
-  // Fallback while waiting for the effect to fire
   return (
-    <div data-testid="join-loading" style={{ padding: "16px", textAlign: "center" }}>
-      <p>Joining game...</p>
+    <div className={styles.page}>
+      <div className={styles.content}>{renderContent()}</div>
     </div>
   );
 }

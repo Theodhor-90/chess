@@ -4,7 +4,10 @@ import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
 import { clearError, clearGame } from "../store/gameSlice.js";
 import { InviteLink } from "./InviteLink.js";
+import { Card } from "./ui/Card.js";
+import { Button } from "./ui/Button.js";
 import type { PlayerColor } from "@chess/shared";
+import styles from "./WaitingScreen.module.css";
 
 interface WaitingScreenProps {
   gameId: number;
@@ -57,17 +60,22 @@ export function WaitingScreen({ gameId, inviteToken, color, onCancel }: WaitingS
   }
 
   return (
-    <div data-testid="waiting-screen">
-      <h2>Waiting for opponent to join...</h2>
-      <p>
-        You are playing as <strong>{color}</strong>
-      </p>
-      <InviteLink inviteToken={inviteToken} />
-      <div style={{ marginTop: "16px" }}>
-        <button data-testid="cancel-game-button" onClick={handleCancel}>
-          Cancel Game
-        </button>
+    <Card header="Waiting for Opponent">
+      <div data-testid="waiting-screen" className={styles.screen}>
+        <div className={styles.loadingRow}>
+          <span className={styles.spinner} aria-hidden="true" />
+          <span>Waiting for opponent to join...</span>
+        </div>
+        <p className={styles.colorInfo}>
+          You are playing as <strong>{color}</strong>
+        </p>
+        <InviteLink inviteToken={inviteToken} />
+        <div className={styles.actions}>
+          <Button variant="ghost" size="sm" onClick={handleCancel} data-testid="cancel-game-button">
+            Cancel Game
+          </Button>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 }
