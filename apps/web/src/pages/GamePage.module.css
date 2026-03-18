@@ -1,0 +1,38 @@
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  justify-content: center;
+}
+
+.boardColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 200px;
+}
+
+.gameInfo {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.errorBanner {
+  padding: var(--space-2);
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}

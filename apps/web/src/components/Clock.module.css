@@ -8,6 +8,10 @@
   border-radius: var(--radius-sm);
   min-width: 100px;
   text-align: center;
+  transition:
+    background-color var(--transition-default),
+    color var(--transition-default),
+    font-weight var(--transition-default);
 }
 
 .active {
@@ -17,4 +21,8 @@
 
 .lowTime {
   color: var(--color-error);
+}
+
+.active.lowTime {
+  background-color: var(--color-error-light);
 }

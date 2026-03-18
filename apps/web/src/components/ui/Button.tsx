@@ -1,15 +1,12 @@
-import type { ReactNode } from "react";
+import type { ReactNode, ButtonHTMLAttributes } from "react";
 import styles from "./Button.module.css";
 
-interface ButtonProps {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type"> {
   variant?: "primary" | "secondary" | "danger" | "ghost";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
   children: ReactNode;
   type?: "button" | "submit";
-  className?: string;
 }
 
 function Button({
@@ -17,10 +14,10 @@ function Button({
   size = "md",
   loading = false,
   disabled = false,
-  onClick,
   children,
   type = "button",
   className,
+  ...rest
 }: ButtonProps) {
   const classNames = [
     styles.button,
@@ -33,7 +30,7 @@ function Button({
     .join(" ");
 
   return (
-    <button type={type} className={classNames} disabled={disabled || loading} onClick={onClick}>
+    <button type={type} className={classNames} disabled={disabled || loading} {...rest}>
       {loading && <span className={styles.spinner} aria-hidden="true" />}
       {children}
     </button>

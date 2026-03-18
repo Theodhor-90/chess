@@ -13,11 +13,13 @@ import {
 } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { Clock } from "../src/components/Clock.js";
+import { computeCapturedPieces, PlayerInfoBar } from "../src/components/PlayerInfoBar.js";
 import { MoveList } from "../src/components/MoveList.js";
 import { GameActions } from "../src/components/GameActions.js";
 import { GameOverOverlay } from "../src/components/GameOverOverlay.js";
 import { DisconnectBanner } from "../src/components/DisconnectBanner.js";
 import { ConnectionStatus } from "../src/components/ConnectionStatus.js";
+import { PromotionModal } from "../src/components/PromotionModal.js";
 import { AppRoutes } from "../src/App.js";
 import { Chessground } from "chessground";
 import { Chess } from "chess.js";
@@ -28,6 +30,115 @@ vi.mock("../src/components/Clock.module.css", () => ({
     clock: "clock",
     active: "active",
     lowTime: "lowTime",
+  },
+}));
+
+vi.mock("../src/components/PlayerInfoBar.module.css", () => ({
+  default: {
+    bar: "bar",
+    playerInfo: "playerInfo",
+    usernameLink: "usernameLink",
+    username: "username",
+    captured: "captured",
+    capturedPiece: "capturedPiece",
+  },
+}));
+
+vi.mock("../src/pages/GamePage.module.css", () => ({
+  default: {
+    page: "page",
+    layout: "layout",
+    boardColumn: "boardColumn",
+    sidePanel: "sidePanel",
+    gameInfo: "gameInfo",
+    errorBanner: "errorBanner",
+  },
+}));
+
+vi.mock("../src/components/MoveList.module.css", () => ({
+  default: {
+    container: "container",
+    table: "table",
+    row: "row",
+    rowAlt: "rowAlt",
+    currentMove: "currentMove",
+    moveNumber: "moveNumber",
+    moveCell: "moveCell",
+  },
+}));
+
+vi.mock("../src/components/GameActions.module.css", () => ({
+  default: {
+    container: "container",
+    drawGroup: "drawGroup",
+    resignConfirm: "resignConfirm",
+    resignConfirmText: "resignConfirmText",
+    resignConfirmButtons: "resignConfirmButtons",
+  },
+}));
+
+vi.mock("../src/components/ui/Button.module.css", () => ({
+  default: {
+    button: "button",
+    primary: "primary",
+    secondary: "secondary",
+    danger: "danger",
+    ghost: "ghost",
+    sm: "sm",
+    md: "md",
+    lg: "lg",
+    loading: "loading",
+    spinner: "spinner",
+  },
+}));
+
+vi.mock("../src/components/GameOverOverlay.module.css", () => ({
+  default: {
+    content: "content",
+    resultMessage: "resultMessage",
+    finalClocks: "finalClocks",
+    clockLabel: "clockLabel",
+    actions: "actions",
+  },
+}));
+
+vi.mock("../src/components/ui/Modal.module.css", () => ({
+  default: {
+    backdrop: "backdrop",
+    panel: "panel",
+    header: "header",
+    title: "title",
+    closeButton: "closeButton",
+    body: "body",
+    footer: "footer",
+  },
+}));
+
+vi.mock("../src/components/PromotionModal.module.css", () => ({
+  default: {
+    overlay: "overlay",
+    panel: "panel",
+    title: "title",
+    pieces: "pieces",
+    pieceButton: "pieceButton",
+  },
+}));
+
+vi.mock("../src/components/DisconnectBanner.module.css", () => ({
+  default: {
+    banner: "banner",
+    warning: "warning",
+    error: "error",
+  },
+}));
+
+vi.mock("../src/components/ConnectionStatus.module.css", () => ({
+  default: {
+    container: "container",
+    dot: "dot",
+    dotConnected: "dotConnected",
+    dotConnecting: "dotConnecting",
+    dotDisconnected: "dotDisconnected",
   },
 }));
 
@@ -251,6 +362,45 @@ describe("MoveList", () => {
     expect(rows[2]).toHaveTextContent("3.");
     expect(rows[2]).toHaveTextContent("Bb5");
   });
+
+  it("highlights the current (last) white move", () => {
+    render(<MoveList moves={["e4"]} />);
+    const currentMove = screen.getByTestId("current-move");
+    expect(currentMove).toHaveTextContent("e4");
+    expect(currentMove).toHaveClass("currentMove");
+  });
+
+  it("highlights the current (last) black move", () => {
+    render(<MoveList moves={["e4", "e5"]} />);
+    const currentMove = screen.getByTestId("current-move");
+    expect(currentMove).toHaveTextContent("e5");
+    expect(currentMove).toHaveClass("currentMove");
+  });
+
+  it("highlights the last move in a longer game", () => {
+    render(<MoveList moves={["e4", "e5", "Nf3", "Nc6", "Bb5"]} />);
+    const currentMove = screen.getByTestId("current-move");
+    expect(currentMove).toHaveTextContent("Bb5");
+    expect(currentMove).toHaveClass("currentMove");
+    expect(screen.getAllByTestId("current-move")).toHaveLength(1);
+  });
+
+  it("does not highlight any move when list is empty", () => {
+    render(<MoveList moves={[]} />);
+    expect(screen.queryByTestId("current-move")).toBeNull();
+  });
+
+  it("applies alternating row classes", () => {
+    render(<MoveList moves={["e4", "e5", "Nf3", "Nc6"]} />);
+    const rows = screen.getByTestId("move-list").querySelectorAll("tr");
+    expect(rows[0]).toHaveClass("row");
+    expect(rows[1]).toHaveClass("rowAlt");
+  });
+
+  it("uses monospace font class on table", () => {
+    render(<MoveList moves={["e4"]} />);
+    expect(screen.getByTestId("move-list").querySelector("table")).toHaveClass("table");
+  });
 });
 
 describe("GamePage", () => {
@@ -286,6 +436,8 @@ describe("GamePage", () => {
     });
     expect(screen.getAllByTestId("clock")).toHaveLength(2);
     expect(screen.getByTestId("move-list")).toBeInTheDocument();
+    expect(screen.getByTestId("top-player-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("bottom-player-bar")).toBeInTheDocument();
   });
 
   it("updates board orientation when player color resolves after mount", async () => {
@@ -504,16 +656,18 @@ describe("GameActions", () => {
     expect(drawButton).toBeDisabled();
   });
 
-  it("shows 'Accept Draw' when opponent offered", () => {
+  it("shows accept and decline buttons when opponent offered draw", () => {
     const store = createTestStore();
     store.dispatch(setGameState(makeFakeGameState()));
     store.dispatch(setDrawOffer("black"));
 
     renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
 
-    const drawButton = screen.getByTestId("draw-button");
-    expect(drawButton).toHaveTextContent("Accept Draw");
-    expect(drawButton).not.toBeDisabled();
+    // The single "draw-button" should NOT be rendered when opponent has offered
+    expect(screen.queryByTestId("draw-button")).not.toBeInTheDocument();
+    // Instead, separate accept and decline buttons appear
+    expect(screen.getByTestId("accept-draw-button")).toHaveTextContent("Accept Draw");
+    expect(screen.getByTestId("decline-draw-button")).toHaveTextContent("Decline");
   });
 
   it("dispatches offerDraw on 'Offer Draw' click", () => {
@@ -534,7 +688,7 @@ describe("GameActions", () => {
 
     renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
 
-    fireEvent.click(screen.getByTestId("draw-button"));
+    fireEvent.click(screen.getByTestId("accept-draw-button"));
 
     expect(mockSocket.emit).toHaveBeenCalledWith("acceptDraw", { gameId: 42 });
   });
@@ -585,6 +739,59 @@ describe("GameActions", () => {
 
     expect(screen.queryByTestId("resign-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("draw-button")).not.toBeInTheDocument();
+  });
+
+  it("decline draw clears draw offer from state", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setDrawOffer("black"));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("decline-draw-button"));
+
+    // Draw offer cleared from Redux state
+    expect(store.getState().game.drawOffer).toBeNull();
+    // UI returns to showing the single "Offer Draw" button
+    expect(screen.getByTestId("draw-button")).toHaveTextContent("Offer Draw");
+  });
+
+  it("resign button has danger class", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("resign-button")).toHaveClass("danger");
+  });
+
+  it("draw button has secondary class", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("draw-button")).toHaveClass("secondary");
+  });
+
+  it("no inline styles on game-actions container", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("game-actions").getAttribute("style")).toBeNull();
+  });
+
+  it("no inline styles on resign confirm panel", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("resign-button"));
+
+    expect(screen.getByTestId("resign-confirm").getAttribute("style")).toBeNull();
   });
 });
 
@@ -762,6 +969,52 @@ describe("GameOverOverlay", () => {
     expect(screen.getByTestId("back-to-dashboard")).toBeInTheDocument();
     expect(screen.getByTestId("back-to-dashboard")).toHaveTextContent("Back to Dashboard");
   });
+
+  it("renders inside a Modal with 'Game Over' title", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Game Over")).toBeInTheDocument();
+  });
+
+  it("has an 'Analyze Game' link to analysis page", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("analyze-game")).toBeInTheDocument();
+    expect(screen.getByTestId("analyze-game")).toHaveTextContent("Analyze Game");
+  });
+
+  it("has no inline styles on overlay", () => {
+    const store = createTestStore();
+    const endedGame = {
+      ...makeFakeGameState(),
+      status: "checkmate" as const,
+      result: { winner: "white" as const, reason: "checkmate" as const },
+    };
+    store.dispatch(setGameState(endedGame));
+
+    renderWithStore(<GameOverOverlay playerColor="white" onDismiss={vi.fn()} />, { store });
+
+    expect(screen.getByTestId("game-over-overlay").getAttribute("style")).toBeNull();
+    expect(screen.getByTestId("result-message").getAttribute("style")).toBeNull();
+    expect(screen.getByTestId("final-clocks").getAttribute("style")).toBeNull();
+  });
 });
 
 describe("DisconnectBanner", () => {
@@ -774,15 +1027,44 @@ describe("DisconnectBanner", () => {
     expect(screen.queryByTestId("disconnect-banner")).not.toBeInTheDocument();
   });
 
-  it("shows banner when opponent is disconnected and game is active", () => {
+  it("shows warning banner when opponent is disconnected and user is still connected", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setConnectionStatus("connected"));
+    store.dispatch(setOpponentConnected(false));
+
+    renderWithStore(<DisconnectBanner />, { store });
+
+    expect(screen.getByTestId("disconnect-banner")).toBeInTheDocument();
+    expect(screen.getByTestId("disconnect-banner")).toHaveTextContent(
+      "Opponent disconnected — waiting for reconnection...",
+    );
+    expect(screen.getByTestId("disconnect-banner")).toHaveClass("warning");
+  });
+
+  it("shows error banner when user's own connection is lost", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setConnectionStatus("disconnected"));
+    store.dispatch(setOpponentConnected(false));
+
+    renderWithStore(<DisconnectBanner />, { store });
+
+    expect(screen.getByTestId("disconnect-banner")).toBeInTheDocument();
+    expect(screen.getByTestId("disconnect-banner")).toHaveTextContent(
+      "Connection lost — reconnecting...",
+    );
+    expect(screen.getByTestId("disconnect-banner")).toHaveClass("error");
+  });
+
+  it("has no inline styles on disconnect banner", () => {
     const store = createTestStore();
     store.dispatch(setGameState(makeFakeGameState()));
     store.dispatch(setOpponentConnected(false));
 
     renderWithStore(<DisconnectBanner />, { store });
 
-    expect(screen.getByTestId("disconnect-banner")).toBeInTheDocument();
-    expect(screen.getByTestId("disconnect-banner")).toHaveTextContent("Opponent disconnected");
+    expect(screen.getByTestId("disconnect-banner").getAttribute("style")).toBeNull();
   });
 
   it("hides banner when opponent reconnects", () => {
@@ -817,33 +1099,259 @@ describe("DisconnectBanner", () => {
 });
 
 describe("ConnectionStatus", () => {
-  it("shows green dot and 'Connected' when connected", () => {
+  it("shows connected state with correct class and label", () => {
     const store = createTestStore();
     store.dispatch(setConnectionStatus("connected"));
 
     renderWithStore(<ConnectionStatus />, { store });
 
     expect(screen.getByTestId("connection-label")).toHaveTextContent("Connected");
-    expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(40, 167, 69)");
+    expect(screen.getByTestId("connection-dot")).toHaveClass("dotConnected");
   });
 
-  it("shows yellow dot and 'Reconnecting...' when connecting", () => {
+  it("shows connecting state with correct class and label", () => {
     const store = createTestStore();
     store.dispatch(setConnectionStatus("connecting"));
 
     renderWithStore(<ConnectionStatus />, { store });
 
     expect(screen.getByTestId("connection-label")).toHaveTextContent("Reconnecting...");
-    expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(255, 193, 7)");
+    expect(screen.getByTestId("connection-dot")).toHaveClass("dotConnecting");
   });
 
-  it("shows red dot and 'Disconnected' when disconnected", () => {
+  it("shows disconnected state with correct class and label", () => {
     const store = createTestStore();
 
     renderWithStore(<ConnectionStatus />, { store });
 
     // Default connectionStatus is "disconnected"
     expect(screen.getByTestId("connection-label")).toHaveTextContent("Disconnected");
-    expect(screen.getByTestId("connection-dot").style.backgroundColor).toBe("rgb(220, 53, 69)");
+    expect(screen.getByTestId("connection-dot")).toHaveClass("dotDisconnected");
+  });
+
+  it("has no inline styles on connection status", () => {
+    const store = createTestStore();
+
+    renderWithStore(<ConnectionStatus />, { store });
+
+    expect(screen.getByTestId("connection-status").getAttribute("style")).toBeNull();
+    expect(screen.getByTestId("connection-dot").getAttribute("style")).toBeNull();
+  });
+});
+
+describe("PromotionModal", () => {
+  it("renders four promotion piece buttons for white", () => {
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByTestId("promotion-modal")).toBeInTheDocument();
+    expect(screen.getByTestId("promote-q")).toBeInTheDocument();
+    expect(screen.getByTestId("promote-r")).toBeInTheDocument();
+    expect(screen.getByTestId("promote-b")).toBeInTheDocument();
+    expect(screen.getByTestId("promote-n")).toBeInTheDocument();
+  });
+
+  it("renders correct unicode symbols for white pieces", () => {
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByTestId("promote-q")).toHaveTextContent("\u2655");
+    expect(screen.getByTestId("promote-r")).toHaveTextContent("\u2656");
+    expect(screen.getByTestId("promote-b")).toHaveTextContent("\u2657");
+    expect(screen.getByTestId("promote-n")).toHaveTextContent("\u2658");
+  });
+
+  it("renders correct unicode symbols for black pieces", () => {
+    render(<PromotionModal color="black" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByTestId("promote-q")).toHaveTextContent("\u265B");
+    expect(screen.getByTestId("promote-r")).toHaveTextContent("\u265C");
+    expect(screen.getByTestId("promote-b")).toHaveTextContent("\u265D");
+    expect(screen.getByTestId("promote-n")).toHaveTextContent("\u265E");
+  });
+
+  it("calls onSelect with the chosen piece", () => {
+    const onSelect = vi.fn();
+    render(<PromotionModal color="white" onSelect={onSelect} onCancel={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId("promote-r"));
+    expect(onSelect).toHaveBeenCalledWith("r");
+
+    fireEvent.click(screen.getByTestId("promote-n"));
+    expect(onSelect).toHaveBeenCalledWith("n");
+  });
+
+  it("calls onCancel when overlay is clicked", () => {
+    const onCancel = vi.fn();
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={onCancel} />);
+
+    fireEvent.click(screen.getByTestId("promotion-modal"));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it("does not call onCancel when panel is clicked", () => {
+    const onCancel = vi.fn();
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={onCancel} />);
+
+    // Click the title text inside the panel — this should not propagate to the overlay
+    fireEvent.click(screen.getByText("Promote to:"));
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("has no inline styles", () => {
+    render(<PromotionModal color="white" onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByTestId("promotion-modal").getAttribute("style")).toBeNull();
+  });
+});
+
+describe("computeCapturedPieces", () => {
+  it("returns empty array for starting position", () => {
+    const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    expect(computeCapturedPieces(fen, "white")).toEqual([]);
+    expect(computeCapturedPieces(fen, "black")).toEqual([]);
+  });
+
+  it("returns captured pawns", () => {
+    const fen = "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2";
+    expect(computeCapturedPieces(fen, "white")).toEqual(["\u265F"]);
+    expect(computeCapturedPieces(fen, "black")).toEqual([]);
+  });
+
+  it("returns captured queens", () => {
+    const fen = "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1";
+    expect(computeCapturedPieces(fen, "white")).toEqual(["\u265B"]);
+    expect(computeCapturedPieces(fen, "black")).toEqual(["\u2655"]);
+  });
+
+  it("handles multiple captures of same piece type", () => {
+    const fen = "rnbqkbnr/6pp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    expect(computeCapturedPieces(fen, "white")).toEqual([
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+    ]);
+  });
+
+  it("orders pieces by value (queen, rook, bishop, knight, pawn)", () => {
+    const fen = "4k3/8/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1";
+    const result = computeCapturedPieces(fen, "white");
+    expect(result).toEqual([
+      "\u265B",
+      "\u265C",
+      "\u265C",
+      "\u265D",
+      "\u265D",
+      "\u265E",
+      "\u265E",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+      "\u265F",
+    ]);
+  });
+});
+
+describe("PlayerInfoBar", () => {
+  it("renders username as link when userId is provided", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={5}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    const label = screen.getByTestId("top-player-label");
+    expect(label).toHaveTextContent("alice");
+    expect(label.tagName).toBe("A");
+    expect(label.getAttribute("href")).toContain("/profile/5");
+  });
+
+  it("renders username as span when userId is null", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="Unknown"
+          userId={null}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="white"
+          testIdPrefix="bottom"
+        />
+      </MemoryRouter>,
+    );
+    const label = screen.getByTestId("bottom-player-label");
+    expect(label).toHaveTextContent("Unknown");
+    expect(label.tagName).toBe("SPAN");
+  });
+
+  it("renders captured pieces from FEN", () => {
+    const fen = "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={1}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen={fen}
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("top-captured")).toHaveTextContent("\u265B");
+  });
+
+  it("renders empty captured area for starting position", () => {
+    const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={1}
+          timeMs={300000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen={fen}
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("top-captured")).toHaveTextContent("");
+  });
+
+  it("renders Clock component", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={1}
+          timeMs={120000}
+          isActive={true}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="white"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("clock")).toBeInTheDocument();
   });
 });

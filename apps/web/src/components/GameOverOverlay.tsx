@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router";
 import { useAppSelector } from "../store/index.js";
+import { Modal } from "./ui/Modal.js";
+import { Button } from "./ui/Button.js";
+import styles from "./GameOverOverlay.module.css";
 import type { PlayerColor, GameStatus } from "@chess/shared";
 
 const TERMINAL_STATUSES: GameStatus[] = [
@@ -75,68 +78,49 @@ export function GameOverOverlay({
     navigate("/");
   }
 
-  return (
-    <div
-      data-testid="game-over-overlay"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "8px",
-          padding: "32px",
-          maxWidth: "400px",
-          width: "90%",
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-        }}
+  function handleAnalyze() {
+    navigate(`/analysis/${game!.id}`);
+  }
+
+  const footerContent = (
+    <div className={styles.actions}>
+      <Button variant="primary" size="sm" data-testid="analyze-game" onClick={handleAnalyze}>
+        Analyze Game
+      </Button>
+      <Button
+        variant="secondary"
+        size="sm"
+        data-testid="back-to-dashboard"
+        onClick={handleBackToDashboard}
       >
-        <h2 data-testid="result-message" style={{ margin: 0 }}>
-          {resultMessage}
-        </h2>
+        Back to Dashboard
+      </Button>
+      <Button variant="ghost" size="sm" data-testid="view-board" onClick={onDismiss}>
+        View Board
+      </Button>
+    </div>
+  );
 
-        <div
-          data-testid="final-clocks"
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "24px",
-            fontFamily: "monospace",
-            fontSize: "18px",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "12px", color: "#666" }}>White</div>
-            <div>{formatClockTime(whiteClock)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: "12px", color: "#666" }}>Black</div>
-            <div>{formatClockTime(blackClock)}</div>
+  return (
+    <div data-testid="game-over-overlay">
+      <Modal isOpen={true} onClose={onDismiss} title="Game Over" footer={footerContent}>
+        <div className={styles.content}>
+          <h3 data-testid="result-message" className={styles.resultMessage}>
+            {resultMessage}
+          </h3>
+
+          <div data-testid="final-clocks" className={styles.finalClocks}>
+            <div>
+              <div className={styles.clockLabel}>White</div>
+              <div>{formatClockTime(whiteClock)}</div>
+            </div>
+            <div>
+              <div className={styles.clockLabel}>Black</div>
+              <div>{formatClockTime(blackClock)}</div>
+            </div>
           </div>
         </div>
-
-        <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-          <button data-testid="back-to-dashboard" onClick={handleBackToDashboard}>
-            Back to Dashboard
-          </button>
-          <button data-testid="view-board" onClick={onDismiss}>
-            View Board
-          </button>
-        </div>
-      </div>
+      </Modal>
     </div>
   );
 }
