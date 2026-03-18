@@ -3,6 +3,10 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useRegisterMutation } from "../store/apiSlice.js";
 import { useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
+import { Card } from "../components/ui/Card.js";
+import { Input } from "../components/ui/Input.js";
+import { Button } from "../components/ui/Button.js";
+import styles from "./RegisterPage.module.css";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -33,13 +37,13 @@ export function RegisterPage() {
         : "";
 
   return (
-    <div>
-      <h1>Register</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="username">Username</label>
-          <input
-            id="username"
+    <div className={styles.page}>
+      <Card padding="lg" className={styles.card}>
+        <h1 className={styles.title}>Register</h1>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <Input
+            label="Username"
+            name="username"
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -49,44 +53,45 @@ export function RegisterPage() {
             pattern="^[a-zA-Z0-9_]+$"
             title="3–20 characters, letters, numbers, and underscores only"
           />
-        </div>
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
+          <Input
+            label="Email"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </div>
-        <div>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
+          <Input
+            label="Password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-        </div>
-        {errorMessage && <p role="alert">{errorMessage}</p>}
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? "Registering…" : "Register"}
-        </button>
-      </form>
-      <p>
-        Already have an account?{" "}
-        <Link
-          to={
-            searchParams.get("redirect")
-              ? `/login?redirect=${searchParams.get("redirect")}`
-              : "/login"
-          }
-        >
-          Login
-        </Link>
-      </p>
+          {errorMessage && (
+            <p role="alert" className={styles.error}>
+              {errorMessage}
+            </p>
+          )}
+          <Button type="submit" loading={isLoading}>
+            {isLoading ? "Registering…" : "Register"}
+          </Button>
+        </form>
+        <p className={styles.footer}>
+          Already have an account?{" "}
+          <Link
+            to={
+              searchParams.get("redirect")
+                ? `/login?redirect=${searchParams.get("redirect")}`
+                : "/login"
+            }
+            className={styles.footerLink}
+          >
+            Login
+          </Link>
+        </p>
+      </Card>
     </div>
   );
 }
