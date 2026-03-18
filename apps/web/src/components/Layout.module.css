@@ -12,6 +12,10 @@
   padding: var(--space-6) var(--space-4);
 }
 
+.main:focus {
+  outline: none;
+}
+
 @media (max-width: 768px) {
   .main {
     padding: var(--space-4);
