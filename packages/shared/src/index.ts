@@ -461,3 +461,17 @@ export interface DatabaseGamesQuery extends DatabaseGameFilter {
   sort?: DatabaseGameSortField;
   order?: SortOrder;
 }
+
+// ---------------------------------------------------------------------------
+// User Preferences Types (Phase 14.1)
+// ---------------------------------------------------------------------------
+
+export interface UserPreferences {
+  theme: "light" | "dark" | "system";
+  boardTheme: "brown" | "blue" | "green" | "ic";
+  pieceTheme: "cburnett" | "merida" | "alpha" | "california";
+}
+
+export interface UserPreferencesResponse {
+  preferences: UserPreferences;
+}

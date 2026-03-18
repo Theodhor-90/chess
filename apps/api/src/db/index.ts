@@ -30,9 +30,15 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       email TEXT NOT NULL UNIQUE,
       username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL
+      password_hash TEXT NOT NULL,
+      preferences TEXT
     )
   `);
+  try {
+    sqliteDb.exec(`ALTER TABLE users ADD COLUMN preferences TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS games (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

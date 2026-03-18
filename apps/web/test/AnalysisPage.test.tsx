@@ -9,6 +9,7 @@ import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { AppRoutes } from "../src/App.js";
+import { BoardThemeProvider } from "../src/components/BoardThemeProvider.js";
 
 const mockChessgroundSet = vi.fn();
 const mockChessgroundDestroy = vi.fn();
@@ -80,7 +81,9 @@ function renderWithProviders(ui: React.ReactElement, { route = "/" } = {}) {
     store,
     ...render(
       <Provider store={store}>
-        <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        <BoardThemeProvider>
+          <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        </BoardThemeProvider>
       </Provider>,
     ),
   };

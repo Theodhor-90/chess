@@ -21,6 +21,7 @@ import { DisconnectBanner } from "../src/components/DisconnectBanner.js";
 import { ConnectionStatus } from "../src/components/ConnectionStatus.js";
 import { PromotionModal } from "../src/components/PromotionModal.js";
 import { AppRoutes } from "../src/App.js";
+import { BoardThemeProvider } from "../src/components/BoardThemeProvider.js";
 import { Chessground } from "chessground";
 import { Chess } from "chess.js";
 import type { GameState, ClockState, ClockConfig } from "@chess/shared";
@@ -258,7 +259,9 @@ function renderWithStore(
     store: testStore,
     ...render(
       <Provider store={testStore}>
-        <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        <BoardThemeProvider>
+          <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        </BoardThemeProvider>
       </Provider>,
     ),
   };

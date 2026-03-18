@@ -122,6 +122,9 @@ export function NavHeader() {
             >
               {meData.user.username}
             </Link>
+            <Link to="/settings" className={styles.settingsLink} data-testid="settings-link">
+              Settings
+            </Link>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
               Logout
             </Button>
@@ -184,6 +187,13 @@ export function NavHeader() {
                 data-testid="mobile-user-link"
               >
                 {meData.user.username}
+              </Link>
+              <Link
+                to="/settings"
+                className={styles.mobileMenuLink}
+                data-testid="mobile-settings-link"
+              >
+                Settings
               </Link>
               <button
                 type="button"

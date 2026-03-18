@@ -74,4 +74,44 @@ describe("tokens.css", () => {
     expect(tokensCss).toContain("@media (max-width: 768px)");
     expect(tokensCss).toMatch(/--font-size-2xl:\s*24px/);
   });
+
+  it('defines dark mode tokens under [data-theme="dark"] selector', () => {
+    expect(tokensCss).toContain('[data-theme="dark"]');
+  });
+
+  it("defines dark mode color overrides", () => {
+    const darkSection = tokensCss.slice(tokensCss.indexOf('[data-theme="dark"]'));
+    expect(darkSection).toContain("--color-primary:");
+    expect(darkSection).toContain("--color-bg:");
+    expect(darkSection).toContain("--color-surface:");
+    expect(darkSection).toContain("--color-text:");
+    expect(darkSection).toContain("--color-text-secondary:");
+    expect(darkSection).toContain("--color-border:");
+    expect(darkSection).toContain("--color-error:");
+    expect(darkSection).toContain("--color-success:");
+  });
+
+  it("defines overlay tokens in light theme", () => {
+    expect(tokensCss).toContain("--color-overlay:");
+    expect(tokensCss).toContain("--color-overlay-light:");
+    expect(tokensCss).toContain("--color-scroll-hint:");
+    expect(tokensCss).toContain("--color-shadow-subtle:");
+  });
+
+  it("defines move classification token", () => {
+    expect(tokensCss).toContain("--color-mistake:");
+  });
+
+  it("defines dark mode shadow overrides", () => {
+    const darkSection = tokensCss.slice(tokensCss.indexOf('[data-theme="dark"]'));
+    expect(darkSection).toContain("--shadow-sm:");
+    expect(darkSection).toContain("--shadow-md:");
+    expect(darkSection).toContain("--shadow-lg:");
+  });
+
+  it("defines dark mode mobile typography scale", () => {
+    const matches = tokensCss.match(/@media \(max-width: 768px\)/g);
+    expect(matches).not.toBeNull();
+    expect(matches!.length).toBe(2);
+  });
 });
