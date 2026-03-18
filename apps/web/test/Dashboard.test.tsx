@@ -118,7 +118,7 @@ describe("CreateGameForm", () => {
     expect(screen.getByText("Rapid 10+0")).toBeInTheDocument();
     expect(screen.getByText("Classical 30+0")).toBeInTheDocument();
     expect(screen.getByText("Custom")).toBeInTheDocument();
-    expect(screen.getByTestId("create-game-submit")).toHaveTextContent("Create Game");
+    expect(screen.getByRole("button", { name: "Create Game" })).toBeInTheDocument();
   });
 
   it("shows custom inputs when Custom is selected", () => {
@@ -145,7 +145,7 @@ describe("CreateGameForm", () => {
 
     renderWithProviders(<CreateGameForm onGameCreated={onGameCreated} />);
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(onGameCreated).toHaveBeenCalledWith(1, "abc-123", "white");
@@ -157,11 +157,12 @@ describe("CreateGameForm", () => {
 
     renderWithProviders(<CreateGameForm onGameCreated={vi.fn()} />);
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("create-game-submit")).toBeDisabled();
-      expect(screen.getByTestId("create-game-submit")).toHaveTextContent("Creating…");
+      const submitButton = screen.getByRole("button", { name: /Creating/i });
+      expect(submitButton).toBeDisabled();
+      expect(submitButton).toHaveTextContent("Creating…");
     });
   });
 
@@ -170,7 +171,7 @@ describe("CreateGameForm", () => {
 
     renderWithProviders(<CreateGameForm onGameCreated={vi.fn()} />);
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Server error");
@@ -370,7 +371,7 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
@@ -391,7 +392,7 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
@@ -428,7 +429,7 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();

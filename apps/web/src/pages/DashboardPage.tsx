@@ -3,7 +3,10 @@ import { Link } from "react-router";
 import { CreateGameForm } from "../components/CreateGameForm.js";
 import { WaitingScreen } from "../components/WaitingScreen.js";
 import { GameList } from "../components/GameList.js";
+import { Card } from "../components/ui/Card.js";
+import { Button } from "../components/ui/Button.js";
 import type { PlayerColor } from "@chess/shared";
+import styles from "./DashboardPage.module.css";
 
 interface PendingGame {
   gameId: number;
@@ -24,7 +27,7 @@ export function DashboardPage() {
 
   if (pendingGame) {
     return (
-      <div style={{ padding: "16px", maxWidth: "600px", margin: "0 auto" }}>
+      <div className={styles.waitingWrapper}>
         <WaitingScreen
           gameId={pendingGame.gameId}
           inviteToken={pendingGame.inviteToken}
@@ -36,34 +39,27 @@ export function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: "16px", maxWidth: "800px", margin: "0 auto" }}>
-      <h1>Chess Platform</h1>
-      <CreateGameForm onGameCreated={handleGameCreated} />
-      <div style={{ margin: "16px 0" }}>
-        <Link
-          to="/training"
-          data-testid="training-link"
-          style={{
-            display: "inline-block",
-            padding: "10px 20px",
-            backgroundColor: "#1a73e8",
-            color: "white",
-            textDecoration: "none",
-            borderRadius: "4px",
-            fontSize: "14px",
-            fontWeight: "bold",
-          }}
-        >
-          Training Board
+    <div className={styles.page}>
+      <h1 className={styles.pageTitle}>Chess Platform</h1>
+
+      <Card header="Create Game">
+        <CreateGameForm onGameCreated={handleGameCreated} />
+      </Card>
+
+      <div className={styles.quickLinks}>
+        <Link to="/training" data-testid="training-link" className={styles.quickLink}>
+          <Button variant="secondary">Training Board</Button>
+        </Link>
+        <Link to="/history" data-testid="history-link" className={styles.quickLink}>
+          <Button variant="secondary">Game History</Button>
         </Link>
       </div>
-      <hr style={{ margin: "24px 0" }} />
-      <GameList />
-      <div style={{ marginTop: "16px" }}>
-        <Link to="/history" data-testid="history-link">
-          View full history
-        </Link>
-      </div>
+
+      <Card header="Your Games">
+        <div className={styles.gamesSection}>
+          <GameList />
+        </div>
+      </Card>
     </div>
   );
 }

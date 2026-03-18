@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useCreateGameMutation } from "../store/apiSlice.js";
+import { Button } from "./ui/Button.js";
+import { Input } from "./ui/Input.js";
 import type { ClockConfig, PlayerColor } from "@chess/shared";
+import styles from "./CreateGameForm.module.css";
 
 interface TimePreset {
   label: string;
@@ -54,22 +57,20 @@ export function CreateGameForm({ onGameCreated }: CreateGameFormProps) {
         : "";
 
   return (
-    <form onSubmit={handleSubmit} data-testid="create-game-form">
-      <h2>Create Game</h2>
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
+    <form onSubmit={handleSubmit} data-testid="create-game-form" className={styles.form}>
+      <div className={styles.presets}>
         {PRESETS.map((preset, index) => (
           <button
             key={preset.label}
             type="button"
             data-testid={`preset-${index}`}
             onClick={() => setSelectedPreset(index)}
-            style={{
-              padding: "8px 16px",
-              border: selectedPreset === index ? "2px solid #333" : "1px solid #ccc",
-              backgroundColor: selectedPreset === index ? "#e0e0e0" : "#fff",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
+            className={[
+              styles.presetButton,
+              selectedPreset === index ? styles.presetButtonActive : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
             {preset.label}
           </button>
@@ -78,52 +79,47 @@ export function CreateGameForm({ onGameCreated }: CreateGameFormProps) {
           type="button"
           data-testid="preset-custom"
           onClick={() => setSelectedPreset("custom")}
-          style={{
-            padding: "8px 16px",
-            border: selectedPreset === "custom" ? "2px solid #333" : "1px solid #ccc",
-            backgroundColor: selectedPreset === "custom" ? "#e0e0e0" : "#fff",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
+          className={[
+            styles.presetButton,
+            selectedPreset === "custom" ? styles.presetButtonActive : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           Custom
         </button>
       </div>
 
       {selectedPreset === "custom" && (
-        <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
-          <div>
-            <label htmlFor="custom-minutes">Minutes</label>
-            <input
-              id="custom-minutes"
-              type="number"
-              min="1"
-              max="180"
-              value={customMinutes}
-              onChange={(e) => setCustomMinutes(e.target.value)}
-              style={{ display: "block", width: "80px" }}
-            />
-          </div>
-          <div>
-            <label htmlFor="custom-increment">Increment (sec)</label>
-            <input
-              id="custom-increment"
-              type="number"
-              min="0"
-              max="60"
-              value={customIncrement}
-              onChange={(e) => setCustomIncrement(e.target.value)}
-              style={{ display: "block", width: "80px" }}
-            />
-          </div>
+        <div className={styles.customFields}>
+          <Input
+            label="Minutes"
+            name="custom-minutes"
+            type="number"
+            value={customMinutes}
+            onChange={(e) => setCustomMinutes(e.target.value)}
+            className={styles.customField}
+          />
+          <Input
+            label="Increment (sec)"
+            name="custom-increment"
+            type="number"
+            value={customIncrement}
+            onChange={(e) => setCustomIncrement(e.target.value)}
+            className={styles.customField}
+          />
         </div>
       )}
 
-      {errorMessage && <p role="alert">{errorMessage}</p>}
+      {errorMessage && (
+        <p role="alert" className={styles.error}>
+          {errorMessage}
+        </p>
+      )}
 
-      <button type="submit" data-testid="create-game-submit" disabled={isLoading}>
+      <Button type="submit" loading={isLoading}>
         {isLoading ? "Creating…" : "Create Game"}
-      </button>
+      </Button>
     </form>
   );
 }

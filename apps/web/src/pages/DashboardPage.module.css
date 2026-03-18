@@ -1,0 +1,43 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.pageTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.quickLinks {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.quickLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.gamesSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.historyLink {
+  color: var(--color-text-link);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.historyLink:hover {
+  text-decoration: underline;
+}
+
+.waitingWrapper {
+  max-width: 600px;
+}
