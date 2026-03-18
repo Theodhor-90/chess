@@ -62,4 +62,16 @@ describe("tokens.css", () => {
     expect(tokensCss).toContain("--transition-easing:");
     expect(tokensCss).toContain("--transition-default:");
   });
+
+  it("defines breakpoint tokens", () => {
+    expect(tokensCss).toContain("--bp-sm:");
+    expect(tokensCss).toContain("--bp-md:");
+    expect(tokensCss).toContain("--bp-lg:");
+    expect(tokensCss).toContain("--bp-xl:");
+  });
+
+  it("defines mobile typography scale override", () => {
+    expect(tokensCss).toContain("@media (max-width: 768px)");
+    expect(tokensCss).toMatch(/--font-size-2xl:\s*24px/);
+  });
 });

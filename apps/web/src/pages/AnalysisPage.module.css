@@ -38,8 +38,8 @@
 }
 
 .board {
-  width: 400px;
-  height: 400px;
+  width: min(400px, calc(100vw - 2rem));
+  aspect-ratio: 1;
   flex-shrink: 0;
 }
 
@@ -49,6 +49,20 @@
   gap: var(--space-4);
   min-width: 200px;
   flex: 1;
+}
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .boardArea {
+    flex-shrink: 1;
+  }
+
+  .sidePanel {
+    min-width: 0;
+  }
 }
 
 .variationIndicator {

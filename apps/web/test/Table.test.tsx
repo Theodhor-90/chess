@@ -3,6 +3,19 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { Table } from "../src/components/ui/index.js";
 import type { TableColumn } from "../src/components/ui/index.js";
 
+vi.mock("../src/components/ui/Table.module.css", () => ({
+  default: {
+    wrapper: "wrapper",
+    table: "table",
+    th: "th",
+    sortable: "sortable",
+    td: "td",
+    truncate: "truncate",
+    clickableRow: "clickableRow",
+    empty: "empty",
+  },
+}));
+
 interface TestRow {
   id: number;
   name: string;
@@ -95,5 +108,19 @@ describe("Table", () => {
     render(<Table columns={columnsWithRender} data={testData} />);
     expect(screen.getByTestId("name-1")).toHaveTextContent("ALICE");
     expect(screen.getByTestId("name-2")).toHaveTextContent("BOB");
+  });
+
+  it("applies truncate class to cells when column has truncate: true", () => {
+    const columns: TableColumn<{ name: string; age: number }>[] = [
+      { key: "name", header: "Name", truncate: true },
+      { key: "age", header: "Age" },
+    ];
+    const data = [{ name: "Alice", age: 30 }];
+
+    render(<Table columns={columns} data={data} />);
+
+    const cells = screen.getAllByRole("cell");
+    expect(cells[0].className).toContain("truncate");
+    expect(cells[1].className).not.toContain("truncate");
   });
 });

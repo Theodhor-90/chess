@@ -6,7 +6,7 @@
   background-color: var(--color-surface);
   border: var(--border-width) solid var(--color-border-light);
   border-radius: var(--radius-sm);
-  min-width: 400px;
+  min-width: min(400px, calc(100vw - 2rem));
 }
 
 .playerInfo {

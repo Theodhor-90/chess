@@ -99,6 +99,23 @@
   --transition-duration: 150ms;
   --transition-easing: ease-in-out;
   --transition-default: var(--transition-duration) var(--transition-easing);
+
+  /* --- Breakpoints (documentation only — cannot be used in @media queries) --- */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+}
+
+@media (max-width: 768px) {
+  [data-theme="light"] {
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-md: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+  }
 }
 
 /* --- Dark theme placeholder (wired in M14) ---

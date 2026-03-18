@@ -179,12 +179,14 @@ export function DatabasePage() {
       key: "whiteElo",
       header: "White (Elo)",
       sortable: true,
+      truncate: true,
       render: (row) => `${row.white} (${row.whiteElo})`,
     },
     {
       key: "blackElo",
       header: "Black (Elo)",
       sortable: true,
+      truncate: true,
       render: (row) => `${row.black} (${row.blackElo})`,
     },
     {
@@ -197,6 +199,7 @@ export function DatabasePage() {
       key: "opening",
       header: "Opening",
       sortable: true,
+      truncate: true,
       render: (row) => row.opening ?? "—",
     },
     {

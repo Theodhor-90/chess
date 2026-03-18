@@ -5,6 +5,7 @@ interface TableColumn<T> {
   key: string;
   header: string;
   sortable?: boolean;
+  truncate?: boolean;
   render?: (row: T) => ReactNode;
 }
 
@@ -83,7 +84,12 @@ function Table<T>({
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((column) => (
-                  <td key={column.key} className={styles.td}>
+                  <td
+                    key={column.key}
+                    className={[styles.td, column.truncate ? styles.truncate : ""]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
                     {renderCell(row, column)}
                   </td>
                 ))}

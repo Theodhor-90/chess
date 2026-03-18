@@ -121,6 +121,7 @@ export function GameList() {
     {
       key: "opponent",
       header: "Opponent",
+      truncate: true,
       render: (game) => {
         const opponentId = getOpponentId(game, myUserId);
         const label = getOpponentLabel(game, myUserId);

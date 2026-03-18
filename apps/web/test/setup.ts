@@ -18,3 +18,12 @@ if (NativeRequest) {
 
   globalThis.Request = TestRequest;
 }
+
+// ResizeObserver stub for jsdom (not implemented natively)
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof globalThis.ResizeObserver;
+}

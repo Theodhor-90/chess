@@ -1,6 +1,24 @@
-/* === Wrapper === */
+/* === Wrapper with scroll hint === */
 .wrapper {
   overflow-x: auto;
+  position: relative;
+  background:
+    linear-gradient(to right, var(--color-surface) 30%, transparent),
+    linear-gradient(to left, var(--color-surface) 30%, transparent),
+    linear-gradient(to right, rgba(0, 0, 0, 0.15), transparent 70%),
+    linear-gradient(to left, rgba(0, 0, 0, 0.15), transparent 70%);
+  background-position:
+    left center,
+    right center,
+    left center,
+    right center;
+  background-repeat: no-repeat;
+  background-size:
+    40px 100%,
+    40px 100%,
+    20px 100%,
+    20px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 
 /* === Table === */
@@ -39,6 +57,14 @@
   border-bottom: var(--border-width) solid var(--color-border-light);
 }
 
+/* === Truncation for long-text cells === */
+.truncate {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* === Clickable rows === */
 .clickableRow {
   cursor: pointer;
@@ -54,4 +80,19 @@
   text-align: center;
   font-size: var(--font-size-md);
   color: var(--color-text-secondary);
+}
+
+/* === Mobile adjustments === */
+@media (max-width: 768px) {
+  .th {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .td {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .truncate {
+    max-width: 100px;
+  }
 }
