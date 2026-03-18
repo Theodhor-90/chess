@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { MoveClassification } from "@chess/shared";
+import styles from "./AnalysisMoveList.module.css";
 
 interface AnalysisMoveListProps {
   moves: string[];
@@ -8,12 +9,12 @@ interface AnalysisMoveListProps {
   classifications?: (MoveClassification | null)[];
 }
 
-const classificationColors: Record<MoveClassification, string> = {
-  best: "#22c55e",
-  good: "#22c55e",
-  inaccuracy: "#eab308",
-  mistake: "#f97316",
-  blunder: "#ef4444",
+const classificationClass: Record<MoveClassification, string> = {
+  best: styles.indicatorBest,
+  good: styles.indicatorGood,
+  inaccuracy: styles.indicatorInaccuracy,
+  mistake: styles.indicatorMistake,
+  blunder: styles.indicatorBlunder,
 };
 
 export function AnalysisMoveList({
@@ -31,14 +32,7 @@ export function AnalysisMoveList({
     return (
       <span
         data-testid={`move-indicator-${moveIndex}`}
-        style={{
-          display: "inline-block",
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          backgroundColor: classificationColors[classification],
-          marginRight: 4,
-        }}
+        className={`${styles.indicator} ${classificationClass[classification]}`}
       />
     );
   }
@@ -55,35 +49,23 @@ export function AnalysisMoveList({
   }
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="analysis-move-list"
-      style={{
-        maxHeight: "400px",
-        overflowY: "auto",
-        fontFamily: "monospace",
-        fontSize: "14px",
-      }}
-    >
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div ref={containerRef} data-testid="analysis-move-list" className={styles.container}>
+      <table className={styles.table}>
         <tbody>
           {pairs.map(([white, black], index) => {
             const whiteMoveIndex = index * 2 + 1;
             const blackMoveIndex = index * 2 + 2;
             const isWhiteActive = currentMoveIndex === whiteMoveIndex;
             const isBlackActive = currentMoveIndex === blackMoveIndex;
+            const rowClass = index % 2 === 0 ? styles.row : styles.rowAlt;
 
             return (
-              <tr key={index}>
-                <td style={{ padding: "2px 8px", color: "#666", width: "30px" }}>{index + 1}.</td>
+              <tr key={index} className={rowClass}>
+                <td className={styles.moveNumber}>{index + 1}.</td>
                 <td
                   ref={isWhiteActive ? activeRef : undefined}
                   onClick={() => onMoveClick(whiteMoveIndex)}
-                  style={{
-                    padding: "2px 8px",
-                    cursor: "pointer",
-                    backgroundColor: isWhiteActive ? "#e0e0ff" : undefined,
-                  }}
+                  className={`${styles.moveCell}${isWhiteActive ? ` ${styles.activeMove}` : ""}`}
                 >
                   {renderIndicator(whiteMoveIndex)}
                   {white}
@@ -91,11 +73,11 @@ export function AnalysisMoveList({
                 <td
                   ref={isBlackActive ? activeRef : undefined}
                   onClick={black ? () => onMoveClick(blackMoveIndex) : undefined}
-                  style={{
-                    padding: "2px 8px",
-                    cursor: black ? "pointer" : undefined,
-                    backgroundColor: isBlackActive ? "#e0e0ff" : undefined,
-                  }}
+                  className={
+                    black
+                      ? `${styles.moveCell}${isBlackActive ? ` ${styles.activeMove}` : ""}`
+                      : styles.moveCellEmpty
+                  }
                 >
                   {renderIndicator(blackMoveIndex)}
                   {black ?? ""}

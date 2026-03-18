@@ -1,0 +1,65 @@
+.page {
+  padding: var(--space-4);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.toolbar {
+  margin-bottom: var(--space-4);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.boardArea {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.board {
+  width: 400px;
+  height: 400px;
+  flex-shrink: 0;
+}
+
+.evalBarPlaceholder {
+  width: 30px;
+  min-height: 400px;
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 200px;
+  flex: 1;
+}
+
+.statusText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}
+
+.guardMessage {
+  padding: var(--space-4);
+  max-width: 800px;
+  margin: 0 auto;
+  color: var(--color-text-secondary);
+}

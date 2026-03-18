@@ -1,4 +1,5 @@
 import type { EvalScore } from "@chess/shared";
+import styles from "./EvalBar.module.css";
 
 interface EvalBarProps {
   score: EvalScore;
@@ -29,47 +30,17 @@ export function EvalBar({ score }: EvalBarProps) {
   const labelInWhite = whitePercent > 50;
 
   return (
-    <div
-      data-testid="eval-bar"
-      style={{
-        width: 30,
-        height: "100%",
-        minHeight: 400,
-        position: "relative",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          height: `${100 - whitePercent}%`,
-          background: "#333",
-          transition: "height 0.3s ease",
-        }}
-      />
+    <div data-testid="eval-bar" className={styles.container}>
+      <div className={styles.blackFill} style={{ height: `${100 - whitePercent}%` }} />
       <div
         data-testid="eval-white-fill"
-        style={{
-          height: `${whitePercent}%`,
-          background: "#f0f0f0",
-          transition: "height 0.3s ease",
-        }}
+        className={styles.whiteFill}
+        style={{ height: `${whitePercent}%` }}
       />
       <div
         data-testid="eval-score"
-        style={{
-          position: "absolute",
-          top: `${100 - whitePercent}%`,
-          left: 0,
-          right: 0,
-          transform: "translateY(-50%)",
-          textAlign: "center",
-          fontSize: 11,
-          fontWeight: "bold",
-          color: labelInWhite ? "#333" : "#f0f0f0",
-          pointerEvents: "none",
-        }}
+        className={`${styles.scoreLabel} ${labelInWhite ? styles.scoreLabelDark : styles.scoreLabelLight}`}
+        style={{ top: `${100 - whitePercent}%` }}
       >
         {label}
       </div>

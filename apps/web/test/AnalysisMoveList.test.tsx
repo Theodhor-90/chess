@@ -17,7 +17,7 @@ describe("AnalysisMoveList classification indicators", () => {
     expect(screen.queryByTestId(/^move-indicator-/)).toBeNull();
   });
 
-  it("renders green indicator for 'best' classification", () => {
+  it("renders indicator with 'best' classification class", () => {
     const classifications: (MoveClassification | null)[] = [null, "best", null];
     render(
       <AnalysisMoveList
@@ -29,10 +29,10 @@ describe("AnalysisMoveList classification indicators", () => {
     );
     const indicator = screen.getByTestId("move-indicator-1");
     expect(indicator).toBeInTheDocument();
-    expect(indicator.style.backgroundColor).toBe("rgb(34, 197, 94)");
+    expect(indicator.className).toContain("indicatorBest");
   });
 
-  it("renders green indicator for 'good' classification", () => {
+  it("renders indicator with 'good' classification class", () => {
     const classifications: (MoveClassification | null)[] = [null, "good", null];
     render(
       <AnalysisMoveList
@@ -44,10 +44,10 @@ describe("AnalysisMoveList classification indicators", () => {
     );
     const indicator = screen.getByTestId("move-indicator-1");
     expect(indicator).toBeInTheDocument();
-    expect(indicator.style.backgroundColor).toBe("rgb(34, 197, 94)");
+    expect(indicator.className).toContain("indicatorGood");
   });
 
-  it("renders yellow indicator for 'inaccuracy' classification", () => {
+  it("renders indicator with 'inaccuracy' classification class", () => {
     const classifications: (MoveClassification | null)[] = [null, "inaccuracy", null];
     render(
       <AnalysisMoveList
@@ -59,10 +59,10 @@ describe("AnalysisMoveList classification indicators", () => {
     );
     const indicator = screen.getByTestId("move-indicator-1");
     expect(indicator).toBeInTheDocument();
-    expect(indicator.style.backgroundColor).toBe("rgb(234, 179, 8)");
+    expect(indicator.className).toContain("indicatorInaccuracy");
   });
 
-  it("renders orange indicator for 'mistake' classification", () => {
+  it("renders indicator with 'mistake' classification class", () => {
     const classifications: (MoveClassification | null)[] = [null, "mistake", null];
     render(
       <AnalysisMoveList
@@ -74,10 +74,10 @@ describe("AnalysisMoveList classification indicators", () => {
     );
     const indicator = screen.getByTestId("move-indicator-1");
     expect(indicator).toBeInTheDocument();
-    expect(indicator.style.backgroundColor).toBe("rgb(249, 115, 22)");
+    expect(indicator.className).toContain("indicatorMistake");
   });
 
-  it("renders red indicator for 'blunder' classification", () => {
+  it("renders indicator with 'blunder' classification class", () => {
     const classifications: (MoveClassification | null)[] = [null, "blunder", null];
     render(
       <AnalysisMoveList
@@ -89,7 +89,7 @@ describe("AnalysisMoveList classification indicators", () => {
     );
     const indicator = screen.getByTestId("move-indicator-1");
     expect(indicator).toBeInTheDocument();
-    expect(indicator.style.backgroundColor).toBe("rgb(239, 68, 68)");
+    expect(indicator.className).toContain("indicatorBlunder");
   });
 
   it("does not render indicator for null classification entries", () => {

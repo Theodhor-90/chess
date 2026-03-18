@@ -1,0 +1,71 @@
+.container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: var(--border-width) solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.row {
+  /* Default row — transparent background */
+}
+
+.rowAlt {
+  background-color: var(--color-gray-50);
+}
+
+.moveNumber {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-secondary);
+  width: 30px;
+  text-align: right;
+}
+
+.moveCell {
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.moveCellEmpty {
+  padding: var(--space-1) var(--space-2);
+  cursor: default;
+}
+
+.activeMove {
+  background-color: var(--color-primary-light);
+  font-weight: var(--font-weight-semibold);
+}
+
+.indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  margin-right: var(--space-1);
+}
+
+.indicatorBest {
+  background-color: var(--color-success);
+}
+
+.indicatorGood {
+  background-color: var(--color-success);
+}
+
+.indicatorInaccuracy {
+  background-color: var(--color-warning);
+}
+
+.indicatorMistake {
+  background-color: #f97316;
+}
+
+.indicatorBlunder {
+  background-color: var(--color-error);
+}

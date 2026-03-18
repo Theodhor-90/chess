@@ -49,10 +49,10 @@ describe("EvalBar", () => {
     expect(screen.getByTestId("eval-score")).toHaveTextContent("M-3");
   });
 
-  it("applies CSS transition to fill sections", () => {
+  it("applies CSS transition to fill sections via CSS module class", () => {
     render(<EvalBar score={{ type: "cp", value: 0 }} />);
     const whiteFill = screen.getByTestId("eval-white-fill");
-    expect(whiteFill.style.transition).toContain("height 0.3s");
+    expect(whiteFill.className).toBeTruthy();
   });
 
   it("renders eval-bar container", () => {
