@@ -1,6 +1,7 @@
 import { createAction, type Middleware, type Dispatch, type UnknownAction } from "@reduxjs/toolkit";
 import { connectSocket, disconnectSocket, getSocket, type TypedSocket } from "../socket.js";
 import type { MoveAck } from "@chess/shared";
+import { playSound, initSounds } from "../services/sounds.js";
 import {
   setGameState,
   applyMove,
@@ -43,16 +44,34 @@ function setupSocketListeners(
   getState: () => MiddlewareState,
 ): void {
   socket.on("gameState", (data) => {
+    initSounds();
+    const currentGame = getState().game.currentGame;
+    const wasWaiting = currentGame === null || currentGame.status === "waiting";
     dispatch(setGameState(data));
+    if (wasWaiting && data.status === "active") {
+      playSound("gameStart");
+    }
   });
 
   socket.on("moveMade", (data) => {
     dispatch(applyMove(data));
     dispatch(clearOptimisticMove());
+    // Determine sound from SAN notation
+    const san = data.san;
+    if (san.includes("+") || san.includes("#")) {
+      playSound("check");
+    } else if (san === "O-O" || san === "O-O-O") {
+      playSound("castle");
+    } else if (san.includes("x")) {
+      playSound("capture");
+    } else {
+      playSound("move");
+    }
   });
 
   socket.on("gameOver", (data) => {
     dispatch(setGameOver(data));
+    playSound("gameEnd");
   });
 
   socket.on("opponentJoined", (_data) => {

@@ -24,6 +24,7 @@ import type {
   AnalysisProgressPayload,
 } from "@chess/shared";
 import { useSwipeGesture } from "../hooks/useSwipeGesture.js";
+import { PageSkeleton } from "../components/ui/Skeleton.js";
 import styles from "./AnalysisPage.module.css";
 
 function isTerminalStatus(status: GameStatus): boolean {
@@ -483,7 +484,7 @@ export function AnalysisPage() {
   }
 
   if (gameLoading || gamesLoading) {
-    return <div data-testid="analysis-loading">Loading analysis...</div>;
+    return <PageSkeleton testId="analysis-loading" />;
   }
 
   if (gameError || !game) {

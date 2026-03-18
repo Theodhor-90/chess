@@ -10,18 +10,36 @@ afterEach(() => {
 
 describe("Toast", () => {
   it("renders the message text", () => {
-    render(<Toast id="1" message="Saved successfully" type="success" onDismiss={() => {}} />);
+    render(
+      <Toast
+        id="1"
+        message="Saved successfully"
+        type="success"
+        isExiting={false}
+        onDismiss={() => {}}
+      />,
+    );
     expect(screen.getByText("Saved successfully")).toBeDefined();
   });
 
   it("renders with role alert", () => {
-    render(<Toast id="1" message="Error occurred" type="error" onDismiss={() => {}} />);
+    render(
+      <Toast id="1" message="Error occurred" type="error" isExiting={false} onDismiss={() => {}} />,
+    );
     expect(screen.getByRole("alert")).toBeDefined();
   });
 
   it("calls onDismiss with the toast id when close button is clicked", () => {
     const handleDismiss = vi.fn();
-    render(<Toast id="toast-42" message="Info" type="info" onDismiss={handleDismiss} />);
+    render(
+      <Toast
+        id="toast-42"
+        message="Info"
+        type="info"
+        isExiting={false}
+        onDismiss={handleDismiss}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(handleDismiss).toHaveBeenCalledOnce();
     expect(handleDismiss).toHaveBeenCalledWith("toast-42");
@@ -31,7 +49,13 @@ describe("Toast", () => {
     const types = ["success", "error", "warning", "info"] as const;
     for (const type of types) {
       const { unmount } = render(
-        <Toast id={type} message={`${type} toast`} type={type} onDismiss={() => {}} />,
+        <Toast
+          id={type}
+          message={`${type} toast`}
+          type={type}
+          isExiting={false}
+          onDismiss={() => {}}
+        />,
       );
       expect(screen.getByText(`${type} toast`)).toBeDefined();
       unmount();
@@ -68,20 +92,26 @@ describe("ToastProvider + useToast", () => {
     expect(screen.getByText("Second")).toBeDefined();
   });
 
-  it("toast auto-dismisses after default duration (4000ms)", () => {
+  it("toast auto-dismisses after default duration (4000ms) plus exit animation", () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useToast(), { wrapper });
     act(() => {
       result.current.showToast("Auto dismiss", "info");
     });
     expect(screen.getByText("Auto dismiss")).toBeDefined();
+    // At 4000ms the exit animation starts, toast still in DOM
     act(() => {
       vi.advanceTimersByTime(4000);
+    });
+    expect(screen.getByText("Auto dismiss")).toBeDefined();
+    // After 300ms exit animation, toast is removed
+    act(() => {
+      vi.advanceTimersByTime(300);
     });
     expect(screen.queryByText("Auto dismiss")).toBeNull();
   });
 
-  it("toast auto-dismisses after custom duration", () => {
+  it("toast auto-dismisses after custom duration plus exit animation", () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useToast(), { wrapper });
     act(() => {
@@ -90,6 +120,11 @@ describe("ToastProvider + useToast", () => {
     expect(screen.getByText("Quick toast")).toBeDefined();
     act(() => {
       vi.advanceTimersByTime(1000);
+    });
+    // Still visible during exit animation
+    expect(screen.getByText("Quick toast")).toBeDefined();
+    act(() => {
+      vi.advanceTimersByTime(300);
     });
     expect(screen.queryByText("Quick toast")).toBeNull();
   });
@@ -102,6 +137,12 @@ describe("ToastProvider + useToast", () => {
     });
     expect(screen.getByText("Manual dismiss")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    // Still in DOM during exit animation
+    expect(screen.getByText("Manual dismiss")).toBeDefined();
+    // After exit animation completes, removed from DOM
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
     expect(screen.queryByText("Manual dismiss")).toBeNull();
   });
 });

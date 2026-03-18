@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { Modal } from "../src/components/ui/index.js";
 
 afterEach(() => {
@@ -17,34 +17,40 @@ describe("Modal", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("renders a dialog when isOpen is true", () => {
+  it("renders a dialog when isOpen is true", async () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Test">
         Content
       </Modal>,
     );
-    expect(screen.getByRole("dialog")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeDefined();
+    });
   });
 
-  it("renders the title text", () => {
+  it("renders the title text", async () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Confirm Action">
         Body
       </Modal>,
     );
-    expect(screen.getByText("Confirm Action")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText("Confirm Action")).toBeDefined();
+    });
   });
 
-  it("renders children in the body", () => {
+  it("renders children in the body", async () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Test">
         <p data-testid="modal-content">Hello World</p>
       </Modal>,
     );
-    expect(screen.getByTestId("modal-content")).toHaveTextContent("Hello World");
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-content")).toHaveTextContent("Hello World");
+    });
   });
 
-  it("renders footer when provided", () => {
+  it("renders footer when provided", async () => {
     render(
       <Modal
         isOpen={true}
@@ -55,60 +61,77 @@ describe("Modal", () => {
         Body
       </Modal>,
     );
-    expect(screen.getByRole("button", { name: "Save" })).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save" })).toBeDefined();
+    });
   });
 
-  it("does not render footer section when footer is not provided", () => {
+  it("does not render footer section when footer is not provided", async () => {
     render(
       <Modal isOpen={true} onClose={() => {}} title="Test">
         Body
       </Modal>,
     );
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeDefined();
+    });
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
-  it("calls onClose when the close button is clicked", () => {
+  it("calls onClose when the close button is clicked", async () => {
     const handleClose = vi.fn();
     render(
       <Modal isOpen={true} onClose={handleClose} title="Test">
         Body
       </Modal>,
     );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Close" })).toBeDefined();
+    });
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(handleClose).toHaveBeenCalledOnce();
   });
 
-  it("calls onClose when Escape key is pressed", () => {
+  it("calls onClose when Escape key is pressed", async () => {
     const handleClose = vi.fn();
     render(
       <Modal isOpen={true} onClose={handleClose} title="Test">
         Body
       </Modal>,
     );
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeDefined();
+    });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(handleClose).toHaveBeenCalledOnce();
   });
 
-  it("calls onClose when backdrop is clicked", () => {
+  it("calls onClose when backdrop is clicked", async () => {
     const handleClose = vi.fn();
     render(
       <Modal isOpen={true} onClose={handleClose} title="Test">
         Body
       </Modal>,
     );
+    await waitFor(() => {
+      expect(screen.getByRole("dialog")).toBeDefined();
+    });
     const dialog = screen.getByRole("dialog");
     const backdrop = dialog.parentElement!;
     fireEvent.click(backdrop);
     expect(handleClose).toHaveBeenCalledOnce();
   });
 
-  it("does not call onClose when the panel content is clicked", () => {
+  it("does not call onClose when the panel content is clicked", async () => {
     const handleClose = vi.fn();
     render(
       <Modal isOpen={true} onClose={handleClose} title="Test">
         Body text
       </Modal>,
     );
+    await waitFor(() => {
+      expect(screen.getByText("Body text")).toBeDefined();
+    });
     fireEvent.click(screen.getByText("Body text"));
     expect(handleClose).not.toHaveBeenCalled();
   });

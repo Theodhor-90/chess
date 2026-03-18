@@ -5,6 +5,7 @@ import type { TableColumn } from "../components/ui/Table.js";
 import { Card } from "../components/ui/Card.js";
 import { Badge } from "../components/ui/Badge.js";
 import { Table } from "../components/ui/Table.js";
+import { PageSkeleton } from "../components/ui/Skeleton.js";
 import styles from "./ProfilePage.module.css";
 
 function resultBadge(result: "win" | "loss" | "draw") {
@@ -26,7 +27,7 @@ export function ProfilePage() {
   if (isLoading) {
     return (
       <div className={styles.page} data-testid="profile-loading">
-        Loading...
+        <PageSkeleton />
       </div>
     );
   }

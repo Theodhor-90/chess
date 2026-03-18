@@ -9,6 +9,10 @@
   box-shadow: var(--shadow-md);
   min-width: 280px;
   max-width: 400px;
+  animation: toastSlideIn 300ms ease-out;
+  transition:
+    transform 300ms ease-in,
+    opacity 300ms ease-in;
 }
 
 .message {
@@ -77,4 +81,21 @@
 
 .container > * {
   pointer-events: auto;
+}
+
+/* === Toast animations === */
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.exiting {
+  transform: translateX(100%);
+  opacity: 0;
 }

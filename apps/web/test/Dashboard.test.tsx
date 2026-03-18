@@ -216,7 +216,7 @@ describe("GameList", () => {
 
     renderWithProviders(<GameList />);
 
-    expect(screen.getByTestId("game-list-loading")).toHaveTextContent("Loading games...");
+    expect(screen.getByTestId("game-list-loading")).toBeInTheDocument();
   });
 
   it("shows empty state when no games", async () => {

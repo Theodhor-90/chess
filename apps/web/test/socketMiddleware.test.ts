@@ -23,6 +23,13 @@ vi.mock("../src/socket.js", () => ({
   getSocket: vi.fn(() => mockSocket),
 }));
 
+vi.mock("../src/services/sounds.js", () => ({
+  playSound: vi.fn(),
+  initSounds: vi.fn(),
+  isMuted: vi.fn(() => false),
+  setMuted: vi.fn(),
+}));
+
 import { connectSocket, disconnectSocket } from "../src/socket.js";
 
 function createTestStore() {

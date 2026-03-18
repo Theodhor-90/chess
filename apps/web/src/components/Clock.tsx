@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./Clock.module.css";
+import { playSound } from "../services/sounds.js";
 
 function formatTime(ms: number): string {
   if (ms < 10000) {
@@ -29,6 +30,7 @@ export function Clock({
 }) {
   const [displayTime, setDisplayTime] = useState(timeMs);
   const rafRef = useRef<number>(0);
+  const lowTimeSoundPlayed = useRef(false);
 
   useEffect(() => {
     if (!isActive) {
@@ -50,9 +52,26 @@ export function Clock({
     };
   }, [timeMs, isActive, lastUpdate]);
 
+  // Play low-time sound once when active clock drops below 30s
+  useEffect(() => {
+    if (isActive && displayTime < 30000 && displayTime > 0 && !lowTimeSoundPlayed.current) {
+      lowTimeSoundPlayed.current = true;
+      playSound("lowTime");
+    }
+    // Reset the flag when the clock goes back above 30s (e.g., time added via increment)
+    if (displayTime >= 30000) {
+      lowTimeSoundPlayed.current = false;
+    }
+  }, [isActive, displayTime]);
+
   const isLowTime = displayTime < 30000;
   const formatted = formatTime(displayTime);
-  const className = [styles.clock, isActive && styles.active, isLowTime && styles.lowTime]
+  const className = [
+    styles.clock,
+    isActive && styles.active,
+    isLowTime && styles.lowTime,
+    isActive && isLowTime && styles.urgentPulse,
+  ]
     .filter(Boolean)
     .join(" ");
 

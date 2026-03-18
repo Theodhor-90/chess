@@ -13,6 +13,7 @@ import { DisconnectBanner } from "../components/DisconnectBanner.js";
 import { ConnectionStatus } from "../components/ConnectionStatus.js";
 import { Chess } from "chess.js";
 import { useSwipeGesture } from "../hooks/useSwipeGesture.js";
+import { GamePageSkeleton } from "../components/ui/Skeleton.js";
 import styles from "./GamePage.module.css";
 import type { PlayerColor } from "@chess/shared";
 
@@ -109,7 +110,7 @@ export function GamePage() {
   }
 
   if (!game) {
-    return <div data-testid="loading">Loading game...</div>;
+    return <GamePageSkeleton testId="loading" />;
   }
 
   const clockState = game.clockState;

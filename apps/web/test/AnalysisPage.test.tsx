@@ -387,7 +387,7 @@ describe("AnalysisPage", () => {
     renderWithProviders(<AppRoutes />, { route: "/analysis/10" });
 
     await waitFor(() => {
-      expect(screen.getByTestId("analysis-loading")).toHaveTextContent("Loading analysis...");
+      expect(screen.getByTestId("analysis-loading")).toBeInTheDocument();
     });
   });
 

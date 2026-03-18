@@ -11,12 +11,26 @@
   cursor: pointer;
   transition:
     background-color var(--transition-default),
-    border-color var(--transition-default);
+    border-color var(--transition-default),
+    transform 100ms ease-out;
 }
 
 .button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.button:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* === Variants === */
