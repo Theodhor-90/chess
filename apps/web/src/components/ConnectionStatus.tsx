@@ -1,9 +1,10 @@
 import { useAppSelector } from "../store/index.js";
+import styles from "./ConnectionStatus.module.css";
 
 const STATUS_CONFIG = {
-  connected: { color: "#28a745", label: "Connected" },
-  connecting: { color: "#ffc107", label: "Reconnecting..." },
-  disconnected: { color: "#dc3545", label: "Disconnected" },
+  connected: { dotClass: "dotConnected", label: "Connected" },
+  connecting: { dotClass: "dotConnecting", label: "Reconnecting..." },
+  disconnected: { dotClass: "dotDisconnected", label: "Disconnected" },
 } as const;
 
 export function ConnectionStatus() {
@@ -11,26 +12,8 @@ export function ConnectionStatus() {
   const config = STATUS_CONFIG[connectionStatus];
 
   return (
-    <div
-      data-testid="connection-status"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
-        fontSize: "12px",
-        color: "#666",
-      }}
-    >
-      <span
-        data-testid="connection-dot"
-        style={{
-          width: "8px",
-          height: "8px",
-          borderRadius: "50%",
-          backgroundColor: config.color,
-          display: "inline-block",
-        }}
-      />
+    <div data-testid="connection-status" className={styles.container}>
+      <span data-testid="connection-dot" className={`${styles.dot} ${styles[config.dotClass]}`} />
       <span data-testid="connection-label">{config.label}</span>
     </div>
   );

@@ -1,0 +1,32 @@
+.content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.resultMessage {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.finalClocks {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-lg);
+}
+
+.clockLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+}

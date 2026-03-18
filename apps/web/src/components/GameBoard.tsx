@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { Chessground } from "chessground";
 import { Chess } from "chess.js";
 import type { Api } from "chessground/api";
@@ -8,6 +8,8 @@ import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
+import { PromotionModal } from "./PromotionModal.js";
+import type { PromotionPiece } from "./PromotionModal.js";
 import type { PlayerColor } from "@chess/shared";
 
 function toDests(fen: string): Map<Key, Key[]> {
@@ -47,6 +49,11 @@ export function GameBoard({
   const isGameActive = status === "active";
   const isMyTurn = playerColor !== null && currentTurn === playerColor;
 
+  const [pendingPromotion, setPendingPromotion] = useState<{
+    orig: Key;
+    dest: Key;
+  } | null>(null);
+
   const dests = useMemo(() => {
     if (!isGameActive || !isMyTurn) return new Map<Key, Key[]>();
     return toDests(fen);
@@ -58,17 +65,54 @@ export function GameBoard({
       const piece = chess.get(orig as Parameters<typeof chess.get>[0]);
       const isPromotion = piece?.type === "p" && (dest[1] === "8" || dest[1] === "1");
 
+      if (isPromotion) {
+        setPendingPromotion({ orig, dest });
+        return;
+      }
+
       dispatch(
         socketActions.sendMove({
           gameId,
           from: orig,
           to: dest,
-          ...(isPromotion ? { promotion: "q" } : {}),
         }),
       );
     },
     [dispatch, gameId, fen],
   );
+
+  function handlePromotionSelect(piece: PromotionPiece) {
+    if (!pendingPromotion) return;
+    dispatch(
+      socketActions.sendMove({
+        gameId,
+        from: pendingPromotion.orig,
+        to: pendingPromotion.dest,
+        promotion: piece,
+      }),
+    );
+    setPendingPromotion(null);
+  }
+
+  function handlePromotionCancel() {
+    setPendingPromotion(null);
+    // Reset the board position to undo the Chessground move animation
+    if (apiRef.current) {
+      apiRef.current.set({
+        fen,
+        turnColor: toColor(currentTurn),
+        movable: {
+          free: false,
+          color: playerColor ?? undefined,
+          dests,
+          showDests: true,
+          events: {
+            after: onMove,
+          },
+        },
+      });
+    }
+  }
 
   // Initialize Chessground once on mount
   useEffect(() => {
@@ -117,6 +161,19 @@ export function GameBoard({
   }, [fen, currentTurn, isGameActive, playerColor, dests, onMove]);
 
   return (
-    <div ref={containerRef} data-testid="game-board" style={{ width: "400px", height: "400px" }} />
+    <>
+      <div
+        ref={containerRef}
+        data-testid="game-board"
+        style={{ width: "400px", height: "400px" }}
+      />
+      {pendingPromotion && (
+        <PromotionModal
+          color={playerColor ?? "white"}
+          onSelect={handlePromotionSelect}
+          onCancel={handlePromotionCancel}
+        />
+      )}
+    </>
   );
 }
