@@ -116,3 +116,11 @@
     transform: rotate(360deg);
   }
 }
+
+@media (max-width: 768px) {
+  .sm,
+  .md {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

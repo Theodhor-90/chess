@@ -41,3 +41,13 @@ textarea,
 select {
   font: inherit;
 }
+
+/* Eliminate 300ms tap delay on interactive elements */
+a,
+button,
+input,
+select,
+textarea,
+[role="button"] {
+  touch-action: manipulation;
+}

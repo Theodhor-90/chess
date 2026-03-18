@@ -25,6 +25,7 @@ import type {
   EngineLineInfo,
   AnalysisProgressPayload,
 } from "@chess/shared";
+import { useSwipeGesture } from "../hooks/useSwipeGesture.js";
 import styles from "./AnalysisPage.module.css";
 
 function isTerminalStatus(status: GameStatus): boolean {
@@ -99,6 +100,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [completedPositions, setCompletedPositions] = useState<number | null>(null);
   const [totalPositions, setTotalPositions] = useState<number | null>(null);
   const analyzingGameIdRef = useRef<number | null>(null);
+  const boardAreaRef = useRef<HTMLDivElement>(null);
 
   const {
     data: storedAnalysis,
@@ -296,6 +298,35 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     return () => document.removeEventListener("keydown", handler);
   }, [moves.length, variation]);
 
+  const handleSwipeLeft = useCallback(() => {
+    if (variation) {
+      setVariation((prev) =>
+        prev && prev.stepIndex < prev.fens.length - 1
+          ? { ...prev, stepIndex: prev.stepIndex + 1 }
+          : prev,
+      );
+    } else {
+      setCurrentMoveIndex((prev) => Math.min(moves.length, prev + 1));
+    }
+  }, [variation, moves.length]);
+
+  const handleSwipeRight = useCallback(() => {
+    if (variation) {
+      if (variation.stepIndex <= 0) {
+        setVariation(null);
+      } else {
+        setVariation((prev) => (prev ? { ...prev, stepIndex: prev.stepIndex - 1 } : null));
+      }
+    } else {
+      setCurrentMoveIndex((prev) => Math.max(0, prev - 1));
+    }
+  }, [variation]);
+
+  useSwipeGesture(boardAreaRef, {
+    onSwipeLeft: handleSwipeLeft,
+    onSwipeRight: handleSwipeRight,
+  });
+
   // Initialize Chessground
   useEffect(() => {
     if (!containerRef.current) return;
@@ -353,7 +384,7 @@ function AnalysisContent({ game }: { game: GameResponse }) {
         )}
       </div>
       <div className={styles.layout}>
-        <div className={styles.boardArea}>
+        <div ref={boardAreaRef} className={styles.boardArea}>
           {currentEval && <EvalBar score={currentEval} />}
           <div ref={containerRef} data-testid="analysis-board" className={styles.board} />
         </div>

@@ -62,3 +62,170 @@
 .userLink:hover {
   color: var(--color-primary);
 }
+
+/* === Hamburger Button === */
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--transition-default);
+}
+
+.hamburger:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.hamburger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* === Hamburger Icon Lines === */
+.hamburgerIcon {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  gap: 4px;
+}
+
+.hamburgerLine {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background-color: currentColor;
+  border-radius: 1px;
+  transition:
+    transform var(--transition-default),
+    opacity var(--transition-default);
+}
+
+/* When menu is open, transform hamburger into X */
+.hamburgerOpen .hamburgerLine:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.hamburgerOpen .hamburgerLine:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburgerOpen .hamburgerLine:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+/* === Mobile Menu Backdrop === */
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(33, 33, 33, 0.3);
+  z-index: 99;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    visibility var(--transition-default),
+    opacity var(--transition-default);
+}
+
+.menuBackdropVisible {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* === Mobile Menu Panel === */
+.mobileMenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface);
+  border-bottom: var(--border-width) solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-2) 0;
+  z-index: 100;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+  opacity: 0;
+  transition:
+    visibility var(--transition-default),
+    transform var(--transition-default),
+    opacity var(--transition-default);
+}
+
+.mobileMenuOpen {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* === Mobile Menu Links === */
+.mobileMenuLink {
+  display: block;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition:
+    color var(--transition-default),
+    background-color var(--transition-default);
+}
+
+.mobileMenuLink:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-hover);
+}
+
+.mobileMenuLinkActive {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mobileMenuDivider {
+  height: 1px;
+  background-color: var(--color-border-light);
+  margin: var(--space-2) var(--space-4);
+}
+
+.mobileMenuUserSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+@media (max-width: 767px) {
+  .header {
+    position: relative;
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .userArea {
+    display: none;
+  }
+
+  .hamburger {
+    display: flex;
+  }
+
+  .brand {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
