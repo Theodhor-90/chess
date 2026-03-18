@@ -10,6 +10,7 @@ import { DashboardPage } from "../src/pages/DashboardPage.js";
 import { CreateGameForm } from "../src/components/CreateGameForm.js";
 import { InviteLink } from "../src/components/InviteLink.js";
 import { GameList } from "../src/components/GameList.js";
+import { ToastProvider } from "../src/components/ui/ToastProvider.js";
 import type { ClockConfig, ClockState, GameState } from "@chess/shared";
 
 const mockSocket = {
@@ -51,7 +52,9 @@ function renderWithProviders(ui: React.ReactElement, { route = "/" } = {}) {
     store,
     ...render(
       <Provider store={store}>
-        <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        <MemoryRouter initialEntries={[route]}>
+          <ToastProvider>{ui}</ToastProvider>
+        </MemoryRouter>
       </Provider>,
     ),
   };
@@ -118,7 +121,7 @@ describe("CreateGameForm", () => {
     expect(screen.getByText("Rapid 10+0")).toBeInTheDocument();
     expect(screen.getByText("Classical 30+0")).toBeInTheDocument();
     expect(screen.getByText("Custom")).toBeInTheDocument();
-    expect(screen.getByTestId("create-game-submit")).toHaveTextContent("Create Game");
+    expect(screen.getByRole("button", { name: "Create Game" })).toBeInTheDocument();
   });
 
   it("shows custom inputs when Custom is selected", () => {
@@ -145,7 +148,7 @@ describe("CreateGameForm", () => {
 
     renderWithProviders(<CreateGameForm onGameCreated={onGameCreated} />);
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(onGameCreated).toHaveBeenCalledWith(1, "abc-123", "white");
@@ -157,11 +160,12 @@ describe("CreateGameForm", () => {
 
     renderWithProviders(<CreateGameForm onGameCreated={vi.fn()} />);
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("create-game-submit")).toBeDisabled();
-      expect(screen.getByTestId("create-game-submit")).toHaveTextContent("Creating…");
+      const submitButton = screen.getByRole("button", { name: /Creating/i });
+      expect(submitButton).toBeDisabled();
+      expect(submitButton).toHaveTextContent("Creating…");
     });
   });
 
@@ -170,7 +174,7 @@ describe("CreateGameForm", () => {
 
     renderWithProviders(<CreateGameForm onGameCreated={vi.fn()} />);
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Server error");
@@ -187,8 +191,7 @@ describe("InviteLink", () => {
     );
   });
 
-  it("copy button changes text after click", async () => {
-    vi.useFakeTimers();
+  it("shows toast feedback after copy click", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -198,16 +201,11 @@ describe("InviteLink", () => {
     renderWithProviders(<InviteLink inviteToken="test-token-123" />);
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId("copy-link-button"));
-    });
-    expect(screen.getByTestId("copy-link-button")).toHaveTextContent("Copied!");
-
-    await act(async () => {
-      vi.advanceTimersByTime(2000);
+      fireEvent.click(screen.getByRole("button", { name: "Copy Link" }));
     });
 
-    expect(screen.getByTestId("copy-link-button")).toHaveTextContent("Copy Link");
     expect(writeText).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Link copied to clipboard!")).toBeInTheDocument();
   });
 });
 
@@ -228,7 +226,7 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByText("No games yet")).toBeInTheDocument();
+      expect(screen.getByText(/No games yet/)).toBeInTheDocument();
     });
   });
 
@@ -250,10 +248,9 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+      expect(screen.getByText("player_two")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("player_two")).toBeInTheDocument();
     expect(screen.getByText("10+0")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
@@ -314,7 +311,7 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+      expect(screen.getByText("player_two")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
   });
@@ -336,7 +333,7 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+      expect(screen.getByText("Waiting")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
   });
@@ -370,7 +367,7 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
@@ -391,13 +388,13 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("cancel-game-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Game" }));
 
     expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
     expect(screen.queryByTestId("create-game-form")).not.toBeInTheDocument();
@@ -428,7 +425,7 @@ describe("DashboardPage", () => {
       expect(screen.getByTestId("create-game-form")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("create-game-submit"));
+    fireEvent.click(screen.getByRole("button", { name: "Create Game" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("waiting-screen")).toBeInTheDocument();
@@ -438,7 +435,7 @@ describe("DashboardPage", () => {
       store.dispatch(setGameState(makeWaitingGameState(5)));
     });
 
-    fireEvent.click(screen.getByTestId("cancel-game-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Game" }));
     act(() => {
       store.dispatch(setError("Game can only be aborted while waiting"));
     });

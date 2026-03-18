@@ -1,41 +1,24 @@
-import { Link } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { useGetMyGamesQuery, useGetMeQuery } from "../store/apiSlice.js";
+import { Table } from "./ui/Table.js";
+import { Badge } from "./ui/Badge.js";
+import type { TableColumn } from "./ui/Table.js";
 import type { GameListItem, GameStatus } from "@chess/shared";
+import styles from "./GameList.module.css";
 
 function formatTimeControl(initialTime: number, increment: number): string {
   const minutes = Math.floor(initialTime / 60);
   return `${minutes}+${increment}`;
 }
 
-function getStatusLabel(status: GameStatus): string {
-  switch (status) {
-    case "waiting":
-      return "Waiting";
-    case "active":
-      return "Active";
-    default:
-      return status.charAt(0).toUpperCase() + status.slice(1);
-  }
-}
-
-function getResultLabel(game: GameListItem, myUserId: number | null): string {
-  if (game.status === "waiting" || game.status === "active") {
-    return "";
-  }
-  if (!game.result) {
-    return "";
-  }
-  if (!game.result.winner) {
-    return "Draw";
-  }
-  const myColor =
-    game.players.white?.userId === myUserId
-      ? "white"
-      : game.players.black?.userId === myUserId
-        ? "black"
-        : null;
-  if (!myColor) return "";
-  return game.result.winner === myColor ? "You won" : "You lost";
+function isTerminalStatus(status: GameStatus): boolean {
+  return (
+    status === "checkmate" ||
+    status === "stalemate" ||
+    status === "resigned" ||
+    status === "draw" ||
+    status === "timeout"
+  );
 }
 
 function getOpponentLabel(game: GameListItem, myUserId: number | null): string {
@@ -62,14 +45,47 @@ function getOpponentId(game: GameListItem, myUserId: number | null): number | nu
   return null;
 }
 
-function isTerminalStatus(status: GameStatus): boolean {
-  return (
-    status === "checkmate" ||
-    status === "stalemate" ||
-    status === "resigned" ||
-    status === "draw" ||
-    status === "timeout"
-  );
+function getStatusBadge(game: GameListItem): {
+  label: string;
+  variant: "info" | "warning" | "neutral";
+} {
+  if (game.status === "active") {
+    return { label: "Active", variant: "info" };
+  }
+  if (game.status === "waiting") {
+    return { label: "Waiting", variant: "warning" };
+  }
+  return { label: "Completed", variant: "neutral" };
+}
+
+function getResultBadge(
+  game: GameListItem,
+  myUserId: number | null,
+): { label: string; variant: "success" | "danger" | "neutral" } | null {
+  if (game.status === "waiting" || game.status === "active") {
+    return null;
+  }
+  if (!game.result) {
+    return null;
+  }
+  if (!game.result.winner) {
+    return { label: "Draw", variant: "neutral" };
+  }
+  const myColor =
+    game.players.white?.userId === myUserId
+      ? "white"
+      : game.players.black?.userId === myUserId
+        ? "black"
+        : null;
+  if (!myColor) return null;
+  if (game.result.winner === myColor) {
+    return { label: "Won", variant: "success" };
+  }
+  return { label: "Lost", variant: "danger" };
+}
+
+function formatDate(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleDateString();
 }
 
 function sortGames(games: GameListItem[]): GameListItem[] {
@@ -81,7 +97,6 @@ function sortGames(games: GameListItem[]): GameListItem[] {
     else if (game.status === "waiting") waiting.push(game);
     else completed.push(game);
   }
-  // Sort completed by most recent first
   completed.sort((a, b) => b.createdAt - a.createdAt);
   return [...active, ...waiting, ...completed];
 }
@@ -89,6 +104,7 @@ function sortGames(games: GameListItem[]): GameListItem[] {
 export function GameList() {
   const { data: games, isLoading, isError } = useGetMyGamesQuery();
   const { data: meData } = useGetMeQuery();
+  const navigate = useNavigate();
   const myUserId = meData?.user?.id ?? null;
 
   if (isLoading) {
@@ -99,65 +115,105 @@ export function GameList() {
     return <div data-testid="game-list-error">Failed to load games.</div>;
   }
 
-  if (!games || games.length === 0) {
-    return (
-      <div data-testid="game-list">
-        <h2>Your Games</h2>
-        <p>No games yet</p>
-      </div>
-    );
+  const sorted = games ? sortGames([...games]) : [];
+
+  const columns: TableColumn<GameListItem>[] = [
+    {
+      key: "opponent",
+      header: "Opponent",
+      render: (game) => {
+        const opponentId = getOpponentId(game, myUserId);
+        const label = getOpponentLabel(game, myUserId);
+        if (opponentId) {
+          return (
+            <Link
+              to={`/profile/${opponentId}`}
+              className={styles.opponentLink}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {label}
+            </Link>
+          );
+        }
+        return label;
+      },
+    },
+    {
+      key: "timeControl",
+      header: "Time",
+      render: (game) => (
+        <Badge variant="neutral" size="sm">
+          {formatTimeControl(game.clock.initialTime, game.clock.increment)}
+        </Badge>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (game) => {
+        const { label, variant } = getStatusBadge(game);
+        return (
+          <Badge variant={variant} size="sm">
+            {label}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "result",
+      header: "Result",
+      render: (game) => {
+        const badge = getResultBadge(game, myUserId);
+        if (!badge) return null;
+        return (
+          <Badge variant={badge.variant} size="sm">
+            {badge.label}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: "date",
+      header: "Date",
+      render: (game) => formatDate(game.createdAt),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (game) => {
+        if (isTerminalStatus(game.status)) {
+          return (
+            <Link
+              to={`/analysis/${game.id}`}
+              data-testid={`analyze-link-${game.id}`}
+              className={styles.analyzeLink}
+              onClick={(e) => e.stopPropagation()}
+            >
+              Analyze
+            </Link>
+          );
+        }
+        return null;
+      },
+    },
+  ];
+
+  function handleRowClick(game: GameListItem): void {
+    if (isTerminalStatus(game.status)) {
+      navigate(`/analysis/${game.id}`);
+    } else if (game.status === "active") {
+      navigate(`/game/${game.id}`);
+    }
   }
 
-  const sorted = sortGames([...games]);
-
   return (
-    <div data-testid="game-list">
-      <h2>Your Games</h2>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: "left", padding: "8px" }}>Opponent</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Time</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Status</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Result</th>
-            <th style={{ textAlign: "left", padding: "8px" }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((game) => (
-            <tr key={game.id} data-testid={`game-row-${game.id}`}>
-              <td style={{ padding: "8px" }}>
-                {(() => {
-                  const opponentId = getOpponentId(game, myUserId);
-                  const label = getOpponentLabel(game, myUserId);
-                  return opponentId ? (
-                    <Link
-                      to={`/profile/${opponentId}`}
-                      style={{ color: "inherit", textDecoration: "none" }}
-                    >
-                      {label}
-                    </Link>
-                  ) : (
-                    label
-                  );
-                })()}
-              </td>
-              <td style={{ padding: "8px" }}>
-                {formatTimeControl(game.clock.initialTime, game.clock.increment)}
-              </td>
-              <td style={{ padding: "8px" }}>{getStatusLabel(game.status)}</td>
-              <td style={{ padding: "8px" }}>{getResultLabel(game, myUserId)}</td>
-              <td style={{ padding: "8px" }}>
-                {isTerminalStatus(game.status) && (
-                  <Link to={`/analysis/${game.id}`} data-testid={`analyze-link-${game.id}`}>
-                    Analyze
-                  </Link>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div data-testid="game-list" className={styles.container}>
+      <Table<GameListItem>
+        columns={columns}
+        data={sorted}
+        onRowClick={handleRowClick}
+        emptyMessage="No games yet. Create one above to get started!"
+      />
     </div>
   );
 }

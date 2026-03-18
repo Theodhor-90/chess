@@ -7,6 +7,7 @@ import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { JoinPage } from "../src/pages/JoinPage.js";
+import { ToastProvider } from "../src/components/ui/ToastProvider.js";
 
 vi.mock("../src/socket.js", () => ({
   connectSocket: vi.fn(() => ({
@@ -42,11 +43,13 @@ function renderJoinPage(inviteToken: string) {
     ...render(
       <Provider store={store}>
         <MemoryRouter initialEntries={[`/join/${inviteToken}`]}>
-          <Routes>
-            <Route path="/join/:inviteToken" element={<JoinPage />} />
-            <Route path="/game/:id" element={<div data-testid="game-page">Game Page</div>} />
-            <Route path="/" element={<div data-testid="dashboard">Dashboard</div>} />
-          </Routes>
+          <ToastProvider>
+            <Routes>
+              <Route path="/join/:inviteToken" element={<JoinPage />} />
+              <Route path="/game/:id" element={<div data-testid="game-page">Game Page</div>} />
+              <Route path="/" element={<div data-testid="dashboard">Dashboard</div>} />
+            </Routes>
+          </ToastProvider>
         </MemoryRouter>
       </Provider>,
     ),
