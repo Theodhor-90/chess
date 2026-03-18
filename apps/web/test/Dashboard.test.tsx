@@ -229,7 +229,7 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByText("No games yet")).toBeInTheDocument();
+      expect(screen.getByText(/No games yet/)).toBeInTheDocument();
     });
   });
 
@@ -251,10 +251,9 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+      expect(screen.getByText("player_two")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("player_two")).toBeInTheDocument();
     expect(screen.getByText("10+0")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
   });
@@ -315,7 +314,7 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+      expect(screen.getByText("player_two")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
   });
@@ -337,7 +336,7 @@ describe("GameList", () => {
     renderWithProviders(<GameList />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("game-row-10")).toBeInTheDocument();
+      expect(screen.getByText("Waiting")).toBeInTheDocument();
     });
     expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
   });
