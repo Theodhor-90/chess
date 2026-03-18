@@ -158,11 +158,9 @@ describe("ProfilePage", () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("profile-game-10")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("profile-game-11")).toBeInTheDocument();
-    expect(screen.getByText("alice")).toBeInTheDocument();
     expect(screen.getByText("bob")).toBeInTheDocument();
     expect(screen.getByText("W")).toBeInTheDocument();
     expect(screen.getByText("L")).toBeInTheDocument();
@@ -192,10 +190,11 @@ describe("ProfilePage", () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("profile-game-42")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("profile-game-42"));
+    const row = screen.getByText("alice").closest("tr");
+    fireEvent.click(row!);
 
     await waitFor(() => {
       expect(screen.getByTestId("analysis-page")).toBeInTheDocument();
@@ -244,10 +243,8 @@ describe("ProfilePage", () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("profile-no-games")).toBeInTheDocument();
+      expect(screen.getByText("No games played yet.")).toBeInTheDocument();
     });
-
-    expect(screen.getByTestId("profile-no-games")).toHaveTextContent("No games played yet.");
   });
 });
 

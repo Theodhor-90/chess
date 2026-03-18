@@ -1,0 +1,40 @@
+.container {
+  width: 30px;
+  height: 100%;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--color-border-light);
+}
+
+.blackFill {
+  background: var(--color-gray-800);
+  transition: height 0.3s ease;
+}
+
+.whiteFill {
+  background: var(--color-gray-100);
+  transition: height 0.3s ease;
+}
+
+.scoreLabel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  pointer-events: none;
+}
+
+.scoreLabelDark {
+  color: var(--color-gray-800);
+}
+
+.scoreLabelLight {
+  color: var(--color-gray-100);
+}

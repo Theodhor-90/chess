@@ -13,6 +13,9 @@ import { treeToPositions } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
+import { Card } from "../components/ui/Card.js";
+import { Button } from "../components/ui/Button.js";
+import { Badge } from "../components/ui/Badge.js";
 import type {
   GameStatus,
   GameResponse,
@@ -22,6 +25,7 @@ import type {
   EngineLineInfo,
   AnalysisProgressPayload,
 } from "@chess/shared";
+import styles from "./AnalysisPage.module.css";
 
 function isTerminalStatus(status: GameStatus): boolean {
   return (
@@ -317,17 +321,11 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   }, [currentFen, arrowShapes]);
 
   return (
-    <div
-      data-testid="analysis-page"
-      style={{ padding: "16px", maxWidth: "1000px", margin: "0 auto" }}
-    >
-      <h1>Game Analysis</h1>
-      <div data-testid="analysis-players" style={{ fontSize: "14px", marginBottom: "8px" }}>
+    <div data-testid="analysis-page" className={styles.page}>
+      <h1 className={styles.title}>Game Analysis</h1>
+      <div data-testid="analysis-players" className={styles.players}>
         {game.players.white?.userId ? (
-          <Link
-            to={`/profile/${game.players.white.userId}`}
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
+          <Link to={`/profile/${game.players.white.userId}`} className={styles.playerLink}>
             {game.players.white.username ?? `User #${game.players.white.userId}`}
           </Link>
         ) : (
@@ -335,122 +333,80 @@ function AnalysisContent({ game }: { game: GameResponse }) {
         )}
         {" vs "}
         {game.players.black?.userId ? (
-          <Link
-            to={`/profile/${game.players.black.userId}`}
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
+          <Link to={`/profile/${game.players.black.userId}`} className={styles.playerLink}>
             {game.players.black.username ?? `User #${game.players.black.userId}`}
           </Link>
         ) : (
           `User #${game.players.black?.userId ?? "?"}`
         )}
       </div>
-      <div style={{ display: "flex", gap: "24px" }}>
-        {currentEval && <EvalBar score={currentEval} />}
-        <div
-          ref={containerRef}
-          data-testid="analysis-board"
-          style={{ width: "400px", height: "400px", flexShrink: 0 }}
-        />
-        <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
+      <div className={styles.layout}>
+        <div className={styles.boardArea}>
+          {currentEval && <EvalBar score={currentEval} />}
+          <div ref={containerRef} data-testid="analysis-board" className={styles.board} />
+        </div>
+        <div className={styles.sidePanel}>
+          <Card header="Engine Lines">
+            <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
+          </Card>
           {variation && (
-            <div
-              data-testid="variation-indicator"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 12px",
-                backgroundColor: "#e8f0fe",
-                borderRadius: "4px",
-                fontSize: "13px",
-              }}
-            >
-              <span style={{ color: "#1a73e8" }}>Viewing engine line</span>
+            <div data-testid="variation-indicator" className={styles.variationIndicator}>
+              <span className={styles.variationLabel}>Viewing engine line</span>
               <button
                 data-testid="back-to-main-line"
                 onClick={() => setVariation(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#1a73e8",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  textDecoration: "underline",
-                  padding: 0,
-                }}
+                className={styles.backToMainLine}
               >
                 Back to main line
               </button>
             </div>
           )}
-          <AnalysisMoveList
-            moves={moves}
-            currentMoveIndex={currentMoveIndex}
-            onMoveClick={(index: number) => {
-              setVariation(null);
-              setCurrentMoveIndex(index);
-            }}
-            classifications={classifications}
-          />
+          <Card header="Moves">
+            <AnalysisMoveList
+              moves={moves}
+              currentMoveIndex={currentMoveIndex}
+              onMoveClick={(index: number) => {
+                setVariation(null);
+                setCurrentMoveIndex(index);
+              }}
+              classifications={classifications}
+            />
+          </Card>
           {analysisLoading && (
-            <div data-testid="analysis-loading-stored" style={{ fontSize: "14px", color: "#666" }}>
+            <div data-testid="analysis-loading-stored" className={styles.progressText}>
               Loading saved analysis...
             </div>
           )}
           {analysisState === "idle" && !analysisLoading && (
-            <button
+            <Button
               data-testid="analyze-button"
               onClick={handleAnalyze}
-              style={{
-                backgroundColor: "#4CAF50",
-                color: "white",
-                padding: "12px 24px",
-                border: "none",
-                borderRadius: "4px",
-                fontSize: "16px",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
+              variant="primary"
+              size="lg"
             >
               Analyze
-            </button>
+            </Button>
           )}
           {analysisState === "running" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div data-testid="analysis-progress" style={{ fontSize: "14px", color: "#666" }}>
+            <div className={styles.buttonGroup}>
+              <div data-testid="analysis-progress" className={styles.progressText}>
                 {completedPositions !== null && totalPositions !== null
                   ? `Analyzing... ${completedPositions}/${totalPositions} positions`
                   : "Starting analysis..."}
               </div>
-              <button
-                data-testid="cancel-analysis-button"
-                onClick={handleCancel}
-                style={{
-                  backgroundColor: "#f44336",
-                  color: "white",
-                  padding: "8px 16px",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                }}
-              >
+              <Button data-testid="cancel-analysis-button" onClick={handleCancel} variant="danger">
                 Cancel
-              </button>
+              </Button>
             </div>
           )}
           {analysisState === "complete" && whiteAccuracy !== null && blackAccuracy !== null && (
-            <div data-testid="accuracy-display" style={{ fontSize: "14px", fontWeight: "bold" }}>
-              White: {whiteAccuracy.toFixed(1)}% — Black: {blackAccuracy.toFixed(1)}%
+            <div data-testid="accuracy-display" className={styles.accuracyDisplay}>
+              <Badge variant="neutral">White: {whiteAccuracy.toFixed(1)}%</Badge>{" "}
+              <Badge variant="neutral">Black: {blackAccuracy.toFixed(1)}%</Badge>
             </div>
           )}
           {analyzeError && (
-            <div
-              data-testid="analysis-error-message"
-              style={{ fontSize: "14px", color: "#d32f2f" }}
-            >
+            <div data-testid="analysis-error-message" className={styles.errorMessage}>
               {analyzeError}
             </div>
           )}
@@ -486,10 +442,7 @@ export function AnalysisPage() {
   const hasActiveGame = myGames?.some((g) => g.status === "active") ?? false;
   if (hasActiveGame) {
     return (
-      <div
-        data-testid="active-game-guard"
-        style={{ padding: "16px", maxWidth: "800px", margin: "0 auto" }}
-      >
+      <div data-testid="active-game-guard" className={styles.guardMessage}>
         Can&apos;t use the analysis board while playing a game.
       </div>
     );
@@ -497,10 +450,7 @@ export function AnalysisPage() {
 
   if (!isTerminalStatus(game.status)) {
     return (
-      <div
-        data-testid="analysis-not-completed"
-        style={{ padding: "16px", maxWidth: "800px", margin: "0 auto" }}
-      >
+      <div data-testid="analysis-not-completed" className={styles.guardMessage}>
         This game is not completed.
       </div>
     );

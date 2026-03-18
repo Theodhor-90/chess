@@ -10,9 +10,12 @@ import "chessground/assets/chessground.cburnett.css";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
+import { Card } from "../components/ui/Card.js";
+import { Button } from "../components/ui/Button.js";
 import { useGetMyGamesQuery } from "../store/apiSlice.js";
 import { connectSocket, getSocket } from "../socket.js";
 import type { EvalScore, EngineLineInfo } from "@chess/shared";
+import styles from "./TrainingPage.module.css";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -70,10 +73,7 @@ export function TrainingPage() {
 
   if (hasActiveGame) {
     return (
-      <div
-        data-testid="active-game-guard"
-        style={{ padding: "16px", maxWidth: "800px", margin: "0 auto" }}
-      >
+      <div data-testid="active-game-guard" className={styles.guardMessage}>
         Can&apos;t use the analysis board while playing a game.
       </div>
     );
@@ -290,77 +290,57 @@ function TrainingContent() {
   }, [currentFen, turnColor, dests, onMove, arrowShapes]);
 
   return (
-    <div
-      data-testid="training-page"
-      style={{ padding: "16px", maxWidth: "1000px", margin: "0 auto" }}
-    >
-      <h1>Training Board</h1>
-      <div style={{ marginBottom: "16px", display: "flex", gap: "8px" }}>
-        <button
+    <div data-testid="training-page" className={styles.page}>
+      <h1 className={styles.title}>Training Board</h1>
+      <div className={styles.toolbar}>
+        <Button
           data-testid="undo-button"
           onClick={handleUndo}
           disabled={moves.length === 0}
-          style={{
-            padding: "8px 16px",
-            fontSize: "14px",
-            cursor: moves.length === 0 ? "default" : "pointer",
-            borderRadius: "4px",
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
-          }}
+          variant="secondary"
+          size="sm"
         >
           Undo
-        </button>
-        <button
-          data-testid="reset-button"
-          onClick={handleReset}
-          style={{
-            padding: "8px 16px",
-            fontSize: "14px",
-            cursor: "pointer",
-            borderRadius: "4px",
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
-          }}
-        >
+        </Button>
+        <Button data-testid="reset-button" onClick={handleReset} variant="secondary" size="sm">
           Reset
-        </button>
+        </Button>
       </div>
-      <div style={{ display: "flex", gap: "24px" }}>
-        {currentEval ? (
-          <EvalBar score={currentEval} />
-        ) : (
-          <div style={{ width: 30, minHeight: 400 }} />
-        )}
-        <div
-          ref={containerRef}
-          data-testid="training-board"
-          style={{ width: "400px", height: "400px", flexShrink: 0 }}
-        />
-        <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", minWidth: "200px" }}>
-          <AnalysisMoveList
-            moves={moves}
-            currentMoveIndex={currentMoveIndex}
-            onMoveClick={(index: number) => {
-              setCurrentMoveIndex(index);
-            }}
-            classifications={undefined}
-          />
+      <div className={styles.layout}>
+        <div className={styles.boardArea}>
+          {currentEval ? (
+            <EvalBar score={currentEval} />
+          ) : (
+            <div className={styles.evalBarPlaceholder} />
+          )}
+          <div ref={containerRef} data-testid="training-board" className={styles.board} />
+        </div>
+        <div className={styles.sidePanel}>
+          <Card header="Engine Lines">
+            <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
+          </Card>
+          <Card header="Moves">
+            <AnalysisMoveList
+              moves={moves}
+              currentMoveIndex={currentMoveIndex}
+              onMoveClick={(index: number) => {
+                setCurrentMoveIndex(index);
+              }}
+              classifications={undefined}
+            />
+          </Card>
           {isEvaluating && (
-            <div data-testid="engine-loading" style={{ fontSize: "14px", color: "#666" }}>
+            <div data-testid="engine-loading" className={styles.statusText}>
               Analyzing position...{evalDepth !== null ? ` (depth ${evalDepth})` : ""}
             </div>
           )}
           {evaluationError && (
-            <div data-testid="engine-error" style={{ fontSize: "14px", color: "#d32f2f" }}>
+            <div data-testid="engine-error" className={styles.errorText}>
               {evaluationError}
             </div>
           )}
           {!isEvaluating && !evaluationError && moves.length === 0 && (
-            <div style={{ fontSize: "14px", color: "#666" }}>
-              Make a move on the board to get started.
-            </div>
+            <div className={styles.statusText}>Make a move on the board to get started.</div>
           )}
         </div>
       </div>

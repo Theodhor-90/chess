@@ -1,0 +1,25 @@
+.page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.filterRow {
+  margin-bottom: var(--space-4);
+}
+
+.opponentLink {
+  color: var(--color-text-link);
+  text-decoration: none;
+}
+
+.opponentLink:hover {
+  text-decoration: underline;
+}

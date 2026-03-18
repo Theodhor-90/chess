@@ -1,0 +1,146 @@
+.page {
+  padding: var(--space-4);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.metadata {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-4);
+}
+
+.metadataPlayers {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.metadataDetails {
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.lichessLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-link);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  font-weight: var(--font-weight-medium);
+  margin-top: var(--space-1);
+}
+
+.lichessLink:hover {
+  text-decoration: underline;
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.boardArea {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.board {
+  width: 400px;
+  height: 400px;
+  flex-shrink: 0;
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 200px;
+  flex: 1;
+}
+
+.variationIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.variationLabel {
+  color: var(--color-primary);
+}
+
+.backToMainLine {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.backToMainLine:hover {
+  color: var(--color-primary-hover);
+}
+
+.progressText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.accuracyDisplay {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.errorMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.loginPrompt {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.loginLink {
+  color: var(--color-text-link);
+  text-decoration: none;
+}
+
+.loginLink:hover {
+  text-decoration: underline;
+}
+
+.backLink {
+  color: var(--color-text-link);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.statusMessage {
+  padding: var(--space-4);
+  color: var(--color-text-secondary);
+}

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import type { EvalScore, EngineLineInfo } from "@chess/shared";
+import styles from "./EngineLinesPanel.module.css";
 
 export function formatEvalScore(score: EvalScore): string {
   if (score.type === "mate") {
@@ -17,55 +17,26 @@ interface EngineLinesPanelProps {
 }
 
 export function EngineLinesPanel({ engineLines, onLineSelect }: EngineLinesPanelProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-
   if (!engineLines || engineLines.length === 0) {
     return null;
   }
 
   return (
-    <div
-      data-testid="engine-lines-panel"
-      style={{ fontFamily: "monospace", fontSize: "13px", minWidth: "200px" }}
-    >
+    <div data-testid="engine-lines-panel" className={styles.panel}>
       {engineLines.map((line, index) => (
         <div
           key={index}
           data-testid={`engine-line-${index}`}
           onClick={() => onLineSelect(index)}
-          onMouseEnter={() => setHoveredIndex(index)}
-          onMouseLeave={() => setHoveredIndex(null)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            padding: "4px 8px",
-            cursor: "pointer",
-            fontWeight: index === 0 ? "bold" : "normal",
-            backgroundColor: hoveredIndex === index ? "#f0f0f0" : "transparent",
-          }}
+          className={`${styles.line}${index === 0 ? ` ${styles.linePrimary}` : ""}`}
         >
-          <span
-            data-testid={`engine-line-rank-${index}`}
-            style={{ color: "#999", minWidth: "16px" }}
-          >
+          <span data-testid={`engine-line-rank-${index}`} className={styles.rank}>
             {index + 1}
           </span>
-          <span
-            data-testid={`engine-line-eval-${index}`}
-            style={{ minWidth: "48px", fontWeight: "bold" }}
-          >
+          <span data-testid={`engine-line-eval-${index}`} className={styles.eval}>
             {formatEvalScore(line.score)}
           </span>
-          <span
-            data-testid={`engine-line-moves-${index}`}
-            style={{
-              color: "#444",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span data-testid={`engine-line-moves-${index}`} className={styles.moves}>
             {line.moves.slice(0, 8).join(" ")}
           </span>
         </div>

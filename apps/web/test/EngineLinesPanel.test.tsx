@@ -85,10 +85,10 @@ describe("EngineLinesPanel", () => {
     expect(handleSelect).toHaveBeenCalledWith(1);
   });
 
-  it("top line (index 0) is bold", () => {
+  it("top line (index 0) has primary class", () => {
     render(<EngineLinesPanel engineLines={sampleLines} onLineSelect={noop} />);
-    expect(screen.getByTestId("engine-line-0").style.fontWeight).toBe("bold");
-    expect(screen.getByTestId("engine-line-1").style.fontWeight).toBe("normal");
+    expect(screen.getByTestId("engine-line-0").className).toContain("linePrimary");
+    expect(screen.getByTestId("engine-line-1").className).not.toContain("linePrimary");
   });
 
   it("handles fewer than 3 lines", () => {

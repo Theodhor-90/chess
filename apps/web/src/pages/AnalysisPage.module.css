@@ -1,0 +1,109 @@
+.page {
+  padding: var(--space-4);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.players {
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.playerLink {
+  text-decoration: none;
+  color: var(--color-text-link);
+}
+
+.playerLink:hover {
+  text-decoration: underline;
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.boardArea {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.board {
+  width: 400px;
+  height: 400px;
+  flex-shrink: 0;
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 200px;
+  flex: 1;
+}
+
+.variationIndicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.variationLabel {
+  color: var(--color-primary);
+}
+
+.backToMainLine {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.backToMainLine:hover {
+  color: var(--color-primary-hover);
+}
+
+.progressText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.accuracyDisplay {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.errorMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}
+
+.buttonGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.guardMessage {
+  padding: var(--space-4);
+  max-width: 800px;
+  margin: 0 auto;
+  color: var(--color-text-secondary);
+}

@@ -111,10 +111,9 @@ describe("HistoryPage", () => {
     renderWithProviders(<HistoryPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-row-1")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("alice")).toBeInTheDocument();
     expect(screen.getByText("bob")).toBeInTheDocument();
     expect(screen.getByText("W")).toBeInTheDocument();
     expect(screen.getByText("L")).toBeInTheDocument();
@@ -148,12 +147,12 @@ describe("HistoryPage", () => {
     renderWithProviders(<HistoryPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-row-1")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("history-prev")).toBeDisabled();
-    expect(screen.getByTestId("history-next")).not.toBeDisabled();
-    expect(screen.getByTestId("history-page-info")).toHaveTextContent("Page 1 of 2");
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next" })).not.toBeDisabled();
+    expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
   });
 
   it("next button disabled on last page", async () => {
@@ -185,12 +184,12 @@ describe("HistoryPage", () => {
     renderWithProviders(<HistoryPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-row-1")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("history-next")).toBeDisabled();
-    expect(screen.getByTestId("history-prev")).toBeDisabled();
-    expect(screen.getByTestId("history-page-info")).toHaveTextContent("Page 1 of 1");
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(screen.getByText("Page 1 of 1")).toBeInTheDocument();
   });
 
   it("filter dropdown changes displayed results", async () => {
@@ -222,7 +221,7 @@ describe("HistoryPage", () => {
     renderWithProviders(<HistoryPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-row-1")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
     mockFetchSuccess(
@@ -240,7 +239,9 @@ describe("HistoryPage", () => {
       ]),
     );
 
-    fireEvent.change(screen.getByTestId("history-filter"), { target: { value: "win" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Filter by result" }), {
+      target: { value: "win" },
+    });
 
     await waitFor(() => {
       expect(screen.queryByText("bob")).not.toBeInTheDocument();
@@ -268,10 +269,11 @@ describe("HistoryPage", () => {
     renderWithProviders(<HistoryPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-row-42")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("history-row-42"));
+    const row = screen.getByText("alice").closest("tr");
+    fireEvent.click(row!);
 
     await waitFor(() => {
       expect(screen.getByTestId("analysis-page")).toBeInTheDocument();
@@ -284,10 +286,8 @@ describe("HistoryPage", () => {
     renderWithProviders(<HistoryPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-empty")).toBeInTheDocument();
+      expect(screen.getByText("No games found.")).toBeInTheDocument();
     });
-
-    expect(screen.getByTestId("history-empty")).toHaveTextContent("No games found.");
   });
 
   it("loading state", () => {

@@ -1,8 +1,33 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useGetGameHistoryQuery } from "../store/apiSlice.js";
+import type { GameHistoryItem } from "@chess/shared";
+import type { TableColumn } from "../components/ui/Table.js";
+import { Card } from "../components/ui/Card.js";
+import { Select } from "../components/ui/Select.js";
+import { Table } from "../components/ui/Table.js";
+import { Badge } from "../components/ui/Badge.js";
+import { Pagination } from "../components/ui/Pagination.js";
+import styles from "./HistoryPage.module.css";
 
 const PAGE_SIZE = 20;
+
+const FILTER_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "win", label: "Wins" },
+  { value: "loss", label: "Losses" },
+  { value: "draw", label: "Draws" },
+];
+
+function resultBadge(result: "win" | "loss" | "draw") {
+  const map = {
+    win: { variant: "success" as const, label: "W" },
+    loss: { variant: "danger" as const, label: "L" },
+    draw: { variant: "neutral" as const, label: "D" },
+  };
+  const { variant, label } = map[result];
+  return <Badge variant={variant}>{label}</Badge>;
+}
 
 export function HistoryPage() {
   const [filter, setFilter] = useState<"all" | "win" | "loss" | "draw">("all");
@@ -23,10 +48,7 @@ export function HistoryPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{ maxWidth: "800px", margin: "0 auto", padding: "16px" }}
-        data-testid="history-loading"
-      >
+      <div className={styles.page} data-testid="history-loading">
         Loading...
       </div>
     );
@@ -36,102 +58,63 @@ export function HistoryPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const columns: TableColumn<GameHistoryItem>[] = [
+    {
+      key: "opponentUsername",
+      header: "Opponent",
+      render: (row) => (
+        <Link
+          to={`/profile/${row.opponentId}`}
+          onClick={(e) => e.stopPropagation()}
+          className={styles.opponentLink}
+        >
+          {row.opponentUsername}
+        </Link>
+      ),
+    },
+    {
+      key: "result",
+      header: "Result",
+      render: (row) => resultBadge(row.result),
+    },
+    {
+      key: "resultReason",
+      header: "Reason",
+      render: (row) => row.resultReason.charAt(0).toUpperCase() + row.resultReason.slice(1),
+    },
+    {
+      key: "timeControl",
+      header: "Time Control",
+    },
+    {
+      key: "playedAt",
+      header: "Date",
+      render: (row) => new Date(row.playedAt * 1000).toLocaleDateString(),
+    },
+  ];
+
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "16px" }}>
-      <h1>Game History</h1>
+    <div className={styles.page}>
+      <h1 className={styles.title}>Game History</h1>
 
-      <select
-        data-testid="history-filter"
-        value={filter}
-        onChange={(e) => handleFilterChange(e.target.value)}
-        style={{ marginBottom: "16px", padding: "4px" }}
-      >
-        <option value="all">All</option>
-        <option value="win">Wins</option>
-        <option value="loss">Losses</option>
-        <option value="draw">Draws</option>
-      </select>
+      <Card className={styles.filterRow}>
+        <Select
+          label="Filter by result"
+          name="history-filter"
+          value={filter}
+          onChange={(e) => handleFilterChange(e.target.value)}
+          options={FILTER_OPTIONS}
+        />
+      </Card>
 
-      {items.length === 0 ? (
-        <div data-testid="history-empty">No games found.</div>
-      ) : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ padding: "8px", textAlign: "left" }}>Opponent</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Result</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Reason</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Time Control</th>
-              <th style={{ padding: "8px", textAlign: "left" }}>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr
-                key={item.id}
-                data-testid={`history-row-${item.id}`}
-                onClick={() => navigate(`/analysis/${item.id}`)}
-                style={{ cursor: "pointer" }}
-              >
-                <td style={{ padding: "8px" }}>
-                  <Link
-                    to={`/profile/${item.opponentId}`}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ color: "inherit", textDecoration: "none" }}
-                  >
-                    {item.opponentUsername}
-                  </Link>
-                </td>
-                <td style={{ padding: "8px" }}>
-                  <span
-                    style={{
-                      color:
-                        item.result === "win"
-                          ? "#4CAF50"
-                          : item.result === "loss"
-                            ? "#d32f2f"
-                            : "#757575",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {item.result === "win" ? "W" : item.result === "loss" ? "L" : "D"}
-                  </span>
-                </td>
-                <td style={{ padding: "8px" }}>
-                  {item.resultReason.charAt(0).toUpperCase() + item.resultReason.slice(1)}
-                </td>
-                <td style={{ padding: "8px" }}>{item.timeControl}</td>
-                <td style={{ padding: "8px" }}>
-                  {new Date(item.playedAt * 1000).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <Table<GameHistoryItem>
+        columns={columns}
+        data={items}
+        onRowClick={(row) => navigate(`/analysis/${row.id}`)}
+        emptyMessage="No games found."
+      />
 
-      <div
-        data-testid="history-pagination"
-        style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "8px" }}
-      >
-        <button
-          data-testid="history-prev"
-          disabled={page === 1}
-          onClick={() => setPage((p) => p - 1)}
-        >
-          Previous
-        </button>
-        <span data-testid="history-page-info">
-          Page {page} of {totalPages}
-        </span>
-        <button
-          data-testid="history-next"
-          disabled={page >= totalPages}
-          onClick={() => setPage((p) => p + 1)}
-        >
-          Next
-        </button>
-      </div>
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }
