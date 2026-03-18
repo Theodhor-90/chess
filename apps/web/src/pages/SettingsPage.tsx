@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import { useTheme } from "../components/ThemeProvider.js";
@@ -8,6 +8,7 @@ import { usePreferencesSync } from "../hooks/usePreferencesSync.js";
 import type { ThemePreference } from "../components/ThemeProvider.js";
 import type { BoardTheme, PieceTheme } from "../components/BoardThemeProvider.js";
 import { Card } from "../components/ui/Card.js";
+import { isMuted, setMuted } from "../services/sounds.js";
 import styles from "./SettingsPage.module.css";
 
 const PREVIEW_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -83,6 +84,14 @@ function SettingsPage() {
   const isAuthenticated = !!meData?.user;
   usePreferencesSync(isAuthenticated);
 
+  const [muted, setMutedState] = useState(isMuted);
+
+  function handleMuteToggle() {
+    const newMuted = !muted;
+    setMuted(newMuted);
+    setMutedState(newMuted);
+  }
+
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Settings</h1>
@@ -144,6 +153,28 @@ function SettingsPage() {
               <span className={styles.pieceThemeLabel}>{pt.label}</span>
             </button>
           ))}
+        </div>
+      </Card>
+
+      {/* Sound Section */}
+      <Card header="Sound">
+        <div className={styles.soundOption}>
+          <div className={styles.soundOptionInfo}>
+            <span className={styles.soundOptionLabel}>Game sounds</span>
+            <span className={styles.soundOptionDescription}>
+              Play sound effects for moves, captures, and game events
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!muted}
+            className={`${styles.muteToggle} ${!muted ? styles.muteToggleOn : ""}`}
+            onClick={handleMuteToggle}
+            data-testid="sound-toggle"
+          >
+            <span className={styles.muteToggleThumb} />
+          </button>
         </div>
       </Card>
     </div>

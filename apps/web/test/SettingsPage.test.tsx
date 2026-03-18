@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { ThemeProvider } from "../src/components/ThemeProvider.js";
 import { BoardThemeProvider } from "../src/components/BoardThemeProvider.js";
 import { SettingsPage } from "../src/pages/SettingsPage.js";
+import { isMuted, setMuted } from "../src/services/sounds.js";
 
 // Mock Chessground to avoid jsdom rendering issues
 vi.mock("chessground", () => ({
@@ -24,6 +25,13 @@ vi.mock("../src/store/apiSlice.js", () => ({
 
 vi.mock("../src/hooks/usePreferencesSync.js", () => ({
   usePreferencesSync: vi.fn(),
+}));
+
+vi.mock("../src/services/sounds.js", () => ({
+  isMuted: vi.fn(() => false),
+  setMuted: vi.fn(),
+  initSounds: vi.fn(),
+  playSound: vi.fn(),
 }));
 
 const matchMediaMatches = false;
@@ -60,6 +68,7 @@ beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   mockMatchMedia();
+  vi.mocked(isMuted).mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -166,5 +175,34 @@ describe("SettingsPage", () => {
     expect(radiogroup).toBeInTheDocument();
     const radios = radiogroup.querySelectorAll('[role="radio"]');
     expect(radios).toHaveLength(4);
+  });
+
+  it("renders the Sound section", () => {
+    renderSettings();
+    expect(screen.getByText("Sound")).toBeInTheDocument();
+    expect(screen.getByText("Game sounds")).toBeInTheDocument();
+  });
+
+  it("renders the sound toggle with correct initial state (unmuted)", () => {
+    renderSettings();
+    const toggle = screen.getByTestId("sound-toggle");
+    expect(toggle).toHaveAttribute("role", "switch");
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("renders the sound toggle as off when muted", () => {
+    vi.mocked(isMuted).mockReturnValue(true);
+    renderSettings();
+    const toggle = screen.getByTestId("sound-toggle");
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("clicking the sound toggle calls setMuted and toggles state", () => {
+    renderSettings();
+    const toggle = screen.getByTestId("sound-toggle");
+    fireEvent.click(toggle);
+    expect(setMuted).toHaveBeenCalledWith(true);
+    // After click, aria-checked should flip
+    expect(toggle).toHaveAttribute("aria-checked", "false");
   });
 });
