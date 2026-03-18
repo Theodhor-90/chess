@@ -12,8 +12,17 @@ export function ConnectionStatus() {
   const config = STATUS_CONFIG[connectionStatus];
 
   return (
-    <div data-testid="connection-status" className={styles.container}>
-      <span data-testid="connection-dot" className={`${styles.dot} ${styles[config.dotClass]}`} />
+    <div
+      data-testid="connection-status"
+      className={styles.container}
+      role="status"
+      aria-live="polite"
+    >
+      <span
+        data-testid="connection-dot"
+        className={`${styles.dot} ${styles[config.dotClass]}`}
+        aria-hidden="true"
+      />
       <span data-testid="connection-label">{config.label}</span>
     </div>
   );

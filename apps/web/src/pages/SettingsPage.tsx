@@ -77,6 +77,30 @@ function MiniBoard({ boardTheme, pieceTheme }: { boardTheme: BoardTheme; pieceTh
   );
 }
 
+function handleRadiogroupKeyDown<T extends string>(
+  e: React.KeyboardEvent<HTMLDivElement>,
+  values: T[],
+  currentValue: T,
+  onChange: (value: T) => void,
+) {
+  const isNext = e.key === "ArrowDown" || e.key === "ArrowRight";
+  const isPrev = e.key === "ArrowUp" || e.key === "ArrowLeft";
+  if (!isNext && !isPrev) return;
+  e.preventDefault();
+  const currentIndex = values.indexOf(currentValue);
+  let nextIndex: number;
+  if (isNext) {
+    nextIndex = currentIndex < values.length - 1 ? currentIndex + 1 : 0;
+  } else {
+    nextIndex = currentIndex > 0 ? currentIndex - 1 : values.length - 1;
+  }
+  onChange(values[nextIndex]);
+  // Focus the newly selected radio button
+  const container = e.currentTarget;
+  const buttons = container.querySelectorAll<HTMLElement>('[role="radio"]');
+  buttons[nextIndex]?.focus();
+}
+
 function SettingsPage() {
   const { preference, setTheme } = useTheme();
   const { boardTheme, pieceTheme, setBoardTheme, setPieceTheme } = useBoardTheme();
@@ -98,7 +122,19 @@ function SettingsPage() {
 
       {/* App Theme Section */}
       <Card header="App Theme">
-        <div className={styles.themeOptions} role="radiogroup" aria-label="App theme">
+        <div
+          className={styles.themeOptions}
+          role="radiogroup"
+          aria-label="App theme"
+          onKeyDown={(e) =>
+            handleRadiogroupKeyDown(
+              e,
+              APP_THEMES.map((t) => t.value),
+              preference,
+              setTheme,
+            )
+          }
+        >
           {APP_THEMES.map((t) => (
             <button
               key={t.value}
@@ -108,6 +144,7 @@ function SettingsPage() {
               className={`${styles.themeOption} ${preference === t.value ? styles.themeOptionActive : ""}`}
               onClick={() => setTheme(t.value)}
               data-testid={`theme-option-${t.value}`}
+              tabIndex={preference === t.value ? 0 : -1}
             >
               <span className={styles.themeOptionLabel}>{t.label}</span>
               <span className={styles.themeOptionDescription}>{t.description}</span>
@@ -118,7 +155,19 @@ function SettingsPage() {
 
       {/* Board Theme Section */}
       <Card header="Board Theme">
-        <div className={styles.boardThemeOptions} role="radiogroup" aria-label="Board theme">
+        <div
+          className={styles.boardThemeOptions}
+          role="radiogroup"
+          aria-label="Board theme"
+          onKeyDown={(e) =>
+            handleRadiogroupKeyDown(
+              e,
+              BOARD_THEMES.map((bt) => bt.value),
+              boardTheme,
+              setBoardTheme,
+            )
+          }
+        >
           {BOARD_THEMES.map((bt) => (
             <button
               key={bt.value}
@@ -128,6 +177,7 @@ function SettingsPage() {
               className={`${styles.boardThemeOption} ${boardTheme === bt.value ? styles.boardThemeOptionActive : ""}`}
               onClick={() => setBoardTheme(bt.value)}
               data-testid={`board-theme-${bt.value}`}
+              tabIndex={boardTheme === bt.value ? 0 : -1}
             >
               <BoardColorPreview lightColor={bt.lightColor} darkColor={bt.darkColor} />
               <span className={styles.boardThemeLabel}>{bt.label}</span>
@@ -138,7 +188,19 @@ function SettingsPage() {
 
       {/* Piece Set Section */}
       <Card header="Piece Set">
-        <div className={styles.pieceThemeOptions} role="radiogroup" aria-label="Piece set">
+        <div
+          className={styles.pieceThemeOptions}
+          role="radiogroup"
+          aria-label="Piece set"
+          onKeyDown={(e) =>
+            handleRadiogroupKeyDown(
+              e,
+              PIECE_THEMES.map((pt) => pt.value),
+              pieceTheme,
+              setPieceTheme,
+            )
+          }
+        >
           {PIECE_THEMES.map((pt) => (
             <button
               key={pt.value}
@@ -148,6 +210,7 @@ function SettingsPage() {
               className={`${styles.pieceThemeOption} ${pieceTheme === pt.value ? styles.pieceThemeOptionActive : ""}`}
               onClick={() => setPieceTheme(pt.value)}
               data-testid={`piece-theme-${pt.value}`}
+              tabIndex={pieceTheme === pt.value ? 0 : -1}
             >
               <MiniBoard boardTheme={boardTheme} pieceTheme={pt.value} />
               <span className={styles.pieceThemeLabel}>{pt.label}</span>

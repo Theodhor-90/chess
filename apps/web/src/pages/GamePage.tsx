@@ -172,6 +172,7 @@ export function GamePage() {
                 type="button"
                 className={styles.backToLiveButton}
                 onClick={() => setViewedMoveIndex(null)}
+                aria-label="Return to live game position"
               >
                 Back to live
               </button>

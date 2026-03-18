@@ -69,6 +69,7 @@ vi.mock("../src/components/MoveList.module.css", () => ({
     currentMove: "currentMove",
     moveNumber: "moveNumber",
     moveCell: "moveCell",
+    moveButton: "moveButton",
   },
 }));
 

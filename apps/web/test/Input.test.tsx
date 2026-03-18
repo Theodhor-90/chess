@@ -67,4 +67,22 @@ describe("Input", () => {
     );
     expect(screen.getByPlaceholderText("user@example.com")).toBeDefined();
   });
+
+  it("associates error message with input via aria-describedby", () => {
+    render(<Input label="Email" name="email" value="" onChange={() => {}} error="Invalid email" />);
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby");
+    expect(screen.getByRole("alert").id).toBe(
+      screen.getByLabelText("Email").getAttribute("aria-describedby"),
+    );
+  });
+
+  it("marks input as aria-invalid when error is present", () => {
+    render(<Input label="Email" name="email" value="" onChange={() => {}} error="Invalid email" />);
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("does not mark input as aria-invalid when no error", () => {
+    render(<Input label="Email" name="email" value="" onChange={() => {}} />);
+    expect(screen.getByLabelText("Email")).not.toHaveAttribute("aria-invalid");
+  });
 });

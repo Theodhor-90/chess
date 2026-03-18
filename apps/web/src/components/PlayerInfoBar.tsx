@@ -101,9 +101,17 @@ export function PlayerInfoBar({
             {username}
           </span>
         )}
-        <div className={styles.captured} data-testid={`${testIdPrefix}-captured`}>
+        <div
+          className={styles.captured}
+          data-testid={`${testIdPrefix}-captured`}
+          aria-label={
+            captured.length > 0
+              ? `${captured.length} captured piece${captured.length === 1 ? "" : "s"}`
+              : "No captured pieces"
+          }
+        >
           {captured.map((symbol, i) => (
-            <span key={i} className={styles.capturedPiece}>
+            <span key={i} className={styles.capturedPiece} aria-hidden="true">
               {symbol}
             </span>
           ))}

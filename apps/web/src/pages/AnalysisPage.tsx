@@ -405,9 +405,11 @@ function AnalysisContent({ game }: { game: GameResponse }) {
             <div data-testid="variation-indicator" className={styles.variationIndicator}>
               <span className={styles.variationLabel}>Viewing engine line</span>
               <button
+                type="button"
                 data-testid="back-to-main-line"
                 onClick={() => setVariation(null)}
                 className={styles.backToMainLine}
+                aria-label="Exit engine line and return to main game line"
               >
                 Back to main line
               </button>

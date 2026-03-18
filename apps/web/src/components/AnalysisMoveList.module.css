@@ -28,13 +28,30 @@
 }
 
 .moveCell {
-  padding: var(--space-1) var(--space-2);
-  cursor: pointer;
+  padding: 0;
 }
 
 .moveCellEmpty {
   padding: var(--space-1) var(--space-2);
   cursor: default;
+}
+
+.moveButton {
+  all: unset;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  border-radius: var(--radius-sm);
+}
+
+.moveButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .activeMove {
@@ -71,7 +88,7 @@
 }
 
 @media (max-width: 768px) {
-  .moveCell {
+  .moveButton {
     padding: var(--space-3) var(--space-2);
     min-height: 44px;
   }

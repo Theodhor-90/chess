@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, KeyboardEvent } from "react";
 import styles from "./Table.module.css";
 
 interface TableColumn<T> {
@@ -37,9 +37,31 @@ function Table<T>({
     return sortDirection === "asc" ? " ▲" : " ▼";
   }
 
+  function getAriaSortValue(columnKey: string): "ascending" | "descending" | undefined {
+    if (!sortColumn || sortColumn !== columnKey) return undefined;
+    return sortDirection === "asc" ? "ascending" : "descending";
+  }
+
   function handleHeaderClick(column: TableColumn<T>): void {
     if (column.sortable && onSort) {
       onSort(column.key);
+    }
+  }
+
+  function handleHeaderKeyDown(
+    e: KeyboardEvent<HTMLTableCellElement>,
+    column: TableColumn<T>,
+  ): void {
+    if (column.sortable && onSort && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onSort(column.key);
+    }
+  }
+
+  function handleRowKeyDown(e: KeyboardEvent<HTMLTableRowElement>, row: T): void {
+    if (onRowClick && e.key === "Enter") {
+      e.preventDefault();
+      onRowClick(row);
     }
   }
 
@@ -58,10 +80,14 @@ function Table<T>({
             {columns.map((column) => (
               <th
                 key={column.key}
+                scope="col"
                 className={[styles.th, column.sortable ? styles.sortable : ""]
                   .filter(Boolean)
                   .join(" ")}
                 onClick={() => handleHeaderClick(column)}
+                onKeyDown={(e) => handleHeaderKeyDown(e, column)}
+                tabIndex={column.sortable && onSort ? 0 : undefined}
+                aria-sort={getAriaSortValue(column.key)}
               >
                 {column.header}
                 {getSortIndicator(column.key)}
@@ -82,6 +108,8 @@ function Table<T>({
                 key={index}
                 className={onRowClick ? styles.clickableRow : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                onKeyDown={onRowClick ? (e) => handleRowKeyDown(e, row) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
               >
                 {columns.map((column) => (
                   <td

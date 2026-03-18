@@ -61,7 +61,12 @@ export function GameActions({
       {isActive && (
         <>
           {showResignConfirm ? (
-            <div data-testid="resign-confirm" className={styles.resignConfirm}>
+            <div
+              data-testid="resign-confirm"
+              className={styles.resignConfirm}
+              role="alertdialog"
+              aria-label="Resign confirmation"
+            >
               <span className={styles.resignConfirmText}>Are you sure you want to resign?</span>
               <div className={styles.resignConfirmButtons}>
                 <Button

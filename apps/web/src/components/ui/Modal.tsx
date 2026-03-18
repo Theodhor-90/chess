@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, useId } from "react";
 import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
@@ -22,6 +22,7 @@ function Modal({ isOpen, onClose, title, children, footer, className }: ModalPro
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  const titleId = useId();
 
   // Handle mount/unmount lifecycle with animation
   useEffect(() => {
@@ -131,12 +132,12 @@ function Modal({ isOpen, onClose, title, children, footer, className }: ModalPro
         className={panelClassNames}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleTabKey}
       >
         <div className={styles.header}>
-          <h2 id="modal-title" className={styles.title}>
+          <h2 id={titleId} className={styles.title}>
             {title}
           </h2>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">

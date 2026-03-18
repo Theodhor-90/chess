@@ -37,6 +37,7 @@ function Input({
 }: InputProps) {
   const generatedId = useId();
   const inputId = `input-${generatedId}`;
+  const errorId = `input-error-${generatedId}`;
 
   const wrapperClassNames = [styles.wrapper, className ?? ""].filter(Boolean).join(" ");
   const inputClassNames = [styles.input, error ? styles.error : ""].filter(Boolean).join(" ");
@@ -60,9 +61,11 @@ function Input({
         maxLength={maxLength}
         pattern={pattern}
         title={title}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
       />
       {error && (
-        <span role="alert" className={styles.errorMessage}>
+        <span id={errorId} role="alert" className={styles.errorMessage}>
           {error}
         </span>
       )}

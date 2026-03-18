@@ -190,10 +190,20 @@ export function GameBoard({
     return () => observer.disconnect();
   }, []);
 
+  const boardLabel = overrideFen
+    ? "Chess board, viewing past position"
+    : `Chess board, ${status === "active" ? `${currentTurn}'s turn` : status}`;
+
   return (
     <>
       <div className={themeClasses || undefined}>
-        <div ref={containerRef} data-testid="game-board" className={styles.boardContainer} />
+        <div
+          ref={containerRef}
+          data-testid="game-board"
+          className={styles.boardContainer}
+          role="img"
+          aria-label={boardLabel}
+        />
       </div>
       {pendingPromotion && (
         <PromotionModal

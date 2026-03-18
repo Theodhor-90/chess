@@ -738,11 +738,9 @@ describe("AnalysisPage", () => {
     });
 
     const moveList = screen.getByTestId("analysis-move-list");
-    const cells = moveList.querySelectorAll("td");
-    // Find a clickable move cell (skip the move number cells)
-    const moveCells = Array.from(cells).filter((td) => td.className.includes("moveCell"));
-    if (moveCells.length > 0) {
-      fireEvent.click(moveCells[0]);
+    const moveButtons = moveList.querySelectorAll("button[data-move-index]");
+    if (moveButtons.length > 0) {
+      fireEvent.click(moveButtons[0]);
     }
 
     await waitFor(() => {

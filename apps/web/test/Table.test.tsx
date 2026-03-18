@@ -123,4 +123,48 @@ describe("Table", () => {
     expect(cells[0].className).toContain("truncate");
     expect(cells[1].className).not.toContain("truncate");
   });
+
+  it("renders th elements with scope='col'", () => {
+    render(<Table columns={testColumns} data={testData} />);
+    const headers = screen.getAllByRole("columnheader");
+    headers.forEach((th) => expect(th).toHaveAttribute("scope", "col"));
+  });
+
+  it("sortable headers are keyboard accessible via Enter", () => {
+    const handleSort = vi.fn();
+    render(<Table columns={testColumns} data={testData} onSort={handleSort} />);
+    const nameHeader = screen.getByText("Name");
+    fireEvent.keyDown(nameHeader, { key: "Enter" });
+    expect(handleSort).toHaveBeenCalledWith("name");
+  });
+
+  it("sortable headers are keyboard accessible via Space", () => {
+    const handleSort = vi.fn();
+    render(<Table columns={testColumns} data={testData} onSort={handleSort} />);
+    const nameHeader = screen.getByText("Name");
+    fireEvent.keyDown(nameHeader, { key: " " });
+    expect(handleSort).toHaveBeenCalledWith("name");
+  });
+
+  it("clickable rows are keyboard accessible via Enter", () => {
+    const handleRowClick = vi.fn();
+    render(<Table columns={testColumns} data={testData} onRowClick={handleRowClick} />);
+    const firstRow = screen.getByText("Alice").closest("tr")!;
+    fireEvent.keyDown(firstRow, { key: "Enter" });
+    expect(handleRowClick).toHaveBeenCalledWith({ id: 1, name: "Alice", score: 100 });
+  });
+
+  it("renders aria-sort on sorted column", () => {
+    render(
+      <Table
+        columns={testColumns}
+        data={testData}
+        sortColumn="name"
+        sortDirection="asc"
+        onSort={vi.fn()}
+      />,
+    );
+    const nameHeader = screen.getByText("Name ▲");
+    expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  });
 });
