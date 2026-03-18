@@ -17,3 +17,5 @@ export type { ModalProps } from "./Modal.js";
 export { ToastProvider, useToast } from "./ToastProvider.js";
 export { Toast } from "./Toast.js";
 export type { ToastProps, ToastType } from "./Toast.js";
+export { Skeleton, PageSkeleton, TableSkeleton, GamePageSkeleton } from "./Skeleton.js";
+export type { SkeletonProps } from "./Skeleton.js";

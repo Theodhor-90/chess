@@ -306,7 +306,7 @@ describe("ProtectedRoute", () => {
         <div>Protected Content</div>
       </ProtectedRoute>,
     );
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-loading")).toBeInTheDocument();
     resolveResponse(
       new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
         status: 200,
@@ -420,7 +420,7 @@ describe("App routing (via AppRoutes)", () => {
     });
     renderWithProviders(<AppRoutes />, { route: "/join/test-join-token" });
     await waitFor(() => {
-      expect(screen.getByText("Loading game...")).toBeInTheDocument();
+      expect(screen.getByTestId("loading")).toBeInTheDocument();
     });
   });
 

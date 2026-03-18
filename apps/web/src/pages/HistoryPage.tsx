@@ -8,6 +8,7 @@ import { Select } from "../components/ui/Select.js";
 import { Table } from "../components/ui/Table.js";
 import { Badge } from "../components/ui/Badge.js";
 import { Pagination } from "../components/ui/Pagination.js";
+import { TableSkeleton } from "../components/ui/Skeleton.js";
 import styles from "./HistoryPage.module.css";
 
 const PAGE_SIZE = 20;
@@ -49,7 +50,7 @@ export function HistoryPage() {
   if (isLoading) {
     return (
       <div className={styles.page} data-testid="history-loading">
-        Loading...
+        <TableSkeleton testId="history-loading-skeleton" />
       </div>
     );
   }

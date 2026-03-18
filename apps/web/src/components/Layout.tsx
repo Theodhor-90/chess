@@ -1,5 +1,6 @@
 import { Outlet } from "react-router";
 import { NavHeader } from "./NavHeader.js";
+import { PageTransition } from "./PageTransition.js";
 import styles from "./Layout.module.css";
 
 function Layout() {
@@ -7,7 +8,9 @@ function Layout() {
     <div className={styles.layout}>
       <NavHeader />
       <main className={styles.main}>
-        <Outlet />
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
     </div>
   );

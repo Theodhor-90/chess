@@ -4,6 +4,7 @@ import { Table } from "./ui/Table.js";
 import { Badge } from "./ui/Badge.js";
 import type { TableColumn } from "./ui/Table.js";
 import type { GameListItem, GameStatus } from "@chess/shared";
+import { TableSkeleton } from "./ui/Skeleton.js";
 import styles from "./GameList.module.css";
 
 function formatTimeControl(initialTime: number, increment: number): string {
@@ -108,7 +109,7 @@ export function GameList() {
   const myUserId = meData?.user?.id ?? null;
 
   if (isLoading) {
-    return <div data-testid="game-list-loading">Loading games...</div>;
+    return <TableSkeleton testId="game-list-loading" rows={3} />;
   }
 
   if (isError) {

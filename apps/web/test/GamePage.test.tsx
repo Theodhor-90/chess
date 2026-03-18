@@ -433,7 +433,7 @@ describe("GamePage", () => {
 
     renderWithStore(<AppRoutes />, { route: "/game/42" });
     await waitFor(() => {
-      expect(screen.getByTestId("loading")).toHaveTextContent("Loading game...");
+      expect(screen.getByTestId("loading")).toBeInTheDocument();
     });
   });
 

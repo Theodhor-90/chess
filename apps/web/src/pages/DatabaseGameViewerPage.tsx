@@ -22,6 +22,7 @@ import type {
 import { Card } from "../components/ui/Card.js";
 import { Button } from "../components/ui/Button.js";
 import { Badge } from "../components/ui/Badge.js";
+import { GamePageSkeleton } from "../components/ui/Skeleton.js";
 import styles from "./DatabaseGameViewerPage.module.css";
 
 function computeVariationFens(branchFen: string, sanMoves: string[]): string[] {
@@ -91,11 +92,7 @@ export function DatabaseGameViewerPage() {
   }
 
   if (isLoading) {
-    return (
-      <div data-testid="db-viewer-loading" className={styles.statusMessage}>
-        Loading game...
-      </div>
-    );
+    return <GamePageSkeleton testId="db-viewer-loading" />;
   }
 
   if (isError || !game) {

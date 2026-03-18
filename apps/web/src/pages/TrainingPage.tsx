@@ -13,6 +13,7 @@ import { Button } from "../components/ui/Button.js";
 import { useGetMyGamesQuery } from "../store/apiSlice.js";
 import { connectSocket, getSocket } from "../socket.js";
 import type { EvalScore, EngineLineInfo } from "@chess/shared";
+import { PageSkeleton } from "../components/ui/Skeleton.js";
 import styles from "./TrainingPage.module.css";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -66,7 +67,7 @@ export function TrainingPage() {
   const hasActiveGame = myGames?.some((g) => g.status === "active") ?? false;
 
   if (gamesLoading) {
-    return <div data-testid="training-loading">Loading...</div>;
+    return <PageSkeleton testId="training-loading" />;
   }
 
   if (hasActiveGame) {
