@@ -30,3 +30,17 @@
   color: var(--color-text-secondary);
   margin-bottom: var(--space-2);
 }
+
+@media (max-width: 768px) {
+  .filterGrid {
+    flex-direction: column;
+  }
+
+  .filterField {
+    width: 100%;
+  }
+
+  .title {
+    font-size: var(--font-size-lg);
+  }
+}

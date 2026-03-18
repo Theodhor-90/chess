@@ -41,3 +41,17 @@
 .waitingWrapper {
   max-width: 600px;
 }
+
+@media (max-width: 768px) {
+  .page {
+    gap: var(--space-4);
+  }
+
+  .waitingWrapper {
+    max-width: 100%;
+  }
+
+  .quickLinks {
+    flex-direction: column;
+  }
+}

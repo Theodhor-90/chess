@@ -12,15 +12,14 @@
 }
 
 .statsGrid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-4);
   margin-bottom: var(--space-7);
 }
 
 .statCard {
-  min-width: 180px;
-  flex: 1;
+  min-width: 0;
 }
 
 .statLabel {
@@ -60,4 +59,20 @@
 
 .opponentLink:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: var(--font-size-xl);
+  }
 }
