@@ -15,6 +15,17 @@ vi.mock("chessground", () => ({
   }),
 }));
 
+// Mock API dependencies to avoid Redux store requirement
+vi.mock("../src/store/apiSlice.js", () => ({
+  useGetMeQuery: () => ({ data: null }),
+  useUpdatePreferencesMutation: () => [vi.fn(), { isLoading: false }],
+  useGetPreferencesQuery: () => ({ data: null }),
+}));
+
+vi.mock("../src/hooks/usePreferencesSync.js", () => ({
+  usePreferencesSync: vi.fn(),
+}));
+
 const matchMediaMatches = false;
 
 function mockMatchMedia() {

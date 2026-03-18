@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
 import type { ReactNode } from "react";
 
-const STORAGE_KEY = "chess-board-prefs";
+const PREFS_KEY = "chess-preferences";
 
 type BoardTheme = "brown" | "blue" | "green" | "ic";
 type PieceTheme = "cburnett" | "merida" | "alpha" | "california";
@@ -30,19 +30,52 @@ const BoardThemeContext = createContext<BoardThemeContextValue | null>(null);
 
 function readPreferences(): BoardPreferences {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return DEFAULT_PREFS;
-    const parsed = JSON.parse(stored) as Partial<BoardPreferences>;
-    return {
-      boardTheme: VALID_BOARD_THEMES.includes(parsed.boardTheme as BoardTheme)
-        ? (parsed.boardTheme as BoardTheme)
-        : DEFAULT_PREFS.boardTheme,
-      pieceTheme: VALID_PIECE_THEMES.includes(parsed.pieceTheme as PieceTheme)
-        ? (parsed.pieceTheme as PieceTheme)
-        : DEFAULT_PREFS.pieceTheme,
-    };
+    // Try unified key first
+    const stored = localStorage.getItem(PREFS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<BoardPreferences>;
+      return {
+        boardTheme: VALID_BOARD_THEMES.includes(parsed.boardTheme as BoardTheme)
+          ? (parsed.boardTheme as BoardTheme)
+          : DEFAULT_PREFS.boardTheme,
+        pieceTheme: VALID_PIECE_THEMES.includes(parsed.pieceTheme as PieceTheme)
+          ? (parsed.pieceTheme as PieceTheme)
+          : DEFAULT_PREFS.pieceTheme,
+      };
+    }
+    // Migrate from legacy key
+    const legacy = localStorage.getItem("chess-board-prefs");
+    if (legacy) {
+      const parsed = JSON.parse(legacy) as Partial<BoardPreferences>;
+      return {
+        boardTheme: VALID_BOARD_THEMES.includes(parsed.boardTheme as BoardTheme)
+          ? (parsed.boardTheme as BoardTheme)
+          : DEFAULT_PREFS.boardTheme,
+        pieceTheme: VALID_PIECE_THEMES.includes(parsed.pieceTheme as PieceTheme)
+          ? (parsed.pieceTheme as PieceTheme)
+          : DEFAULT_PREFS.pieceTheme,
+      };
+    }
   } catch {
     return DEFAULT_PREFS;
+  }
+  return DEFAULT_PREFS;
+}
+
+function writeBoardPreferences(prefs: BoardPreferences): void {
+  try {
+    const existing = localStorage.getItem(PREFS_KEY);
+    let allPrefs: Record<string, unknown> = {};
+    try {
+      if (existing) allPrefs = JSON.parse(existing) as Record<string, unknown>;
+    } catch {
+      // ignore corrupted JSON
+    }
+    allPrefs.boardTheme = prefs.boardTheme;
+    allPrefs.pieceTheme = prefs.pieceTheme;
+    localStorage.setItem(PREFS_KEY, JSON.stringify(allPrefs));
+  } catch {
+    // localStorage may be unavailable
   }
 }
 
@@ -50,11 +83,7 @@ function BoardThemeProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState<BoardPreferences>(readPreferences);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-    } catch {
-      // localStorage may be unavailable
-    }
+    writeBoardPreferences(prefs);
   }, [prefs]);
 
   const setBoardTheme = useCallback((theme: BoardTheme) => {

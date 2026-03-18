@@ -4,6 +4,8 @@ import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ThemeProvider, useTheme } from "../src/components/ThemeProvider.js";
 
+const PREFS_KEY = "chess-preferences";
+
 let matchMediaMatches = false;
 let matchMediaListeners: Array<(e: { matches: boolean }) => void> = [];
 
@@ -36,6 +38,20 @@ function fireSystemThemeChange(dark: boolean) {
   }
 }
 
+function getStoredTheme(): string | null {
+  const raw = localStorage.getItem(PREFS_KEY);
+  if (!raw) return null;
+  try {
+    return (JSON.parse(raw) as { theme?: string }).theme ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredPrefs(prefs: Record<string, unknown>): void {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+}
+
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
@@ -66,18 +82,18 @@ describe("ThemeProvider", () => {
         <div>child</div>
       </ThemeProvider>,
     );
-    expect(localStorage.getItem("chess-theme")).toBe("light");
+    expect(getStoredTheme()).toBe("light");
   });
 
   it("reads initial theme from localStorage if set to dark", () => {
-    localStorage.setItem("chess-theme", "dark");
+    setStoredPrefs({ theme: "dark" });
     render(
       <ThemeProvider>
         <div>child</div>
       </ThemeProvider>,
     );
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(localStorage.getItem("chess-theme")).toBe("dark");
+    expect(getStoredTheme()).toBe("dark");
   });
 
   it("renders children", () => {
@@ -109,7 +125,7 @@ describe("useTheme", () => {
     expect(result.current.theme).toBe("dark");
     expect(result.current.preference).toBe("dark");
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(localStorage.getItem("chess-theme")).toBe("dark");
+    expect(getStoredTheme()).toBe("dark");
   });
 
   it("throws when used outside ThemeProvider", () => {
@@ -184,10 +200,37 @@ describe("useTheme", () => {
 
   it("reads system preference from localStorage on mount", () => {
     matchMediaMatches = true;
-    localStorage.setItem("chess-theme", "system");
+    setStoredPrefs({ theme: "system" });
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.preference).toBe("system");
     expect(result.current.theme).toBe("dark");
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("migrates from legacy chess-theme key", () => {
+    localStorage.setItem("chess-theme", "dark");
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    expect(result.current.preference).toBe("dark");
+    expect(result.current.theme).toBe("dark");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("falls back to defaults for corrupted chess-preferences JSON", () => {
+    localStorage.setItem(PREFS_KEY, "{not valid json");
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    expect(result.current.preference).toBe("light");
+    expect(result.current.theme).toBe("light");
+  });
+
+  it("preserves other preferences when writing theme", () => {
+    setStoredPrefs({ theme: "light", boardTheme: "blue", pieceTheme: "merida" });
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    act(() => {
+      result.current.setTheme("dark");
+    });
+    const stored = JSON.parse(localStorage.getItem(PREFS_KEY)!) as Record<string, unknown>;
+    expect(stored.theme).toBe("dark");
+    expect(stored.boardTheme).toBe("blue");
+    expect(stored.pieceTheme).toBe("merida");
   });
 });

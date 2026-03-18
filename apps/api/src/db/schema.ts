@@ -9,6 +9,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  preferences: text("preferences"),
 });
 
 export const games = sqliteTable(

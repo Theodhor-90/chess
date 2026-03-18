@@ -21,6 +21,8 @@ import type {
   DatabaseGame,
   DatabaseGamesQuery,
   PaginatedResponse,
+  UserPreferences,
+  UserPreferencesResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -172,6 +174,18 @@ export const apiSlice = createApi({
     getDatabaseGame: builder.query<DatabaseGame, number>({
       query: (id) => `/database/games/${id}`,
     }),
+
+    // Preferences endpoints
+    getPreferences: builder.query<UserPreferencesResponse, void>({
+      query: () => "/users/me/preferences",
+    }),
+    updatePreferences: builder.mutation<UserPreferencesResponse, UserPreferences>({
+      query: (preferences) => ({
+        url: "/users/me/preferences",
+        method: "PUT",
+        body: { preferences },
+      }),
+    }),
   }),
 });
 
@@ -193,4 +207,6 @@ export const {
   useEvaluatePositionMutation,
   useGetDatabaseGamesQuery,
   useGetDatabaseGameQuery,
+  useGetPreferencesQuery,
+  useUpdatePreferencesMutation,
 } = apiSlice;

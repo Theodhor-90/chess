@@ -8,7 +8,15 @@
       (function () {
         var p = "light";
         try {
-          p = localStorage.getItem("chess-theme") || "light";
+          var raw = localStorage.getItem("chess-preferences");
+          if (raw) {
+            var prefs = JSON.parse(raw);
+            if (prefs.theme === "light" || prefs.theme === "dark" || prefs.theme === "system") {
+              p = prefs.theme;
+            }
+          } else {
+            p = localStorage.getItem("chess-theme") || "light";
+          }
         } catch (e) {}
         var t = p;
         if (p === "system") {

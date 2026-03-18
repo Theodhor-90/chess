@@ -3,6 +3,8 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import { useTheme } from "../components/ThemeProvider.js";
 import { useBoardTheme } from "../components/BoardThemeProvider.js";
+import { useGetMeQuery } from "../store/apiSlice.js";
+import { usePreferencesSync } from "../hooks/usePreferencesSync.js";
 import type { ThemePreference } from "../components/ThemeProvider.js";
 import type { BoardTheme, PieceTheme } from "../components/BoardThemeProvider.js";
 import { Card } from "../components/ui/Card.js";
@@ -77,6 +79,9 @@ function MiniBoard({ boardTheme, pieceTheme }: { boardTheme: BoardTheme; pieceTh
 function SettingsPage() {
   const { preference, setTheme } = useTheme();
   const { boardTheme, pieceTheme, setBoardTheme, setPieceTheme } = useBoardTheme();
+  const { data: meData } = useGetMeQuery();
+  const isAuthenticated = !!meData?.user;
+  usePreferencesSync(isAuthenticated);
 
   return (
     <div className={styles.page}>

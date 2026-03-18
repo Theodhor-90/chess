@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
 
-const STORAGE_KEY = "chess-theme";
+const PREFS_KEY = "chess-preferences";
 const DEFAULT_THEME: ThemePreference = "light";
 
 type ThemePreference = "light" | "dark" | "system";
@@ -30,12 +30,38 @@ function resolveTheme(preference: ThemePreference): ResolvedTheme {
 
 function readPreference(): ThemePreference {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+    const stored = localStorage.getItem(PREFS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored) as { theme?: string };
+      if (parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system") {
+        return parsed.theme;
+      }
+    }
+    // Migrate from legacy key
+    const legacy = localStorage.getItem("chess-theme");
+    if (legacy === "light" || legacy === "dark" || legacy === "system") {
+      return legacy;
+    }
   } catch {
-    // localStorage unavailable
+    // localStorage unavailable or corrupted JSON
   }
   return DEFAULT_THEME;
+}
+
+function writeThemePreference(preference: ThemePreference): void {
+  try {
+    const existing = localStorage.getItem(PREFS_KEY);
+    let prefs: Record<string, unknown> = {};
+    try {
+      if (existing) prefs = JSON.parse(existing) as Record<string, unknown>;
+    } catch {
+      // ignore corrupted JSON
+    }
+    prefs.theme = preference;
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // localStorage may be unavailable
+  }
 }
 
 function ThemeProvider({ children }: { children: ReactNode }) {
@@ -47,11 +73,7 @@ function ThemeProvider({ children }: { children: ReactNode }) {
     const resolved = resolveTheme(preference);
     setResolvedTheme(resolved);
     document.documentElement.setAttribute("data-theme", resolved);
-    try {
-      localStorage.setItem(STORAGE_KEY, preference);
-    } catch {
-      // localStorage may be unavailable
-    }
+    writeThemePreference(preference);
   }, [preference]);
 
   // Listen for system theme changes when preference is "system"
