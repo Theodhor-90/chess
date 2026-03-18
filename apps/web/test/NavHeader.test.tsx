@@ -76,7 +76,7 @@ describe("NavHeader", () => {
     await waitFor(() => {
       expect(screen.getByTestId("user-display-name")).toHaveTextContent("player_one");
     });
-    expect(screen.getByTestId("logout-button")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
   });
 
   it("shows Login link when not authenticated", async () => {
@@ -85,7 +85,7 @@ describe("NavHeader", () => {
     await waitFor(() => {
       expect(screen.getByRole("link", { name: "Login" })).toBeInTheDocument();
     });
-    expect(screen.queryByTestId("logout-button")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Logout" })).not.toBeInTheDocument();
   });
 
   it("app title links to home", async () => {
@@ -112,11 +112,11 @@ describe("NavHeader", () => {
       </Provider>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId("logout-button")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
     });
     mockFetchSuccess({});
     mockFetchError({ error: "Unauthorized" }, 401);
-    fireEvent.click(screen.getByTestId("logout-button"));
+    fireEvent.click(screen.getByRole("button", { name: "Logout" }));
     await waitFor(() => {
       expect(screen.getByTestId("login-page")).toBeInTheDocument();
     });

@@ -7,7 +7,7 @@ import { AuthGate } from "./components/AuthGate.js";
 import { GamePage } from "./pages/GamePage.js";
 import { ProtectedRoute } from "./components/ProtectedRoute.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
-import { NavHeader } from "./components/NavHeader.js";
+import { Layout } from "./components/Layout.js";
 import { JoinPage } from "./pages/JoinPage.js";
 import { AnalysisPage } from "./pages/AnalysisPage.js";
 import { TrainingPage } from "./pages/TrainingPage.js";
@@ -18,11 +18,13 @@ import { DatabaseGameViewerPage } from "./pages/DatabaseGameViewerPage.js";
 
 export function AppRoutes() {
   return (
-    <>
-      <NavHeader />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+    <Routes>
+      {/* Auth pages render without the Layout shell */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+
+      {/* All other pages render inside the Layout shell */}
+      <Route element={<Layout />}>
         <Route
           path="/game/:id"
           element={
@@ -81,8 +83,8 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
-      </Routes>
-    </>
+      </Route>
+    </Routes>
   );
 }
 
