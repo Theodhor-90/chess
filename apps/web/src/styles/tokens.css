@@ -107,6 +107,17 @@
   --bp-xl: 1280px;
 }
 
+@media (max-width: 768px) {
+  [data-theme="light"] {
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-md: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+  }
+}
+
 /* --- Dark theme placeholder (wired in M14) ---
 [data-theme="dark"] {
   --color-primary: #8ab4f8;

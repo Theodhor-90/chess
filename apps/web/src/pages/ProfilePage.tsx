@@ -46,6 +46,7 @@ export function ProfilePage() {
     {
       key: "opponentUsername",
       header: "Opponent",
+      truncate: true,
       render: (row) => (
         <Link
           to={`/profile/${row.opponentId}`}
