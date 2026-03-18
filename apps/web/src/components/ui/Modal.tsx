@@ -1,7 +1,9 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
+
+const ANIMATION_DURATION = 200;
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,6 +20,28 @@ const FOCUSABLE_SELECTOR =
 function Modal({ isOpen, onClose, title, children, footer, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  // Handle mount/unmount lifecycle with animation
+  useEffect(() => {
+    if (isOpen) {
+      // Mount immediately, then trigger visible on next frame for CSS transition
+      setMounted(true);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setVisible(true);
+        });
+      });
+    } else {
+      // Start exit animation, then unmount after duration
+      setVisible(false);
+      const timer = setTimeout(() => {
+        setMounted(false);
+      }, ANIMATION_DURATION);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   // Store the previously focused element when the modal opens
   useEffect(() => {
@@ -90,12 +114,18 @@ function Modal({ isOpen, onClose, title, children, footer, className }: ModalPro
     }
   }, []);
 
-  if (!isOpen) return null;
+  if (!mounted) return null;
 
-  const panelClassNames = [styles.panel, className ?? ""].filter(Boolean).join(" ");
+  const backdropClassNames = [styles.backdrop, visible && styles.backdropVisible]
+    .filter(Boolean)
+    .join(" ");
+
+  const panelClassNames = [styles.panel, visible && styles.panelVisible, className ?? ""]
+    .filter(Boolean)
+    .join(" ");
 
   return createPortal(
-    <div className={styles.backdrop} onClick={onClose}>
+    <div className={backdropClassNames} onClick={onClose}>
       <div
         ref={panelRef}
         className={panelClassNames}

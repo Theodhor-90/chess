@@ -7,6 +7,12 @@
   justify-content: center;
   background-color: var(--color-overlay);
   z-index: 1000;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.backdropVisible {
+  opacity: 1;
 }
 
 /* === Panel === */
@@ -20,6 +26,16 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform: scale(0.95);
+  opacity: 0;
+  transition:
+    transform 200ms ease-out,
+    opacity 200ms ease-out;
+}
+
+.panelVisible {
+  transform: scale(1);
+  opacity: 1;
 }
 
 /* === Header === */

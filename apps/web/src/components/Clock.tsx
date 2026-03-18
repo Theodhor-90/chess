@@ -52,7 +52,12 @@ export function Clock({
 
   const isLowTime = displayTime < 30000;
   const formatted = formatTime(displayTime);
-  const className = [styles.clock, isActive && styles.active, isLowTime && styles.lowTime]
+  const className = [
+    styles.clock,
+    isActive && styles.active,
+    isLowTime && styles.lowTime,
+    isActive && isLowTime && styles.urgentPulse,
+  ]
     .filter(Boolean)
     .join(" ");
 

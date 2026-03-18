@@ -6,11 +6,14 @@ interface ToastProps {
   id: string;
   message: string;
   type: ToastType;
+  isExiting: boolean;
   onDismiss: (id: string) => void;
 }
 
-function Toast({ id, message, type, onDismiss }: ToastProps) {
-  const classNames = [styles.toast, styles[type]].filter(Boolean).join(" ");
+function Toast({ id, message, type, isExiting, onDismiss }: ToastProps) {
+  const classNames = [styles.toast, styles[type], isExiting && styles.exiting]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div className={classNames} role="alert">
