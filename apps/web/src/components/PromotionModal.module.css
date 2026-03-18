@@ -4,7 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(33, 33, 33, 0.5);
+  background-color: var(--color-overlay);
   z-index: 1100;
 }
 
@@ -66,7 +66,7 @@
     width: 100%;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     padding: var(--space-5) var(--space-4) var(--space-6);
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 -4px 12px var(--color-shadow-subtle);
     max-height: 30vh;
     transform: translateY(0);
     animation: slideUp var(--transition-duration) var(--transition-easing);

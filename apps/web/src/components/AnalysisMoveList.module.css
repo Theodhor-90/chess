@@ -63,7 +63,7 @@
 }
 
 .indicatorMistake {
-  background-color: #f97316;
+  background-color: var(--color-mistake);
 }
 
 .indicatorBlunder {
