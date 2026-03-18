@@ -4,10 +4,8 @@ import { Chess } from "chess.js";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { DrawShape } from "chessground/draw";
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
 import { useGetGameQuery, useGetMyGamesQuery, useGetAnalysisQuery } from "../store/apiSlice.js";
+import { useBoardTheme } from "../components/BoardThemeProvider.js";
 import { connectSocket, getSocket } from "../socket.js";
 import { treeToPositions } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
@@ -91,6 +89,14 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  const { boardTheme, pieceTheme } = useBoardTheme();
+
+  const themeClasses = [
+    boardTheme !== "brown" ? `board-theme-${boardTheme}` : "",
+    pieceTheme !== "cburnett" ? `piece-theme-${pieceTheme}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
   const [positions, setPositions] = useState<AnalyzedPosition[] | null>(null);
   const [whiteAccuracy, setWhiteAccuracy] = useState<number | null>(null);
@@ -386,7 +392,9 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       <div className={styles.layout}>
         <div ref={boardAreaRef} className={styles.boardArea}>
           {currentEval && <EvalBar score={currentEval} />}
-          <div ref={containerRef} data-testid="analysis-board" className={styles.board} />
+          <div className={themeClasses || undefined}>
+            <div ref={containerRef} data-testid="analysis-board" className={styles.board} />
+          </div>
         </div>
         <div className={styles.sidePanel}>
           <Card header="Engine Lines">

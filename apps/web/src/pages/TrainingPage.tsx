@@ -4,10 +4,8 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { Key } from "chessground/types";
 import type { DrawShape } from "chessground/draw";
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
+import { useBoardTheme } from "../components/BoardThemeProvider.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
 import { Card } from "../components/ui/Card.js";
@@ -88,6 +86,14 @@ function TrainingContent() {
   const [fens, setFens] = useState<string[]>([STARTING_FEN]);
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  const { boardTheme, pieceTheme } = useBoardTheme();
+
+  const themeClasses = [
+    boardTheme !== "brown" ? `board-theme-${boardTheme}` : "",
+    pieceTheme !== "cburnett" ? `piece-theme-${pieceTheme}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const [currentEval, setCurrentEval] = useState<EvalScore | null>(null);
   const [currentEngineLines, setCurrentEngineLines] = useState<EngineLineInfo[] | undefined>(
     undefined,
@@ -325,7 +331,9 @@ function TrainingContent() {
           ) : (
             <div className={styles.evalBarPlaceholder} />
           )}
-          <div ref={containerRef} data-testid="training-board" className={styles.board} />
+          <div className={themeClasses || undefined}>
+            <div ref={containerRef} data-testid="training-board" className={styles.board} />
+          </div>
         </div>
         <div className={styles.sidePanel}>
           <Card header="Engine Lines">

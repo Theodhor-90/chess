@@ -1,0 +1,37 @@
+/* California piece set */
+.piece-theme-california .cg-wrap piece.pawn.white {
+  background-image: url("/pieces/california/wP.svg");
+}
+.piece-theme-california .cg-wrap piece.knight.white {
+  background-image: url("/pieces/california/wN.svg");
+}
+.piece-theme-california .cg-wrap piece.bishop.white {
+  background-image: url("/pieces/california/wB.svg");
+}
+.piece-theme-california .cg-wrap piece.rook.white {
+  background-image: url("/pieces/california/wR.svg");
+}
+.piece-theme-california .cg-wrap piece.queen.white {
+  background-image: url("/pieces/california/wQ.svg");
+}
+.piece-theme-california .cg-wrap piece.king.white {
+  background-image: url("/pieces/california/wK.svg");
+}
+.piece-theme-california .cg-wrap piece.pawn.black {
+  background-image: url("/pieces/california/bP.svg");
+}
+.piece-theme-california .cg-wrap piece.knight.black {
+  background-image: url("/pieces/california/bN.svg");
+}
+.piece-theme-california .cg-wrap piece.bishop.black {
+  background-image: url("/pieces/california/bB.svg");
+}
+.piece-theme-california .cg-wrap piece.rook.black {
+  background-image: url("/pieces/california/bR.svg");
+}
+.piece-theme-california .cg-wrap piece.queen.black {
+  background-image: url("/pieces/california/bQ.svg");
+}
+.piece-theme-california .cg-wrap piece.king.black {
+  background-image: url("/pieces/california/bK.svg");
+}

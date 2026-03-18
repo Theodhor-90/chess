@@ -1,0 +1,171 @@
+.page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* === App Theme Picker === */
+.themeOptions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.themeOption {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-default),
+    background-color var(--transition-default);
+}
+
+.themeOption:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.themeOptionActive {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+.themeOptionLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.themeOptionDescription {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* === Board Theme Picker === */
+.boardThemeOptions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.boardThemeOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-default),
+    background-color var(--transition-default);
+}
+
+.boardThemeOption:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.boardThemeOptionActive {
+  border-color: var(--color-primary);
+}
+
+.boardColorPreview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.boardColorSquare {
+  width: 24px;
+  height: 24px;
+}
+
+.boardThemeLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* === Piece Set Picker === */
+.pieceThemeOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.pieceThemeOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-default),
+    background-color var(--transition-default);
+}
+
+.pieceThemeOption:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.pieceThemeOptionActive {
+  border-color: var(--color-primary);
+}
+
+.miniBoard {
+  width: 120px;
+  height: 120px;
+}
+
+.pieceThemeLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* === Responsive === */
+@media (max-width: 480px) {
+  .themeOptions {
+    flex-direction: column;
+  }
+
+  .themeOption {
+    min-width: unset;
+  }
+
+  .pieceThemeOptions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .miniBoard {
+    width: 100px;
+    height: 100px;
+  }
+}

@@ -1,0 +1,37 @@
+/* Alpha piece set */
+.piece-theme-alpha .cg-wrap piece.pawn.white {
+  background-image: url("/pieces/alpha/wP.svg");
+}
+.piece-theme-alpha .cg-wrap piece.knight.white {
+  background-image: url("/pieces/alpha/wN.svg");
+}
+.piece-theme-alpha .cg-wrap piece.bishop.white {
+  background-image: url("/pieces/alpha/wB.svg");
+}
+.piece-theme-alpha .cg-wrap piece.rook.white {
+  background-image: url("/pieces/alpha/wR.svg");
+}
+.piece-theme-alpha .cg-wrap piece.queen.white {
+  background-image: url("/pieces/alpha/wQ.svg");
+}
+.piece-theme-alpha .cg-wrap piece.king.white {
+  background-image: url("/pieces/alpha/wK.svg");
+}
+.piece-theme-alpha .cg-wrap piece.pawn.black {
+  background-image: url("/pieces/alpha/bP.svg");
+}
+.piece-theme-alpha .cg-wrap piece.knight.black {
+  background-image: url("/pieces/alpha/bN.svg");
+}
+.piece-theme-alpha .cg-wrap piece.bishop.black {
+  background-image: url("/pieces/alpha/bB.svg");
+}
+.piece-theme-alpha .cg-wrap piece.rook.black {
+  background-image: url("/pieces/alpha/bR.svg");
+}
+.piece-theme-alpha .cg-wrap piece.queen.black {
+  background-image: url("/pieces/alpha/bQ.svg");
+}
+.piece-theme-alpha .cg-wrap piece.king.black {
+  background-image: url("/pieces/alpha/bK.svg");
+}

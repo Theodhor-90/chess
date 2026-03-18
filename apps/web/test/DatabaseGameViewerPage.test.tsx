@@ -6,6 +6,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { apiSlice } from "../src/store/apiSlice.js";
 import { gameReducer } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
+import { BoardThemeProvider } from "../src/components/BoardThemeProvider.js";
 import { DatabaseGameViewerPage } from "../src/pages/DatabaseGameViewerPage.js";
 
 const mockChessgroundSet = vi.fn();
@@ -129,11 +130,13 @@ describe("DatabaseGameViewerPage", () => {
 
     render(
       <Provider store={store}>
-        <MemoryRouter initialEntries={["/database/games/42/view"]}>
-          <Routes>
-            <Route path="/database/games/:id/view" element={<DatabaseGameViewerPage />} />
-          </Routes>
-        </MemoryRouter>
+        <BoardThemeProvider>
+          <MemoryRouter initialEntries={["/database/games/42/view"]}>
+            <Routes>
+              <Route path="/database/games/:id/view" element={<DatabaseGameViewerPage />} />
+            </Routes>
+          </MemoryRouter>
+        </BoardThemeProvider>
       </Provider>,
     );
 
