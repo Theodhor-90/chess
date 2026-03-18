@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useAppSelector, useAppDispatch } from "../store/index.js";
 import { socketActions } from "../store/socketMiddleware.js";
+import { clearDrawOffer } from "../store/gameSlice.js";
+import { Button } from "./ui/Button.js";
+import styles from "./GameActions.module.css";
 import type { PlayerColor } from "@chess/shared";
 
 export function GameActions({
@@ -34,73 +37,99 @@ export function GameActions({
     setShowResignConfirm(false);
   }
 
-  function handleDrawClick() {
-    if (drawOffer && drawOffer !== playerColor) {
-      dispatch(socketActions.acceptDraw({ gameId }));
-    } else if (!drawOffer) {
-      dispatch(socketActions.offerDraw({ gameId }));
-    }
+  function handleOfferDraw() {
+    dispatch(socketActions.offerDraw({ gameId }));
   }
 
-  function getDrawButtonLabel(): string {
-    if (drawOffer === playerColor) return "Draw Offered";
-    if (drawOffer && drawOffer !== playerColor) return "Accept Draw";
-    return "Offer Draw";
+  function handleAcceptDraw() {
+    dispatch(socketActions.acceptDraw({ gameId }));
+  }
+
+  function handleDeclineDraw() {
+    dispatch(clearDrawOffer());
   }
 
   function handleAbortClick() {
     dispatch(socketActions.abort({ gameId }));
   }
 
+  const opponentOfferedDraw = drawOffer !== null && drawOffer !== playerColor;
+  const playerOfferedDraw = drawOffer === playerColor;
+
   return (
-    <div
-      data-testid="game-actions"
-      style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-    >
+    <div data-testid="game-actions" className={styles.container}>
       {isActive && (
         <>
           {showResignConfirm ? (
-            <div
-              data-testid="resign-confirm"
-              style={{
-                padding: "8px",
-                backgroundColor: "#fff3f3",
-                borderRadius: "4px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
-            >
-              <span>Are you sure you want to resign?</span>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button data-testid="resign-confirm-yes" onClick={handleResignConfirm}>
+            <div data-testid="resign-confirm" className={styles.resignConfirm}>
+              <span className={styles.resignConfirmText}>Are you sure you want to resign?</span>
+              <div className={styles.resignConfirmButtons}>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  data-testid="resign-confirm-yes"
+                  onClick={handleResignConfirm}
+                >
                   Yes, Resign
-                </button>
-                <button data-testid="resign-confirm-no" onClick={handleResignCancel}>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-testid="resign-confirm-no"
+                  onClick={handleResignCancel}
+                >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
-            <button data-testid="resign-button" onClick={handleResignClick}>
+            <Button
+              variant="danger"
+              size="sm"
+              data-testid="resign-button"
+              onClick={handleResignClick}
+            >
               Resign
-            </button>
+            </Button>
           )}
 
-          <button
-            data-testid="draw-button"
-            onClick={handleDrawClick}
-            disabled={drawOffer === playerColor}
-          >
-            {getDrawButtonLabel()}
-          </button>
+          {opponentOfferedDraw ? (
+            <div className={styles.drawGroup}>
+              <Button
+                variant="secondary"
+                size="sm"
+                data-testid="accept-draw-button"
+                onClick={handleAcceptDraw}
+              >
+                Accept Draw
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="decline-draw-button"
+                onClick={handleDeclineDraw}
+              >
+                Decline
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              data-testid="draw-button"
+              onClick={handleOfferDraw}
+              disabled={playerOfferedDraw}
+            >
+              {playerOfferedDraw ? "Draw Offered" : "Offer Draw"}
+            </Button>
+          )}
         </>
       )}
 
       {isWaiting && isCreator && (
-        <button data-testid="abort-button" onClick={handleAbortClick}>
+        <Button variant="secondary" size="sm" data-testid="abort-button" onClick={handleAbortClick}>
           Abort Game
-        </button>
+        </Button>
       )}
     </div>
   );

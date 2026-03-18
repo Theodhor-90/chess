@@ -1,0 +1,38 @@
+.container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: var(--border-width) solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.row {
+  /* Default row — transparent background */
+}
+
+.rowAlt {
+  background-color: var(--color-gray-50);
+}
+
+.currentMove {
+  background-color: var(--color-primary-light);
+  font-weight: var(--font-weight-semibold);
+}
+
+.moveNumber {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-secondary);
+  width: 30px;
+  text-align: right;
+}
+
+.moveCell {
+  padding: var(--space-1) var(--space-2);
+  cursor: default;
+}

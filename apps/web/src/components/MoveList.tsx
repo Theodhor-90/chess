@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
+import styles from "./MoveList.module.css";
 
 export function MoveList({ moves }: { moves: string[] }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const currentMoveRef = useRef<HTMLTableCellElement>(null);
 
-  // Auto-scroll to latest move
+  // Auto-scroll to the current (latest) move
   useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    if (currentMoveRef.current) {
+      currentMoveRef.current.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
     }
   }, [moves.length]);
 
@@ -17,25 +18,35 @@ export function MoveList({ moves }: { moves: string[] }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="move-list"
-      style={{
-        maxHeight: "400px",
-        overflowY: "auto",
-        fontFamily: "monospace",
-        fontSize: "14px",
-      }}
-    >
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className={styles.container} data-testid="move-list">
+      <table className={styles.table}>
         <tbody>
-          {pairs.map(([white, black], index) => (
-            <tr key={index}>
-              <td style={{ padding: "2px 8px", color: "#666", width: "30px" }}>{index + 1}.</td>
-              <td style={{ padding: "2px 8px" }}>{white}</td>
-              <td style={{ padding: "2px 8px" }}>{black ?? ""}</td>
-            </tr>
-          ))}
+          {pairs.map(([white, black], index) => {
+            const isLastRow = index === pairs.length - 1;
+            const whiteIsCurrentMove = isLastRow && black === undefined;
+            const blackIsCurrentMove = isLastRow && black !== undefined;
+            const rowClass = index % 2 === 0 ? styles.row : styles.rowAlt;
+
+            return (
+              <tr key={index} className={rowClass}>
+                <td className={styles.moveNumber}>{index + 1}.</td>
+                <td
+                  className={`${styles.moveCell}${whiteIsCurrentMove ? ` ${styles.currentMove}` : ""}`}
+                  ref={whiteIsCurrentMove ? currentMoveRef : undefined}
+                  data-testid={whiteIsCurrentMove ? "current-move" : undefined}
+                >
+                  {white}
+                </td>
+                <td
+                  className={`${styles.moveCell}${blackIsCurrentMove ? ` ${styles.currentMove}` : ""}`}
+                  ref={blackIsCurrentMove ? currentMoveRef : undefined}
+                  data-testid={blackIsCurrentMove ? "current-move" : undefined}
+                >
+                  {black ?? ""}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

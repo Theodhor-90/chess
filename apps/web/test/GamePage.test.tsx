@@ -54,6 +54,43 @@ vi.mock("../src/pages/GamePage.module.css", () => ({
   },
 }));
 
+vi.mock("../src/components/MoveList.module.css", () => ({
+  default: {
+    container: "container",
+    table: "table",
+    row: "row",
+    rowAlt: "rowAlt",
+    currentMove: "currentMove",
+    moveNumber: "moveNumber",
+    moveCell: "moveCell",
+  },
+}));
+
+vi.mock("../src/components/GameActions.module.css", () => ({
+  default: {
+    container: "container",
+    drawGroup: "drawGroup",
+    resignConfirm: "resignConfirm",
+    resignConfirmText: "resignConfirmText",
+    resignConfirmButtons: "resignConfirmButtons",
+  },
+}));
+
+vi.mock("../src/components/ui/Button.module.css", () => ({
+  default: {
+    button: "button",
+    primary: "primary",
+    secondary: "secondary",
+    danger: "danger",
+    ghost: "ghost",
+    sm: "sm",
+    md: "md",
+    lg: "lg",
+    loading: "loading",
+    spinner: "spinner",
+  },
+}));
+
 vi.mock("chessground", () => ({
   Chessground: vi.fn(() => ({
     set: vi.fn(),
@@ -273,6 +310,45 @@ describe("MoveList", () => {
     expect(rows[1]).toHaveTextContent("Nc6");
     expect(rows[2]).toHaveTextContent("3.");
     expect(rows[2]).toHaveTextContent("Bb5");
+  });
+
+  it("highlights the current (last) white move", () => {
+    render(<MoveList moves={["e4"]} />);
+    const currentMove = screen.getByTestId("current-move");
+    expect(currentMove).toHaveTextContent("e4");
+    expect(currentMove).toHaveClass("currentMove");
+  });
+
+  it("highlights the current (last) black move", () => {
+    render(<MoveList moves={["e4", "e5"]} />);
+    const currentMove = screen.getByTestId("current-move");
+    expect(currentMove).toHaveTextContent("e5");
+    expect(currentMove).toHaveClass("currentMove");
+  });
+
+  it("highlights the last move in a longer game", () => {
+    render(<MoveList moves={["e4", "e5", "Nf3", "Nc6", "Bb5"]} />);
+    const currentMove = screen.getByTestId("current-move");
+    expect(currentMove).toHaveTextContent("Bb5");
+    expect(currentMove).toHaveClass("currentMove");
+    expect(screen.getAllByTestId("current-move")).toHaveLength(1);
+  });
+
+  it("does not highlight any move when list is empty", () => {
+    render(<MoveList moves={[]} />);
+    expect(screen.queryByTestId("current-move")).toBeNull();
+  });
+
+  it("applies alternating row classes", () => {
+    render(<MoveList moves={["e4", "e5", "Nf3", "Nc6"]} />);
+    const rows = screen.getByTestId("move-list").querySelectorAll("tr");
+    expect(rows[0]).toHaveClass("row");
+    expect(rows[1]).toHaveClass("rowAlt");
+  });
+
+  it("uses monospace font class on table", () => {
+    render(<MoveList moves={["e4"]} />);
+    expect(screen.getByTestId("move-list").querySelector("table")).toHaveClass("table");
   });
 });
 
@@ -529,16 +605,18 @@ describe("GameActions", () => {
     expect(drawButton).toBeDisabled();
   });
 
-  it("shows 'Accept Draw' when opponent offered", () => {
+  it("shows accept and decline buttons when opponent offered draw", () => {
     const store = createTestStore();
     store.dispatch(setGameState(makeFakeGameState()));
     store.dispatch(setDrawOffer("black"));
 
     renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
 
-    const drawButton = screen.getByTestId("draw-button");
-    expect(drawButton).toHaveTextContent("Accept Draw");
-    expect(drawButton).not.toBeDisabled();
+    // The single "draw-button" should NOT be rendered when opponent has offered
+    expect(screen.queryByTestId("draw-button")).not.toBeInTheDocument();
+    // Instead, separate accept and decline buttons appear
+    expect(screen.getByTestId("accept-draw-button")).toHaveTextContent("Accept Draw");
+    expect(screen.getByTestId("decline-draw-button")).toHaveTextContent("Decline");
   });
 
   it("dispatches offerDraw on 'Offer Draw' click", () => {
@@ -559,7 +637,7 @@ describe("GameActions", () => {
 
     renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
 
-    fireEvent.click(screen.getByTestId("draw-button"));
+    fireEvent.click(screen.getByTestId("accept-draw-button"));
 
     expect(mockSocket.emit).toHaveBeenCalledWith("acceptDraw", { gameId: 42 });
   });
@@ -610,6 +688,59 @@ describe("GameActions", () => {
 
     expect(screen.queryByTestId("resign-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("draw-button")).not.toBeInTheDocument();
+  });
+
+  it("decline draw clears draw offer from state", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+    store.dispatch(setDrawOffer("black"));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("decline-draw-button"));
+
+    // Draw offer cleared from Redux state
+    expect(store.getState().game.drawOffer).toBeNull();
+    // UI returns to showing the single "Offer Draw" button
+    expect(screen.getByTestId("draw-button")).toHaveTextContent("Offer Draw");
+  });
+
+  it("resign button has danger class", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("resign-button")).toHaveClass("danger");
+  });
+
+  it("draw button has secondary class", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("draw-button")).toHaveClass("secondary");
+  });
+
+  it("no inline styles on game-actions container", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    expect(screen.getByTestId("game-actions").getAttribute("style")).toBeNull();
+  });
+
+  it("no inline styles on resign confirm panel", () => {
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<GameActions gameId={42} playerColor="white" />, { store });
+
+    fireEvent.click(screen.getByTestId("resign-button"));
+
+    expect(screen.getByTestId("resign-confirm").getAttribute("style")).toBeNull();
   });
 });
 
