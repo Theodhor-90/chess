@@ -1,0 +1,76 @@
+.page {
+  padding: var(--space-4);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.layout {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.boardArea {
+  flex-shrink: 0;
+}
+
+.board {
+  width: min(400px, calc(100vw - 2rem));
+  aspect-ratio: 1;
+  flex-shrink: 0;
+}
+
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 200px;
+  flex: 1;
+}
+
+.statusText {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.errorMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}
+
+.emptyMessage {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.themeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .boardArea {
+    flex-shrink: 1;
+  }
+
+  .sidePanel {
+    min-width: 0;
+  }
+
+  .boardArea {
+    touch-action: pan-y;
+  }
+}

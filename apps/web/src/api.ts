@@ -1,4 +1,11 @@
-import type { AuthResponse, ErrorResponse, BotGameResponse, ClockConfig } from "@chess/shared";
+import type {
+  AuthResponse,
+  ErrorResponse,
+  BotGameResponse,
+  ClockConfig,
+  PuzzleNextResponse,
+  PuzzleAttemptResponse,
+} from "@chess/shared";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -51,5 +58,19 @@ export function createBotGame(level: number, clock?: ClockConfig): Promise<BotGa
   return request<BotGameResponse>("/api/games/bot", {
     method: "POST",
     body: JSON.stringify({ level, clock }),
+  });
+}
+
+export function getNextPuzzle(): Promise<PuzzleNextResponse> {
+  return request<PuzzleNextResponse>("/api/puzzles/next");
+}
+
+export function submitPuzzleAttempt(
+  puzzleId: string,
+  moves: string[],
+): Promise<PuzzleAttemptResponse> {
+  return request<PuzzleAttemptResponse>(`/api/puzzles/${encodeURIComponent(puzzleId)}/attempt`, {
+    method: "POST",
+    body: JSON.stringify({ moves }),
   });
 }
