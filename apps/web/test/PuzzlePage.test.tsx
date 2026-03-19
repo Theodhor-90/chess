@@ -373,4 +373,208 @@ describe("PuzzlePage", () => {
       vi.useRealTimers();
     }
   });
+
+  it("renders Lichess game link", async () => {
+    mockGetNextPuzzle.mockResolvedValue({ puzzle: samplePuzzle });
+    render(<PuzzlePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("puzzle-page")).toBeInTheDocument();
+    });
+
+    const link = screen.getByTestId("lichess-link");
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "https://lichess.org/abc123#31");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveTextContent("View on Lichess");
+  });
+
+  it("Enter key triggers next puzzle in solved state", async () => {
+    const simplePuzzle: Puzzle = {
+      ...samplePuzzle,
+      puzzleId: "test_enter_key",
+      moves: ["e2e4", "e7e5"],
+    };
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: simplePuzzle });
+      _mockSubmitAttempt.mockResolvedValue({
+        correct: true,
+        solution: ["e7e5"],
+        ratingBefore: 1500,
+        ratingAfter: 1517,
+        ratingDelta: 17,
+      });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      const allSetCalls = mockChessgroundSet.mock.calls;
+      const callWithMovable = [...allSetCalls]
+        .reverse()
+        .find((call) => call[0].movable?.events?.after);
+      const onUserMove = callWithMovable![0].movable.events.after;
+
+      act(() => {
+        onUserMove("e7" as Key, "e5" as Key);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-solved")).toBeInTheDocument();
+      });
+
+      // Record the number of getNextPuzzle calls before pressing Enter
+      const callsBefore = mockGetNextPuzzle.mock.calls.length;
+
+      // Press Enter key
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      });
+
+      expect(mockGetNextPuzzle).toHaveBeenCalledTimes(callsBefore + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Space key triggers next puzzle in failed state", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: samplePuzzle });
+      _mockSubmitAttempt.mockResolvedValue({
+        correct: false,
+        solution: ["e7e5", "d2d4", "e5d4"],
+        ratingBefore: 1500,
+        ratingAfter: 1483,
+        ratingDelta: -17,
+      });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      const allSetCalls = mockChessgroundSet.mock.calls;
+      const callWithMovable = [...allSetCalls]
+        .reverse()
+        .find((call) => call[0].movable?.events?.after);
+      const onUserMove = callWithMovable![0].movable.events.after;
+
+      // Wrong move triggers failed state
+      act(() => {
+        onUserMove("a7" as Key, "a6" as Key);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-failed")).toBeInTheDocument();
+      });
+
+      const callsBefore = mockGetNextPuzzle.mock.calls.length;
+
+      // Press Space key
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+      });
+
+      expect(mockGetNextPuzzle).toHaveBeenCalledTimes(callsBefore + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keyboard shortcut does not fire during userTurn state", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: samplePuzzle });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Now in userTurn state
+      await waitFor(() => {
+        expect(screen.getByText("Your turn — find the best move")).toBeInTheDocument();
+      });
+
+      const callsBefore = mockGetNextPuzzle.mock.calls.length;
+
+      // Press Enter — should NOT trigger loadPuzzle
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      });
+
+      // getNextPuzzle should NOT have been called again
+      expect(mockGetNextPuzzle).toHaveBeenCalledTimes(callsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows loading skeleton when loading next puzzle", async () => {
+    const simplePuzzle: Puzzle = {
+      ...samplePuzzle,
+      puzzleId: "test_skeleton_next",
+      moves: ["e2e4", "e7e5"],
+    };
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: simplePuzzle });
+      _mockSubmitAttempt.mockResolvedValue({
+        correct: true,
+        solution: ["e7e5"],
+        ratingBefore: 1500,
+        ratingAfter: 1517,
+        ratingDelta: 17,
+      });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      const allSetCalls = mockChessgroundSet.mock.calls;
+      const callWithMovable = [...allSetCalls]
+        .reverse()
+        .find((call) => call[0].movable?.events?.after);
+      const onUserMove = callWithMovable![0].movable.events.after;
+
+      act(() => {
+        onUserMove("e7" as Key, "e5" as Key);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-solved")).toBeInTheDocument();
+      });
+
+      // Make next getNextPuzzle never resolve to hold the loading state
+      mockGetNextPuzzle.mockReturnValue(new Promise(() => {}));
+
+      // Click Next Puzzle
+      act(() => {
+        screen.getByTestId("next-puzzle-button").click();
+      });
+
+      // Should show loading skeleton
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-loading")).toBeInTheDocument();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

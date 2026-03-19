@@ -56,6 +56,9 @@ export function DashboardPage() {
         <Link to="/history" data-testid="history-link" className={styles.quickLink}>
           <Button variant="secondary">Game History</Button>
         </Link>
+        <Link to="/puzzles" data-testid="puzzles-link" className={styles.quickLink}>
+          <Button variant="secondary">Puzzles</Button>
+        </Link>
       </div>
 
       <Card header="Your Games">

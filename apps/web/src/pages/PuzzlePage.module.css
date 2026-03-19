@@ -117,6 +117,23 @@
   font-style: italic;
 }
 
+.metadataSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.lichessLink {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-link);
+  text-decoration: none;
+}
+
+.lichessLink:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 768px) {
   .layout {
     flex-direction: column;

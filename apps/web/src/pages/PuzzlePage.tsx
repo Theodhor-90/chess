@@ -79,6 +79,7 @@ export function PuzzlePage() {
     setUserMoves([]);
     setHighlightSquares(new Map());
     setIsReplaying(false);
+    setPuzzle(null);
     moveIndexRef.current = 0;
     if (replayTimerRef.current) {
       clearInterval(replayTimerRef.current);
@@ -385,6 +386,20 @@ export function PuzzlePage() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (puzzleState !== "solved" && puzzleState !== "failed") return;
+
+    function handleKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        loadPuzzle();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [puzzleState, loadPuzzle]);
+
   if (puzzleState === "loading" && !puzzle) {
     if (error) {
       return (
@@ -433,6 +448,17 @@ export function PuzzlePage() {
                 ))}
               </div>
             )}
+            <div className={styles.metadataSection}>
+              <a
+                href={puzzle.gameUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.lichessLink}
+                data-testid="lichess-link"
+              >
+                View on Lichess
+              </a>
+            </div>
           </Card>
 
           <Card header="Status">

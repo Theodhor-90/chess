@@ -17,6 +17,7 @@ import { DatabasePage } from "./pages/DatabasePage.js";
 import { DatabaseGameViewerPage } from "./pages/DatabaseGameViewerPage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
 import { BotSelectPage } from "./pages/BotSelectPage.js";
+import { PuzzlePage } from "./pages/PuzzlePage.js";
 
 export function AppRoutes() {
   return (
@@ -90,6 +91,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <BotSelectPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/puzzles"
+          element={
+            <ProtectedRoute>
+              <PuzzlePage />
             </ProtectedRoute>
           }
         />
