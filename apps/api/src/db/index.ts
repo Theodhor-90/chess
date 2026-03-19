@@ -39,6 +39,18 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   } catch {
     // Column already exists — ignore
   }
+  try {
+    sqliteDb.exec(`ALTER TABLE users ADD COLUMN puzzle_rating INTEGER NOT NULL DEFAULT 1500`);
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    sqliteDb.exec(
+      `ALTER TABLE users ADD COLUMN puzzle_rating_deviation INTEGER NOT NULL DEFAULT 350`,
+    );
+  } catch {
+    // Column already exists — ignore
+  }
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS games (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,6 +124,24 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec("CREATE INDEX IF NOT EXISTS puzzles_rating_idx ON puzzles(rating)");
   sqliteDb.exec("CREATE INDEX IF NOT EXISTS puzzles_popularity_idx ON puzzles(popularity)");
   sqliteDb.exec("CREATE INDEX IF NOT EXISTS puzzles_themes_idx ON puzzles(themes)");
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS puzzle_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      puzzle_id TEXT NOT NULL,
+      solved INTEGER NOT NULL,
+      user_rating_before INTEGER NOT NULL,
+      user_rating_after INTEGER NOT NULL,
+      puzzle_rating INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS puzzle_attempts_user_id_idx ON puzzle_attempts(user_id)",
+  );
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS puzzle_attempts_user_id_created_at_idx ON puzzle_attempts(user_id, created_at)",
+  );
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)

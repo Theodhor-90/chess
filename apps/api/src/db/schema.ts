@@ -10,6 +10,8 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   preferences: text("preferences"),
+  puzzleRating: integer("puzzle_rating").notNull().default(1500),
+  puzzleRatingDeviation: integer("puzzle_rating_deviation").notNull().default(350),
 });
 
 export const games = sqliteTable(
@@ -95,5 +97,27 @@ export const puzzles = sqliteTable(
     index("puzzles_rating_idx").on(table.rating),
     index("puzzles_popularity_idx").on(table.popularity),
     index("puzzles_themes_idx").on(table.themes),
+  ],
+);
+
+export const puzzleAttempts = sqliteTable(
+  "puzzle_attempts",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    puzzleId: text("puzzle_id").notNull(),
+    solved: integer("solved").notNull(),
+    userRatingBefore: integer("user_rating_before").notNull(),
+    userRatingAfter: integer("user_rating_after").notNull(),
+    puzzleRating: integer("puzzle_rating").notNull(),
+    createdAt: integer("created_at")
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    index("puzzle_attempts_user_id_idx").on(table.userId),
+    index("puzzle_attempts_user_id_created_at_idx").on(table.userId, table.createdAt),
   ],
 );

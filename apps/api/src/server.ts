@@ -15,6 +15,7 @@ import { enginePlugin } from "./engine/plugin.js";
 import { engineEvaluatePlugin, engineAnalyzePlugin } from "./engine/routes.js";
 import { databaseRoutesPlugin } from "./database/routes.js";
 import { botRoutesPlugin } from "./bot/routes.js";
+import { puzzleRoutesPlugin } from "./puzzle/routes.js";
 import { setupSocketServer, type TypedSocketServer } from "./socket/index.js";
 
 declare module "fastify" {
@@ -49,6 +50,7 @@ export function buildApp(options?: BuildAppOptions): {
   app.register(engineAnalyzePlugin, { prefix: "/api/games" });
   app.register(databaseRoutesPlugin, { prefix: "/api/database" });
   app.register(botRoutesPlugin, { prefix: "/api/games" });
+  app.register(puzzleRoutesPlugin, { prefix: "/api/puzzles" });
 
   const isProduction = process.env.NODE_ENV === "production";
 

@@ -35,9 +35,29 @@ export function ensureUsersTable(): void {
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       email TEXT NOT NULL UNIQUE,
       username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL
+      password_hash TEXT NOT NULL,
+      preferences TEXT,
+      puzzle_rating INTEGER NOT NULL DEFAULT 1500,
+      puzzle_rating_deviation INTEGER NOT NULL DEFAULT 350
     )
   `);
+  try {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN preferences TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN puzzle_rating INTEGER NOT NULL DEFAULT 1500`);
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    sqlite.exec(
+      `ALTER TABLE users ADD COLUMN puzzle_rating_deviation INTEGER NOT NULL DEFAULT 350`,
+    );
+  } catch {
+    // Column already exists — ignore
+  }
 }
 
 export function ensureGamesTables(): void {
@@ -107,10 +127,48 @@ export function ensureAnalysesTable(): void {
   );
 }
 
+export function ensurePuzzleTables(): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS puzzles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      puzzle_id TEXT NOT NULL UNIQUE,
+      fen TEXT NOT NULL,
+      moves TEXT NOT NULL,
+      rating INTEGER NOT NULL,
+      rating_deviation INTEGER NOT NULL,
+      popularity INTEGER NOT NULL,
+      nb_plays INTEGER NOT NULL,
+      themes TEXT NOT NULL,
+      game_url TEXT NOT NULL,
+      opening_tags TEXT
+    )
+  `);
+  sqlite.exec("CREATE INDEX IF NOT EXISTS puzzles_rating_idx ON puzzles(rating)");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS puzzles_popularity_idx ON puzzles(popularity)");
+  sqlite.exec("CREATE INDEX IF NOT EXISTS puzzles_themes_idx ON puzzles(themes)");
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS puzzle_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      puzzle_id TEXT NOT NULL,
+      solved INTEGER NOT NULL,
+      user_rating_before INTEGER NOT NULL,
+      user_rating_after INTEGER NOT NULL,
+      puzzle_rating INTEGER NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  sqlite.exec("CREATE INDEX IF NOT EXISTS puzzle_attempts_user_id_idx ON puzzle_attempts(user_id)");
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS puzzle_attempts_user_id_created_at_idx ON puzzle_attempts(user_id, created_at)",
+  );
+}
+
 export function ensureSchema(): void {
   ensureUsersTable();
   ensureGamesTables();
   ensureAnalysesTable();
+  ensurePuzzleTables();
 }
 
 export function cleanGamesTables(): void {
