@@ -5,6 +5,7 @@ import type {
   ClockConfig,
   PuzzleNextResponse,
   PuzzleAttemptResponse,
+  PuzzleStatsResponse,
 } from "@chess/shared";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -73,4 +74,8 @@ export function submitPuzzleAttempt(
     method: "POST",
     body: JSON.stringify({ moves }),
   });
+}
+
+export function getPuzzleStats(): Promise<PuzzleStatsResponse> {
+  return request<PuzzleStatsResponse>("/api/puzzles/stats");
 }

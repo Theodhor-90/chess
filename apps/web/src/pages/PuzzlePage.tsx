@@ -8,8 +8,8 @@ import { Card } from "../components/ui/Card.js";
 import { Button } from "../components/ui/Button.js";
 import { Badge } from "../components/ui/Badge.js";
 import { PageSkeleton } from "../components/ui/Skeleton.js";
-import { getNextPuzzle, submitPuzzleAttempt } from "../api.js";
-import type { Puzzle, PuzzleAttemptResponse } from "@chess/shared";
+import { getNextPuzzle, submitPuzzleAttempt, getPuzzleStats } from "../api.js";
+import type { Puzzle, PuzzleAttemptResponse, PuzzleStatsResponse } from "@chess/shared";
 import styles from "./PuzzlePage.module.css";
 
 type PuzzleState =
@@ -53,9 +53,13 @@ export function PuzzlePage() {
   const [error, setError] = useState<string | null>(null);
   const [attemptResult, setAttemptResult] = useState<PuzzleAttemptResponse | null>(null);
   const [userMoves, setUserMoves] = useState<string[]>([]);
+  const [stats, setStats] = useState<PuzzleStatsResponse | null>(null);
+  const [highlightSquares, setHighlightSquares] = useState<Map<Key, string>>(new Map());
+  const [isReplaying, setIsReplaying] = useState(false);
 
   const chessRef = useRef<Chess | null>(null);
   const moveIndexRef = useRef(0);
+  const replayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -73,7 +77,13 @@ export function PuzzlePage() {
     setError(null);
     setAttemptResult(null);
     setUserMoves([]);
+    setHighlightSquares(new Map());
+    setIsReplaying(false);
     moveIndexRef.current = 0;
+    if (replayTimerRef.current) {
+      clearInterval(replayTimerRef.current);
+      replayTimerRef.current = null;
+    }
 
     try {
       const data = await getNextPuzzle();
@@ -88,6 +98,23 @@ export function PuzzlePage() {
     loadPuzzle();
   }, [loadPuzzle]);
 
+  useEffect(() => {
+    getPuzzleStats().then(
+      (data) => setStats(data),
+      () => {
+        /* ignore stats fetch errors — non-critical */
+      },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!attemptResult) return;
+    getPuzzleStats().then(
+      (data) => setStats(data),
+      () => {},
+    );
+  }, [attemptResult]);
+
   const orientation = puzzle ? (puzzle.fen.split(" ")[1] === "w" ? "black" : "white") : "white";
 
   const onUserMove = useCallback(
@@ -101,29 +128,35 @@ export function PuzzlePage() {
       const userUci = moveToUci(orig, dest, promotion);
       const expectedIndex = moveIndexRef.current;
       const expectedUci = puzzle.moves[expectedIndex];
-
       const allUserMovesSoFar = [...userMoves, userUci];
 
       if (userUci !== expectedUci) {
+        // Wrong move — red highlight on destination
+        const incorrectHighlight = new Map<Key, string>();
+        incorrectHighlight.set(dest, "incorrect-move");
+        setHighlightSquares(incorrectHighlight);
+
+        // Snap back: reset board to pre-move FEN (chess.js was NOT updated for wrong moves)
+        if (apiRef.current && chessRef.current) {
+          apiRef.current.set({
+            fen: chessRef.current.fen(),
+            highlight: { custom: incorrectHighlight },
+            viewOnly: true,
+            movable: { free: false, dests: new Map() },
+          });
+        }
+
         setPuzzleState("failed");
         setUserMoves(allUserMovesSoFar);
 
         submitPuzzleAttempt(puzzle.puzzleId, allUserMovesSoFar).then(
           (result) => setAttemptResult(result),
-          () => {
-            /* ignore API errors on failure */
-          },
+          () => {},
         );
-
-        if (apiRef.current) {
-          apiRef.current.set({
-            viewOnly: true,
-            movable: { free: false, dests: new Map() },
-          });
-        }
         return;
       }
 
+      // Correct move — apply to chess.js
       const moveData = uciToMove(userUci);
       chessRef.current.move({
         from: moveData.from,
@@ -133,13 +166,23 @@ export function PuzzlePage() {
       setUserMoves(allUserMovesSoFar);
       moveIndexRef.current = expectedIndex + 1;
 
+      // Green highlight on destination
+      const correctHighlight = new Map<Key, string>();
+      correctHighlight.set(dest, "correct-move");
+      setHighlightSquares(correctHighlight);
+
+      if (apiRef.current) {
+        apiRef.current.set({
+          highlight: { custom: correctHighlight },
+        });
+      }
+
+      // Check if puzzle is complete
       if (moveIndexRef.current >= puzzle.moves.length) {
         setPuzzleState("solved");
         submitPuzzleAttempt(puzzle.puzzleId, allUserMovesSoFar).then(
           (result) => setAttemptResult(result),
-          () => {
-            /* ignore API errors */
-          },
+          () => {},
         );
 
         if (apiRef.current) {
@@ -151,6 +194,7 @@ export function PuzzlePage() {
         return;
       }
 
+      // Opponent response move
       setPuzzleState("animatingOpponent");
       if (apiRef.current) {
         apiRef.current.set({
@@ -175,10 +219,14 @@ export function PuzzlePage() {
         const newFen = chessRef.current.fen();
         const newDests = toDests(chessRef.current);
 
+        // Clear highlights for opponent's move
+        setHighlightSquares(new Map());
+
         apiRef.current.set({
           fen: newFen,
           turnColor: orientation as "white" | "black",
           viewOnly: false,
+          highlight: { custom: new Map() },
           movable: {
             free: false,
             color: orientation as "white" | "black",
@@ -205,6 +253,53 @@ export function PuzzlePage() {
     },
     [puzzle, userMoves, orientation],
   );
+
+  const startSolutionReplay = useCallback(() => {
+    if (!puzzle || !apiRef.current || isReplaying) return;
+
+    // Reset board to the puzzle FEN, re-apply setup move, then step through remaining moves
+    const chess = new Chess(puzzle.fen);
+    chessRef.current = chess;
+    setIsReplaying(true);
+    setHighlightSquares(new Map());
+
+    // Apply setup move (index 0)
+    const setupMove = uciToMove(puzzle.moves[0]);
+    chess.move({ from: setupMove.from, to: setupMove.to, promotion: setupMove.promotion });
+    apiRef.current.set({
+      fen: chess.fen(),
+      viewOnly: true,
+      highlight: { custom: new Map() },
+      movable: { free: false, dests: new Map() },
+    });
+
+    let replayIndex = 1; // Start replaying from index 1 (first user move in solution)
+    const timer = setInterval(() => {
+      if (!chessRef.current || !apiRef.current || replayIndex >= puzzle.moves.length) {
+        clearInterval(timer);
+        replayTimerRef.current = null;
+        setIsReplaying(false);
+        return;
+      }
+
+      const uci = puzzle.moves[replayIndex];
+      const move = uciToMove(uci);
+      chessRef.current.move({ from: move.from, to: move.to, promotion: move.promotion });
+
+      const highlight = new Map<Key, string>();
+      highlight.set(move.to as Key, "correct-move");
+
+      apiRef.current.set({
+        fen: chessRef.current.fen(),
+        highlight: { custom: highlight },
+      });
+      setHighlightSquares(highlight);
+
+      replayIndex++;
+    }, 500);
+
+    replayTimerRef.current = timer;
+  }, [puzzle, isReplaying]);
 
   useEffect(() => {
     if (!puzzle || !containerRef.current) return;
@@ -258,6 +353,10 @@ export function PuzzlePage() {
 
     return () => {
       clearTimeout(timer);
+      if (replayTimerRef.current) {
+        clearInterval(replayTimerRef.current);
+        replayTimerRef.current = null;
+      }
       apiRef.current?.destroy();
       apiRef.current = null;
       chessRef.current = null;
@@ -272,8 +371,9 @@ export function PuzzlePage() {
         events: { after: onUserMove },
         dests,
       },
+      highlight: { custom: highlightSquares },
     });
-  }, [onUserMove, puzzleState]);
+  }, [onUserMove, puzzleState, highlightSquares]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -358,45 +458,110 @@ export function PuzzlePage() {
             )}
             {puzzleState === "solved" && (
               <div data-testid="puzzle-solved">
-                <div className={styles.statusText}>Puzzle solved!</div>
+                <div className={`${styles.banner} ${styles.bannerSuccess}`}>Puzzle Solved!</div>
                 {attemptResult && (
-                  <div data-testid="puzzle-rating-change">
-                    Rating: {attemptResult.ratingBefore} → {attemptResult.ratingAfter} (
-                    {attemptResult.ratingDelta > 0 ? "+" : ""}
-                    {attemptResult.ratingDelta})
+                  <div className={styles.ratingChange} data-testid="puzzle-rating-change">
+                    Rating: {attemptResult.ratingBefore} → {attemptResult.ratingAfter}{" "}
+                    <span
+                      className={
+                        attemptResult.ratingDelta >= 0
+                          ? styles.ratingPositive
+                          : styles.ratingNegative
+                      }
+                    >
+                      ({attemptResult.ratingDelta > 0 ? "+" : ""}
+                      {attemptResult.ratingDelta})
+                    </span>
                   </div>
                 )}
-                <Button
-                  onClick={loadPuzzle}
-                  variant="primary"
-                  size="md"
-                  data-testid="next-puzzle-button"
-                >
-                  Next Puzzle
-                </Button>
+                <div className={styles.actions}>
+                  <Button
+                    onClick={loadPuzzle}
+                    variant="primary"
+                    size="md"
+                    data-testid="next-puzzle-button"
+                  >
+                    Next Puzzle
+                  </Button>
+                </div>
               </div>
             )}
             {puzzleState === "failed" && (
               <div data-testid="puzzle-failed">
-                <div className={styles.statusText}>Incorrect — puzzle failed</div>
+                <div className={`${styles.banner} ${styles.bannerFail}`}>Incorrect</div>
                 {attemptResult && (
-                  <div data-testid="puzzle-rating-change">
-                    Rating: {attemptResult.ratingBefore} → {attemptResult.ratingAfter} (
-                    {attemptResult.ratingDelta > 0 ? "+" : ""}
-                    {attemptResult.ratingDelta})
+                  <div className={styles.ratingChange} data-testid="puzzle-rating-change">
+                    Rating: {attemptResult.ratingBefore} → {attemptResult.ratingAfter}{" "}
+                    <span
+                      className={
+                        attemptResult.ratingDelta >= 0
+                          ? styles.ratingPositive
+                          : styles.ratingNegative
+                      }
+                    >
+                      ({attemptResult.ratingDelta > 0 ? "+" : ""}
+                      {attemptResult.ratingDelta})
+                    </span>
                   </div>
                 )}
-                <Button
-                  onClick={loadPuzzle}
-                  variant="primary"
-                  size="md"
-                  data-testid="next-puzzle-button"
-                >
-                  Next Puzzle
-                </Button>
+                {isReplaying && (
+                  <div className={styles.replayMessage} data-testid="replay-message">
+                    Replaying solution...
+                  </div>
+                )}
+                <div className={styles.actions}>
+                  <Button
+                    onClick={startSolutionReplay}
+                    variant="secondary"
+                    size="md"
+                    disabled={isReplaying}
+                    data-testid="view-solution-button"
+                  >
+                    View Solution
+                  </Button>
+                  <Button
+                    onClick={loadPuzzle}
+                    variant="primary"
+                    size="md"
+                    data-testid="next-puzzle-button"
+                  >
+                    Next Puzzle
+                  </Button>
+                </div>
               </div>
             )}
           </Card>
+
+          {stats && (
+            <Card header="Your Stats">
+              <div className={styles.statsGrid} data-testid="puzzle-stats">
+                <div>
+                  <div className={styles.statLabel}>Rating</div>
+                  <div className={styles.statValue} data-testid="stats-rating">
+                    {stats.rating}
+                  </div>
+                </div>
+                <div>
+                  <div className={styles.statLabel}>Solved</div>
+                  <div className={styles.statValue} data-testid="stats-solved">
+                    {stats.totalSolved}
+                  </div>
+                </div>
+                <div>
+                  <div className={styles.statLabel}>Attempted</div>
+                  <div className={styles.statValue} data-testid="stats-attempted">
+                    {stats.totalAttempts}
+                  </div>
+                </div>
+                <div>
+                  <div className={styles.statLabel}>Solve Rate</div>
+                  <div className={styles.statValue} data-testid="stats-solve-rate">
+                    {Math.round(stats.solveRate * 100)}%
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>

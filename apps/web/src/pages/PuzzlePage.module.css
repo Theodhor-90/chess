@@ -57,6 +57,66 @@
   gap: var(--space-1);
 }
 
+.banner {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-md);
+}
+
+.bannerSuccess {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.bannerFail {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.ratingChange {
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-1);
+}
+
+.ratingPositive {
+  color: var(--color-success);
+}
+
+.ratingNegative {
+  color: var(--color-error);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.statLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.statValue {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.replayMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
 @media (max-width: 768px) {
   .layout {
     flex-direction: column;

@@ -6,6 +6,7 @@ import { PuzzlePage } from "../src/pages/PuzzlePage.js";
 vi.mock("../src/api.js", () => ({
   getNextPuzzle: vi.fn(),
   submitPuzzleAttempt: vi.fn(),
+  getPuzzleStats: vi.fn(),
 }));
 
 // Mock Chessground — returns a controllable API stub
@@ -25,12 +26,14 @@ vi.mock("../src/components/BoardThemeProvider.js", () => ({
   useBoardTheme: () => ({ boardTheme: "brown", pieceTheme: "cburnett" }),
 }));
 
-import { getNextPuzzle, submitPuzzleAttempt } from "../src/api.js";
+import { getNextPuzzle, submitPuzzleAttempt, getPuzzleStats } from "../src/api.js";
 import { Chessground } from "chessground";
 import type { Puzzle } from "@chess/shared";
+import type { Key } from "chessground/types";
 
 const mockGetNextPuzzle = getNextPuzzle as ReturnType<typeof vi.fn>;
 const _mockSubmitAttempt = submitPuzzleAttempt as ReturnType<typeof vi.fn>;
+const mockGetPuzzleStats = getPuzzleStats as ReturnType<typeof vi.fn>;
 const mockChessground = Chessground as ReturnType<typeof vi.fn>;
 
 // Position: white to move. e4 is legal, then black plays d5, then white plays exd5.
@@ -61,6 +64,14 @@ describe("PuzzlePage", () => {
       ratingBefore: 1500,
       ratingAfter: 1517,
       ratingDelta: 17,
+    });
+    mockGetPuzzleStats.mockResolvedValue({
+      rating: 1500,
+      ratingDeviation: 350,
+      totalAttempts: 10,
+      totalSolved: 6,
+      solveRate: 0.6,
+      recentAttempts: [],
     });
   });
 
@@ -95,7 +106,7 @@ describe("PuzzlePage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("puzzle-rating")).toBeInTheDocument();
     });
-    expect(screen.getByText("1500")).toBeInTheDocument();
+    expect(screen.getByTestId("puzzle-rating")).toHaveTextContent("1500");
     expect(screen.getByText("middlegame")).toBeInTheDocument();
     expect(screen.getByText("short")).toBeInTheDocument();
   });
@@ -161,5 +172,205 @@ describe("PuzzlePage", () => {
       expect(screen.getByTestId("puzzle-error")).toBeInTheDocument();
     });
     expect(screen.getByText("No puzzles available")).toBeInTheDocument();
+  });
+
+  it("calls getPuzzleStats on mount", () => {
+    mockGetNextPuzzle.mockReturnValue(new Promise(() => {}));
+    render(<PuzzlePage />);
+    expect(mockGetPuzzleStats).toHaveBeenCalledTimes(1);
+  });
+
+  it("displays stats panel with puzzle statistics", async () => {
+    mockGetNextPuzzle.mockResolvedValue({ puzzle: samplePuzzle });
+    render(<PuzzlePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("puzzle-stats")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("stats-rating")).toHaveTextContent("1500");
+    expect(screen.getByTestId("stats-solved")).toHaveTextContent("6");
+    expect(screen.getByTestId("stats-attempted")).toHaveTextContent("10");
+    expect(screen.getByTestId("stats-solve-rate")).toHaveTextContent("60%");
+  });
+
+  it("does not show stats panel when stats fetch fails", async () => {
+    mockGetPuzzleStats.mockRejectedValue(new Error("Unauthorized"));
+    mockGetNextPuzzle.mockResolvedValue({ puzzle: samplePuzzle });
+    render(<PuzzlePage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("puzzle-page")).toBeInTheDocument();
+    });
+    // Wait a tick for the stats promise to reject
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId("puzzle-stats")).not.toBeInTheDocument();
+  });
+
+  it("renders View Solution button in failed state", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: samplePuzzle });
+      _mockSubmitAttempt.mockResolvedValue({
+        correct: false,
+        solution: ["e7e5", "d2d4", "e5d4"],
+        ratingBefore: 1500,
+        ratingAfter: 1483,
+        ratingDelta: -17,
+      });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      // Advance setup animation timer
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Find the onUserMove callback from the Chessground.set calls
+      const allSetCalls = mockChessgroundSet.mock.calls;
+      const callWithMovable = [...allSetCalls]
+        .reverse()
+        .find((call) => call[0].movable?.events?.after);
+      expect(callWithMovable).toBeDefined();
+      const onUserMove = callWithMovable![0].movable.events.after;
+
+      // Simulate a wrong move (puzzle expects "e7e5" at index 1 but user plays "a7a6")
+      act(() => {
+        onUserMove("a7" as Key, "a6" as Key);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-failed")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Incorrect")).toBeInTheDocument();
+      expect(screen.getByTestId("view-solution-button")).toBeInTheDocument();
+      expect(screen.getByTestId("next-puzzle-button")).toBeInTheDocument();
+
+      // Verify rating change is displayed after API responds
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-rating-change")).toBeInTheDocument();
+      });
+      expect(screen.getByText(/-17/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("renders success banner on solved puzzle", async () => {
+    // Use a simple 2-move puzzle: setup + 1 user move
+    const simplePuzzle: Puzzle = {
+      ...samplePuzzle,
+      puzzleId: "test_simple",
+      moves: ["e2e4", "e7e5"], // setup: e2e4, user must play: e7e5
+    };
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: simplePuzzle });
+      _mockSubmitAttempt.mockResolvedValue({
+        correct: true,
+        solution: ["e7e5"],
+        ratingBefore: 1500,
+        ratingAfter: 1517,
+        ratingDelta: 17,
+      });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      // Advance setup animation
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      // Capture onUserMove from Chessground.set
+      const allSetCalls = mockChessgroundSet.mock.calls;
+      const callWithMovable = [...allSetCalls]
+        .reverse()
+        .find((call) => call[0].movable?.events?.after);
+      expect(callWithMovable).toBeDefined();
+      const onUserMove = callWithMovable![0].movable.events.after;
+
+      // Simulate correct move
+      act(() => {
+        onUserMove("e7" as Key, "e5" as Key);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-solved")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Puzzle Solved!")).toBeInTheDocument();
+      expect(screen.getByTestId("next-puzzle-button")).toBeInTheDocument();
+
+      // Verify rating change
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-rating-change")).toBeInTheDocument();
+      });
+      expect(screen.getByText(/\+17/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Next Puzzle button loads a new puzzle", async () => {
+    const simplePuzzle: Puzzle = {
+      ...samplePuzzle,
+      puzzleId: "test_simple_2",
+      moves: ["e2e4", "e7e5"],
+    };
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: simplePuzzle });
+      _mockSubmitAttempt.mockResolvedValue({
+        correct: true,
+        solution: ["e7e5"],
+        ratingBefore: 1500,
+        ratingAfter: 1517,
+        ratingDelta: 17,
+      });
+      render(<PuzzlePage />);
+      await waitFor(() => {
+        expect(mockChessground).toHaveBeenCalled();
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      const allSetCalls = mockChessgroundSet.mock.calls;
+      const callWithMovable = [...allSetCalls]
+        .reverse()
+        .find((call) => call[0].movable?.events?.after);
+      const onUserMove = callWithMovable![0].movable.events.after;
+
+      act(() => {
+        onUserMove("e7" as Key, "e5" as Key);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("puzzle-solved")).toBeInTheDocument();
+      });
+
+      // Click Next Puzzle
+      const nextButton = screen.getByTestId("next-puzzle-button");
+      expect(mockGetNextPuzzle).toHaveBeenCalledTimes(1);
+
+      // Setup mock for next puzzle
+      const nextPuzzle: Puzzle = {
+        ...samplePuzzle,
+        puzzleId: "test_next",
+        rating: 1600,
+      };
+      mockGetNextPuzzle.mockResolvedValue({ puzzle: nextPuzzle });
+
+      act(() => {
+        nextButton.click();
+      });
+
+      expect(mockGetNextPuzzle).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
