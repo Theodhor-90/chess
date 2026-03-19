@@ -210,6 +210,7 @@ export function getUserGames(userId: number): GameListItem[] {
     clock: game.clock,
     result: game.result,
     createdAt: game.createdAt,
+    botLevel: game.botLevel,
   }));
 }
 
@@ -339,6 +340,7 @@ export function getGameHistory(
       myColor,
       timeControl,
       playedAt: row.createdAt,
+      botLevel: row.botLevel ?? null,
     };
   });
 

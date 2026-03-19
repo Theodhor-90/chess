@@ -86,6 +86,7 @@ export interface GameState {
   clockState?: ClockState;
   clockWhiteRemaining?: number | null;
   clockBlackRemaining?: number | null;
+  botLevel?: number | null;
 }
 
 export interface CreateGameRequest {
@@ -124,6 +125,7 @@ export interface GameListItem {
   clock: ClockConfig;
   result?: { winner?: PlayerColor; reason: GameStatus };
   createdAt: number;
+  botLevel?: number | null;
 }
 
 export type GameListResponse = GameListItem[];
@@ -144,6 +146,7 @@ export interface GameHistoryItem {
   myColor: PlayerColor;
   timeControl: string;
   playedAt: number;
+  botLevel?: number | null;
 }
 
 export interface GameHistoryResponse {
@@ -475,3 +478,82 @@ export interface UserPreferences {
 export interface UserPreferencesResponse {
   preferences: UserPreferences;
 }
+
+// ---------------------------------------------------------------------------
+// Bot Types (Phase 15.1)
+// ---------------------------------------------------------------------------
+
+export interface BotProfile {
+  id: number;
+  name: string;
+  level: number;
+  estimatedElo: number;
+  depth: number;
+  errorRate: number;
+  thinkTimeMin: number;
+  thinkTimeMax: number;
+}
+
+export interface BotGameRequest {
+  level: number;
+  clock?: ClockConfig;
+}
+
+export interface BotGameResponse {
+  gameId: number;
+  color: PlayerColor;
+  botProfile: BotProfile;
+}
+
+export const BOT_PROFILES: readonly BotProfile[] = [
+  {
+    id: 1,
+    name: "Patzer Pete",
+    level: 1,
+    estimatedElo: 400,
+    depth: 3,
+    errorRate: 0.6,
+    thinkTimeMin: 200,
+    thinkTimeMax: 800,
+  },
+  {
+    id: 2,
+    name: "Casual Carol",
+    level: 2,
+    estimatedElo: 800,
+    depth: 6,
+    errorRate: 0.4,
+    thinkTimeMin: 300,
+    thinkTimeMax: 1200,
+  },
+  {
+    id: 3,
+    name: "Club Charlie",
+    level: 3,
+    estimatedElo: 1200,
+    depth: 10,
+    errorRate: 0.2,
+    thinkTimeMin: 500,
+    thinkTimeMax: 2000,
+  },
+  {
+    id: 4,
+    name: "Expert Eva",
+    level: 4,
+    estimatedElo: 1600,
+    depth: 14,
+    errorRate: 0.08,
+    thinkTimeMin: 800,
+    thinkTimeMax: 3000,
+  },
+  {
+    id: 5,
+    name: "Master Max",
+    level: 5,
+    estimatedElo: 2000,
+    depth: 18,
+    errorRate: 0.0,
+    thinkTimeMin: 1000,
+    thinkTimeMax: 4000,
+  },
+] as const;

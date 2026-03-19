@@ -56,12 +56,18 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
       result_reason TEXT,
       clock_white_remaining INTEGER,
       clock_black_remaining INTEGER,
+      bot_level INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )
   `);
   sqliteDb.exec("CREATE UNIQUE INDEX IF NOT EXISTS games_invite_token_idx ON games(invite_token)");
   sqliteDb.exec("CREATE INDEX IF NOT EXISTS games_white_player_id_idx ON games(white_player_id)");
   sqliteDb.exec("CREATE INDEX IF NOT EXISTS games_black_player_id_idx ON games(black_player_id)");
+  try {
+    sqliteDb.exec(`ALTER TABLE games ADD COLUMN bot_level INTEGER`);
+  } catch {
+    // Column already exists — ignore
+  }
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS moves (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,17 +1,25 @@
-import { describe, it, expectTypeOf } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import type {
   HealthResponse,
   ClockState,
+  ClockConfig,
+  PlayerColor,
   ClientToServerEvents,
   ServerToClientEvents,
   ServerSocketData,
   GameState,
+  GameListItem,
+  GameHistoryItem,
   DatabaseGame,
   DatabaseGameFilter,
   PaginatedResponse,
   DatabaseGameSortField,
   SortOrder,
+  BotProfile,
+  BotGameRequest,
+  BotGameResponse,
 } from "../src/index.js";
+import { BOT_PROFILES } from "../src/index.js";
 
 describe("@chess/shared", () => {
   it("exports HealthResponse type", () => {
@@ -117,5 +125,83 @@ describe("Database Browser Types", () => {
 
   it("exports SortOrder as asc | desc", () => {
     expectTypeOf<SortOrder>().toEqualTypeOf<"asc" | "desc">();
+  });
+});
+
+describe("Bot Types (Phase 15.1)", () => {
+  it("exports BotProfile with all required fields", () => {
+    expectTypeOf<BotProfile>().toHaveProperty("id").toBeNumber();
+    expectTypeOf<BotProfile>().toHaveProperty("name").toBeString();
+    expectTypeOf<BotProfile>().toHaveProperty("level").toBeNumber();
+    expectTypeOf<BotProfile>().toHaveProperty("estimatedElo").toBeNumber();
+    expectTypeOf<BotProfile>().toHaveProperty("depth").toBeNumber();
+    expectTypeOf<BotProfile>().toHaveProperty("errorRate").toBeNumber();
+    expectTypeOf<BotProfile>().toHaveProperty("thinkTimeMin").toBeNumber();
+    expectTypeOf<BotProfile>().toHaveProperty("thinkTimeMax").toBeNumber();
+  });
+
+  it("exports BotGameRequest with level and optional clock", () => {
+    expectTypeOf<BotGameRequest>().toHaveProperty("level").toBeNumber();
+    expectTypeOf<BotGameRequest>().toHaveProperty("clock").toEqualTypeOf<ClockConfig | undefined>();
+  });
+
+  it("exports BotGameResponse with gameId, color, and botProfile", () => {
+    expectTypeOf<BotGameResponse>().toHaveProperty("gameId").toBeNumber();
+    expectTypeOf<BotGameResponse>().toHaveProperty("color").toEqualTypeOf<PlayerColor>();
+    expectTypeOf<BotGameResponse>().toHaveProperty("botProfile").toEqualTypeOf<BotProfile>();
+  });
+
+  it("BOT_PROFILES contains exactly 5 profiles", () => {
+    expect(BOT_PROFILES).toHaveLength(5);
+  });
+
+  it("BOT_PROFILES levels are 1 through 5 in order", () => {
+    expect(BOT_PROFILES.map((p) => p.level)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("BOT_PROFILES have unique ids matching their level", () => {
+    for (const profile of BOT_PROFILES) {
+      expect(profile.id).toBe(profile.level);
+    }
+  });
+
+  it("BOT_PROFILES estimated Elo increases with level", () => {
+    for (let i = 1; i < BOT_PROFILES.length; i++) {
+      expect(BOT_PROFILES[i].estimatedElo).toBeGreaterThan(BOT_PROFILES[i - 1].estimatedElo);
+    }
+  });
+
+  it("BOT_PROFILES depth increases with level", () => {
+    for (let i = 1; i < BOT_PROFILES.length; i++) {
+      expect(BOT_PROFILES[i].depth).toBeGreaterThan(BOT_PROFILES[i - 1].depth);
+    }
+  });
+
+  it("BOT_PROFILES errorRate decreases with level", () => {
+    for (let i = 1; i < BOT_PROFILES.length; i++) {
+      expect(BOT_PROFILES[i].errorRate).toBeLessThan(BOT_PROFILES[i - 1].errorRate);
+    }
+  });
+
+  it("BOT_PROFILES profile names are non-empty strings", () => {
+    for (const profile of BOT_PROFILES) {
+      expect(profile.name.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("GameState includes optional botLevel field", () => {
+    expectTypeOf<GameState>().toHaveProperty("botLevel").toEqualTypeOf<number | null | undefined>();
+  });
+
+  it("GameListItem includes optional botLevel field", () => {
+    expectTypeOf<GameListItem>()
+      .toHaveProperty("botLevel")
+      .toEqualTypeOf<number | null | undefined>();
+  });
+
+  it("GameHistoryItem includes optional botLevel field", () => {
+    expectTypeOf<GameHistoryItem>()
+      .toHaveProperty("botLevel")
+      .toEqualTypeOf<number | null | undefined>();
   });
 });

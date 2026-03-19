@@ -66,6 +66,7 @@ function rowToGameState(
     createdAt: row.createdAt,
     clockWhiteRemaining: row.clockWhiteRemaining ?? null,
     clockBlackRemaining: row.clockBlackRemaining ?? null,
+    botLevel: row.botLevel ?? null,
   };
 
   if (row.resultReason !== null) {
