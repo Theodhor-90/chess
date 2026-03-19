@@ -103,6 +103,35 @@ export function createGame(creatorUserId: number, clock?: ClockConfig): GameStat
   return rowToGameState(row, []);
 }
 
+export function createBotGame(
+  humanUserId: number,
+  level: number,
+  clock?: ClockConfig,
+): { game: GameState; humanColor: PlayerColor } {
+  const inviteToken = randomUUID();
+  const humanColor: PlayerColor = Math.random() < 0.5 ? "white" : "black";
+  const clockConfig = clock ?? DEFAULT_CLOCK;
+
+  const row = db
+    .insert(games)
+    .values({
+      inviteToken,
+      status: "active",
+      whitePlayerId: humanColor === "white" ? humanUserId : null,
+      blackPlayerId: humanColor === "black" ? humanUserId : null,
+      fen: STARTING_FEN,
+      pgn: "",
+      currentTurn: "white",
+      clockInitialTime: clockConfig.initialTime,
+      clockIncrement: clockConfig.increment,
+      botLevel: level,
+    })
+    .returning()
+    .get();
+
+  return { game: rowToGameState(row, []), humanColor };
+}
+
 export function getGame(id: number): GameState | undefined {
   const row = db.select().from(games).where(eq(games.id, id)).get();
   if (!row) return undefined;

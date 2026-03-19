@@ -11,7 +11,9 @@ import type {
   PlayerColor,
   PlayerStatsResponse,
   RecentGameItem,
+  BotProfile,
 } from "@chess/shared";
+import { BOT_PROFILES } from "@chess/shared";
 import { and, eq, or, sql, inArray, isNull, desc as descOp, asc as ascOp } from "drizzle-orm";
 import * as store from "./store.js";
 import { GameError } from "./errors.js";
@@ -32,6 +34,19 @@ function getPlayerColor(game: GameState, userId: number): PlayerColor {
 
 export function createGame(creatorUserId: number, clock?: ClockConfig): GameState {
   return store.createGame(creatorUserId, clock);
+}
+
+export function createBotGame(
+  userId: number,
+  level: number,
+  clock?: ClockConfig,
+): { game: GameState; humanColor: PlayerColor; botProfile: BotProfile } {
+  const botProfile = BOT_PROFILES.find((p) => p.level === level);
+  if (!botProfile) {
+    throw new GameError("INVALID_STATUS", `Invalid bot level: ${level}`);
+  }
+  const { game, humanColor } = store.createBotGame(userId, level, clock);
+  return { game, humanColor, botProfile };
 }
 
 export function joinGame(gameId: number, userId: number, inviteToken: string): GameState {
@@ -323,8 +338,19 @@ export function getGameHistory(
 
   const items: GameHistoryItem[] = rows.map((row) => {
     const myColor: PlayerColor = row.whitePlayerId === userId ? "white" : "black";
-    const opponentId = myColor === "white" ? row.blackPlayerId! : row.whitePlayerId!;
-    const opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
+    const rawOpponentId = myColor === "white" ? row.blackPlayerId : row.whitePlayerId;
+    const isBotGame = row.botLevel != null;
+
+    let opponentId: number;
+    let opponentUsername: string;
+    if (isBotGame && rawOpponentId === null) {
+      opponentId = 0;
+      const botProfile = BOT_PROFILES.find((p) => p.level === row.botLevel!);
+      opponentUsername = botProfile?.name ?? "Bot";
+    } else {
+      opponentId = rawOpponentId!;
+      opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
+    }
 
     let result: "win" | "loss" | "draw";
     if (row.resultWinner === myColor) {
@@ -427,8 +453,19 @@ export function getPlayerStats(userId: number): PlayerStatsResponse | null {
 
   const recentGames: RecentGameItem[] = recentRows.map((row) => {
     const myColor: PlayerColor = row.whitePlayerId === userId ? "white" : "black";
-    const opponentId = myColor === "white" ? row.blackPlayerId! : row.whitePlayerId!;
-    const opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
+    const rawOpponentId = myColor === "white" ? row.blackPlayerId : row.whitePlayerId;
+    const isBotGame = row.botLevel != null;
+
+    let opponentId: number;
+    let opponentUsername: string;
+    if (isBotGame && rawOpponentId === null) {
+      opponentId = 0;
+      const botProfile = BOT_PROFILES.find((p) => p.level === row.botLevel!);
+      opponentUsername = botProfile?.name ?? "Bot";
+    } else {
+      opponentId = rawOpponentId!;
+      opponentUsername = usernameMap.get(opponentId) ?? "Unknown";
+    }
 
     let result: "win" | "loss" | "draw";
     if (row.resultWinner === myColor) {
