@@ -16,6 +16,7 @@ import { ProfilePage } from "./pages/ProfilePage.js";
 import { DatabasePage } from "./pages/DatabasePage.js";
 import { DatabaseGameViewerPage } from "./pages/DatabaseGameViewerPage.js";
 import { SettingsPage } from "./pages/SettingsPage.js";
+import { BotSelectPage } from "./pages/BotSelectPage.js";
 
 export function AppRoutes() {
   return (
@@ -81,6 +82,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/play/bot"
+          element={
+            <ProtectedRoute>
+              <BotSelectPage />
             </ProtectedRoute>
           }
         />
