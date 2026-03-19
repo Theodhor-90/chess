@@ -23,3 +23,13 @@
 .opponentLink:hover {
   text-decoration: underline;
 }
+
+.opponentCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.opponentName {
+  font-weight: var(--font-weight-medium);
+}

@@ -49,13 +49,24 @@ export function ProfilePage() {
       header: "Opponent",
       truncate: true,
       render: (row) => (
-        <Link
-          to={`/profile/${row.opponentId}`}
-          onClick={(e) => e.stopPropagation()}
-          className={styles.opponentLink}
-        >
-          {row.opponentUsername}
-        </Link>
+        <span className={styles.opponentCell}>
+          {row.botLevel != null ? (
+            <span className={styles.opponentName}>{row.opponentUsername}</span>
+          ) : (
+            <Link
+              to={`/profile/${row.opponentId}`}
+              onClick={(e) => e.stopPropagation()}
+              className={styles.opponentLink}
+            >
+              {row.opponentUsername}
+            </Link>
+          )}
+          {row.botLevel != null && (
+            <Badge variant="info" size="sm">
+              Bot
+            </Badge>
+          )}
+        </span>
       ),
     },
     {

@@ -1,5 +1,7 @@
 import { Link } from "react-router";
+import { BOT_PROFILES } from "@chess/shared";
 import { Clock } from "./Clock.js";
+import { Badge } from "./ui/Badge.js";
 import styles from "./PlayerInfoBar.module.css";
 
 interface PlayerInfoBarProps {
@@ -11,6 +13,7 @@ interface PlayerInfoBarProps {
   fen: string;
   color: "white" | "black";
   testIdPrefix: "top" | "bottom";
+  botLevel?: number | null;
 }
 
 const STARTING_COUNTS: Record<string, number> = {
@@ -82,13 +85,23 @@ export function PlayerInfoBar({
   fen,
   color,
   testIdPrefix,
+  botLevel,
 }: PlayerInfoBarProps) {
   const captured = computeCapturedPieces(fen, color);
+
+  const isBot = botLevel != null;
+  const displayName = isBot
+    ? (BOT_PROFILES.find((p) => p.level === botLevel)?.name ?? "Bot")
+    : username;
 
   return (
     <div className={styles.bar} data-testid={`${testIdPrefix}-player-bar`}>
       <div className={styles.playerInfo}>
-        {userId !== null ? (
+        {isBot ? (
+          <span className={styles.username} data-testid={`${testIdPrefix}-player-label`}>
+            {displayName}
+          </span>
+        ) : userId !== null ? (
           <Link
             to={`/profile/${userId}`}
             className={styles.usernameLink}
@@ -100,6 +113,11 @@ export function PlayerInfoBar({
           <span className={styles.username} data-testid={`${testIdPrefix}-player-label`}>
             {username}
           </span>
+        )}
+        {isBot && (
+          <Badge variant="info" size="sm">
+            Bot
+          </Badge>
         )}
         <div
           className={styles.captured}

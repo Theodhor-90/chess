@@ -61,6 +61,16 @@
   text-decoration: underline;
 }
 
+.opponentCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.opponentName {
+  font-weight: var(--font-weight-medium);
+}
+
 @media (max-width: 1024px) {
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);

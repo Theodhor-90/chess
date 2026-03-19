@@ -297,4 +297,42 @@ describe("HistoryPage", () => {
 
     expect(screen.getByTestId("history-loading")).toBeInTheDocument();
   });
+
+  it("shows Bot badge for bot games", async () => {
+    mockFetchSuccess(
+      makeHistoryResponse([
+        {
+          id: 1,
+          opponentUsername: "Club Charlie",
+          opponentId: 0,
+          result: "win",
+          resultReason: "checkmate",
+          myColor: "white",
+          timeControl: "10+0",
+          playedAt: 1710000000,
+          botLevel: 3,
+        },
+        {
+          id: 2,
+          opponentUsername: "alice",
+          opponentId: 2,
+          result: "loss",
+          resultReason: "resigned",
+          myColor: "black",
+          timeControl: "5+3",
+          playedAt: 1710100000,
+          botLevel: null,
+        },
+      ]),
+    );
+
+    renderWithProviders(<HistoryPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Club Charlie")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Bot")).toBeInTheDocument();
+    expect(screen.getByText("alice")).toBeInTheDocument();
+    expect(screen.getAllByText("Bot")).toHaveLength(1);
+  });
 });
