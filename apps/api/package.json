@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "import-pgn": "node --import tsx src/scripts/import-pgn.ts"
+    "import-pgn": "node --import tsx src/scripts/import-pgn.ts",
+    "import-puzzles": "node --import tsx src/scripts/import-puzzles.ts"
   },
   "dependencies": {
     "@chess/shared": "workspace:*",
