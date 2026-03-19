@@ -21,6 +21,12 @@ import { games, users, gameAnalyses } from "../db/schema.js";
 function getPlayerColor(game: GameState, userId: number): PlayerColor {
   if (game.players.white?.userId === userId) return "white";
   if (game.players.black?.userId === userId) return "black";
+  // Bot games: the bot side has a NULL player slot. When botLevel is set and
+  // userId is 0 (BOT_USER_ID), infer the bot's color from the empty slot.
+  if (game.botLevel != null && userId === 0) {
+    if (!game.players.white) return "white";
+    if (!game.players.black) return "black";
+  }
   throw new GameError("NOT_A_PLAYER", "You are not a player in this game");
 }
 
