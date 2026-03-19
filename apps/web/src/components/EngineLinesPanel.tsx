@@ -22,24 +22,42 @@ export function EngineLinesPanel({ engineLines, onLineSelect }: EngineLinesPanel
   }
 
   return (
-    <div data-testid="engine-lines-panel" className={styles.panel}>
+    <div
+      data-testid="engine-lines-panel"
+      className={styles.panel}
+      aria-label="Engine analysis lines"
+    >
       {engineLines.map((line, index) => (
-        <div
+        <button
           key={index}
+          type="button"
           data-testid={`engine-line-${index}`}
           onClick={() => onLineSelect(index)}
           className={`${styles.line}${index === 0 ? ` ${styles.linePrimary}` : ""}`}
+          aria-label={`Line ${index + 1}: ${formatEvalScore(line.score)}, ${line.moves.slice(0, 8).join(" ")}`}
         >
-          <span data-testid={`engine-line-rank-${index}`} className={styles.rank}>
+          <span
+            data-testid={`engine-line-rank-${index}`}
+            className={styles.rank}
+            aria-hidden="true"
+          >
             {index + 1}
           </span>
-          <span data-testid={`engine-line-eval-${index}`} className={styles.eval}>
+          <span
+            data-testid={`engine-line-eval-${index}`}
+            className={styles.eval}
+            aria-hidden="true"
+          >
             {formatEvalScore(line.score)}
           </span>
-          <span data-testid={`engine-line-moves-${index}`} className={styles.moves}>
+          <span
+            data-testid={`engine-line-moves-${index}`}
+            className={styles.moves}
+            aria-hidden="true"
+          >
             {line.moves.slice(0, 8).join(" ")}
           </span>
-        </div>
+        </button>
       ))}
     </div>
   );

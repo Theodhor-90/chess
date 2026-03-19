@@ -10,6 +10,8 @@ import {
   setDrawOffer,
   setOpponentConnected,
   setConnectionStatus,
+  applyMove,
+  setGameOver,
 } from "../src/store/gameSlice.js";
 import { socketMiddleware } from "../src/store/socketMiddleware.js";
 import { Clock } from "../src/components/Clock.js";
@@ -69,6 +71,7 @@ vi.mock("../src/components/MoveList.module.css", () => ({
     currentMove: "currentMove",
     moveNumber: "moveNumber",
     moveCell: "moveCell",
+    moveButton: "moveButton",
   },
 }));
 
@@ -150,6 +153,12 @@ vi.mock("../src/components/ConnectionStatus.module.css", () => ({
 vi.mock("../src/components/GameBoard.module.css", () => ({
   default: {
     boardContainer: "boardContainer",
+  },
+}));
+
+vi.mock("../src/components/AriaAnnouncer.module.css", () => ({
+  default: {
+    visuallyHidden: "visuallyHidden",
   },
 }));
 
@@ -1492,5 +1501,101 @@ describe("PlayerInfoBar", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("clock")).toBeInTheDocument();
+  });
+});
+
+describe("GamePage — AriaAnnouncer", () => {
+  it("renders AriaAnnouncer in the game page", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aria-announcer")).toBeInTheDocument();
+    });
+  });
+
+  it("announces new moves via AriaAnnouncer", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
+
+    act(() => {
+      store.dispatch(
+        applyMove({
+          fen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2",
+          san: "e5",
+          pgn: "1. e4 e5",
+          status: "active",
+          clock: {
+            white: 598000,
+            black: 599000,
+            activeColor: "white",
+            lastUpdate: Date.now(),
+          },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aria-announcer")).toHaveTextContent("e5");
+    });
+  });
+
+  it("announces game over status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ user: { id: 1, email: "a@b.com" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const store = createTestStore();
+    store.dispatch(setGameState(makeFakeGameState()));
+
+    renderWithStore(<AppRoutes />, { route: "/game/42", store });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("game-board")).toBeInTheDocument();
+    });
+
+    act(() => {
+      store.dispatch(
+        setGameOver({
+          status: "checkmate",
+          result: { winner: "white", reason: "checkmate" },
+          clock: {
+            white: 590000,
+            black: 0,
+            activeColor: null,
+            lastUpdate: Date.now(),
+          },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("aria-announcer")).toHaveTextContent(/[Cc]heckmate/);
+    });
   });
 });

@@ -19,7 +19,7 @@ export function DisconnectBanner() {
     : "Opponent disconnected — waiting for reconnection...";
 
   return (
-    <div data-testid="disconnect-banner" className={bannerClass}>
+    <div data-testid="disconnect-banner" className={bannerClass} role="alert">
       {message}
     </div>
   );

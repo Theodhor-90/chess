@@ -27,6 +27,7 @@ function Select({
 }: SelectProps) {
   const generatedId = useId();
   const selectId = `select-${generatedId}`;
+  const errorId = `select-error-${generatedId}`;
 
   const wrapperClassNames = [styles.wrapper, className ?? ""].filter(Boolean).join(" ");
   const selectClassNames = [styles.select, error ? styles.error : ""].filter(Boolean).join(" ");
@@ -43,6 +44,8 @@ function Select({
         onChange={onChange}
         disabled={disabled}
         className={selectClassNames}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
       >
         {placeholder && (
           <option value="" disabled>
@@ -56,7 +59,7 @@ function Select({
         ))}
       </select>
       {error && (
-        <span role="alert" className={styles.errorMessage}>
+        <span id={errorId} role="alert" className={styles.errorMessage}>
           {error}
         </span>
       )}

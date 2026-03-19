@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import styles from "./PromotionModal.module.css";
 
 type PromotionPiece = "q" | "r" | "b" | "n";
@@ -24,10 +25,37 @@ const BLACK_PIECES: { piece: PromotionPiece; symbol: string; label: string }[] =
 
 export function PromotionModal({ color, onSelect, onCancel }: PromotionModalProps) {
   const pieces = color === "white" ? WHITE_PIECES : BLACK_PIECES;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCancelRef = useRef(onCancel);
+  onCancelRef.current = onCancel;
+
+  // Focus first button on mount
+  useEffect(() => {
+    const firstButton = panelRef.current?.querySelector<HTMLButtonElement>("button");
+    firstButton?.focus();
+  }, []);
+
+  // Escape key to cancel — uses ref to avoid re-registering on every render
+  useEffect(() => {
+    function handleKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") {
+        onCancelRef.current();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
-    <div className={styles.overlay} data-testid="promotion-modal" onClick={onCancel}>
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={styles.overlay}
+      data-testid="promotion-modal"
+      onClick={onCancel}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Choose promotion piece"
+    >
+      <div ref={panelRef} className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <h4 className={styles.title}>Promote to:</h4>
         <div className={styles.pieces}>
           {pieces.map(({ piece, symbol, label }) => (

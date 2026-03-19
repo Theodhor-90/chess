@@ -257,4 +257,18 @@ describe("NavHeader", () => {
       expect(document.activeElement).toBe(firstLink);
     });
   });
+
+  it("renders aria-current='page' on active nav link", async () => {
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
+    renderWithProviders(<NavHeader />, { route: "/history" });
+    await waitFor(() => {
+      expect(screen.getAllByText("History").length).toBeGreaterThan(0);
+    });
+    const historyLinks = screen.getAllByText("History");
+    const historyLink = historyLinks[0].closest("a");
+    expect(historyLink).toHaveAttribute("aria-current", "page");
+    const dashboardLinks = screen.getAllByText("Dashboard");
+    const dashboardLink = dashboardLinks[0].closest("a");
+    expect(dashboardLink).not.toHaveAttribute("aria-current");
+  });
 });

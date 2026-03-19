@@ -49,6 +49,11 @@
   color: var(--color-text);
 }
 
+.sortable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
 /* === Cells === */
 .td {
   padding: var(--space-2) var(--space-3);
@@ -72,6 +77,11 @@
 
 .clickableRow:hover {
   background-color: var(--color-surface-hover);
+}
+
+.clickableRow:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 /* === Empty state === */

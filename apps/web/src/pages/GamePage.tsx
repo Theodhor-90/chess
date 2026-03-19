@@ -14,6 +14,7 @@ import { ConnectionStatus } from "../components/ConnectionStatus.js";
 import { Chess } from "chess.js";
 import { useSwipeGesture } from "../hooks/useSwipeGesture.js";
 import { GamePageSkeleton } from "../components/ui/Skeleton.js";
+import { AriaAnnouncer } from "../components/AriaAnnouncer.js";
 import styles from "./GamePage.module.css";
 import type { PlayerColor } from "@chess/shared";
 
@@ -40,6 +41,11 @@ export function GamePage() {
 
   const boardColumnRef = useRef<HTMLDivElement>(null);
   const [viewedMoveIndex, setViewedMoveIndex] = useState<number | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const prevMovesLengthRef = useRef(0);
+  const prevStatusRef = useRef<string | null>(null);
+  const whiteClockWarned = useRef(false);
+  const blackClockWarned = useRef(false);
 
   const fens = useMemo(() => {
     if (!game) return [];
@@ -105,6 +111,77 @@ export function GamePage() {
     }
   }, [error, dispatch]);
 
+  // Announce new moves to screen readers
+  useEffect(() => {
+    if (!game) return;
+    const currentLength = game.moves.length;
+    if (currentLength > prevMovesLengthRef.current && currentLength > 0) {
+      const lastMove = game.moves[currentLength - 1];
+      let msg = lastMove;
+      if (lastMove.includes("#")) {
+        msg = `${lastMove}, checkmate`;
+      } else if (lastMove.includes("+")) {
+        msg = `${lastMove}, check`;
+      }
+      setAnnouncement(msg);
+    }
+    prevMovesLengthRef.current = currentLength;
+  }, [game?.moves.length]);
+
+  // Announce game-over events to screen readers
+  useEffect(() => {
+    if (!game) return;
+    const status = game.status;
+    if (status === prevStatusRef.current) return;
+    prevStatusRef.current = status;
+
+    const winner = game.result?.winner;
+    switch (status) {
+      case "checkmate":
+        setAnnouncement(`Checkmate, ${winner === "white" ? "white" : "black"} wins`);
+        break;
+      case "stalemate":
+        setAnnouncement("Draw by stalemate");
+        break;
+      case "resigned":
+        setAnnouncement(
+          `${winner === "white" ? "Black" : "White"} resigned, ${winner === "white" ? "white" : "black"} wins`,
+        );
+        break;
+      case "draw":
+        setAnnouncement("Game drawn by agreement");
+        break;
+      case "timeout":
+        setAnnouncement(
+          `${winner === "white" ? "Black" : "White"} ran out of time, ${winner === "white" ? "white" : "black"} wins`,
+        );
+        break;
+      case "aborted":
+        setAnnouncement("Game aborted");
+        break;
+    }
+  }, [game?.status, game?.result?.winner]);
+
+  // Announce low-time warnings to screen readers
+  useEffect(() => {
+    if (!game || game.status !== "active" || !game.clockState) return;
+
+    const whiteTime = game.clockState.white;
+    const blackTime = game.clockState.black;
+
+    if (whiteTime < 30000 && whiteTime > 0 && !whiteClockWarned.current) {
+      whiteClockWarned.current = true;
+      setAnnouncement("White has less than 30 seconds");
+    }
+    if (blackTime < 30000 && blackTime > 0 && !blackClockWarned.current) {
+      blackClockWarned.current = true;
+      setAnnouncement("Black has less than 30 seconds");
+    }
+
+    if (whiteTime >= 30000) whiteClockWarned.current = false;
+    if (blackTime >= 30000) blackClockWarned.current = false;
+  }, [game?.clockState?.white, game?.clockState?.black, game?.status]);
+
   if (isNaN(gameId)) {
     return <div>Invalid game ID</div>;
   }
@@ -131,6 +208,7 @@ export function GamePage() {
 
   return (
     <div className={styles.page}>
+      <AriaAnnouncer message={announcement} />
       {/* Disconnect banner at top */}
       <DisconnectBanner />
 
@@ -172,6 +250,7 @@ export function GamePage() {
                 type="button"
                 className={styles.backToLiveButton}
                 onClick={() => setViewedMoveIndex(null)}
+                aria-label="Return to live game position"
               >
                 Back to live
               </button>

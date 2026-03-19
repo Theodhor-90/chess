@@ -226,3 +226,25 @@
     height: 100px;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .themeOption {
+    transition: none;
+  }
+
+  .boardThemeOption {
+    transition: none;
+  }
+
+  .pieceThemeOption {
+    transition: none;
+  }
+
+  .muteToggle {
+    transition: none;
+  }
+
+  .muteToggleThumb {
+    transition: none;
+  }
+}

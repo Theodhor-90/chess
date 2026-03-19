@@ -105,6 +105,7 @@ export function NavHeader() {
             key={link.to}
             to={link.to}
             className={`${styles.navLink} ${isActive(link.to) ? styles.navLinkActive : ""}`}
+            aria-current={isActive(link.to) ? "page" : undefined}
           >
             {link.label}
           </Link>
@@ -173,6 +174,7 @@ export function NavHeader() {
             key={link.to}
             to={link.to}
             className={`${styles.mobileMenuLink} ${isActive(link.to) ? styles.mobileMenuLinkActive : ""}`}
+            aria-current={isActive(link.to) ? "page" : undefined}
           >
             {link.label}
           </Link>

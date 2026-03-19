@@ -76,7 +76,12 @@ export function Clock({
     .join(" ");
 
   return (
-    <div data-testid="clock" className={className}>
+    <div
+      data-testid="clock"
+      className={className}
+      role={isActive ? "timer" : undefined}
+      aria-label={`${isActive ? "Active clock" : "Clock"}: ${formatted} remaining`}
+    >
       {formatted}
     </div>
   );

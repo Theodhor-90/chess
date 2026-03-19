@@ -99,3 +99,14 @@
   transform: translateX(100%);
   opacity: 0;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+    transition: none;
+  }
+
+  .exiting {
+    transition: none;
+  }
+}

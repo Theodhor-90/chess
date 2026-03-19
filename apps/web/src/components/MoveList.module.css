@@ -33,12 +33,29 @@
 }
 
 .moveCell {
-  padding: var(--space-1) var(--space-2);
+  padding: 0;
   cursor: default;
 }
 
+.moveButton {
+  all: unset;
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  cursor: default;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  border-radius: var(--radius-sm);
+}
+
+.moveButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
 @media (max-width: 768px) {
-  .moveCell {
+  .moveButton {
     padding: var(--space-3) var(--space-2);
     min-height: 44px;
   }

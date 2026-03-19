@@ -111,4 +111,35 @@ describe("Select", () => {
     );
     expect(screen.queryByRole("alert")).toBeNull();
   });
+
+  it("associates error message with select via aria-describedby", () => {
+    render(
+      <Select
+        label="Color"
+        name="color"
+        value=""
+        onChange={() => {}}
+        options={[{ value: "r", label: "Red" }]}
+        error="Required"
+      />,
+    );
+    expect(screen.getByLabelText("Color")).toHaveAttribute("aria-describedby");
+    expect(screen.getByRole("alert").id).toBe(
+      screen.getByLabelText("Color").getAttribute("aria-describedby"),
+    );
+  });
+
+  it("marks select as aria-invalid when error is present", () => {
+    render(
+      <Select
+        label="Color"
+        name="color"
+        value=""
+        onChange={() => {}}
+        options={[{ value: "r", label: "Red" }]}
+        error="Required"
+      />,
+    );
+    expect(screen.getByLabelText("Color")).toHaveAttribute("aria-invalid", "true");
+  });
 });

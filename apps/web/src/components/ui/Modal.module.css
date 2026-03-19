@@ -86,3 +86,13 @@
   padding: var(--space-3) var(--space-4);
   border-top: var(--border-width) solid var(--color-border-light);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    transition: none;
+  }
+
+  .panel {
+    transition: none;
+  }
+}
