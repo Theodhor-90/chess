@@ -14,7 +14,14 @@ import { userRoutesPlugin } from "./user/routes.js";
 import { enginePlugin } from "./engine/plugin.js";
 import { engineEvaluatePlugin, engineAnalyzePlugin } from "./engine/routes.js";
 import { databaseRoutesPlugin } from "./database/routes.js";
+import { botRoutesPlugin } from "./bot/routes.js";
 import { setupSocketServer, type TypedSocketServer } from "./socket/index.js";
+
+declare module "fastify" {
+  interface FastifyInstance {
+    io: TypedSocketServer;
+  }
+}
 
 const COOKIE_SECRET = process.env.SESSION_SECRET ?? "dev-fallback-secret-not-for-production";
 
@@ -41,6 +48,7 @@ export function buildApp(options?: BuildAppOptions): {
   app.register(engineEvaluatePlugin, { prefix: "/api/engine" });
   app.register(engineAnalyzePlugin, { prefix: "/api/games" });
   app.register(databaseRoutesPlugin, { prefix: "/api/database" });
+  app.register(botRoutesPlugin, { prefix: "/api/games" });
 
   const isProduction = process.env.NODE_ENV === "production";
 
@@ -71,6 +79,7 @@ export function buildApp(options?: BuildAppOptions): {
   }
 
   const io = setupSocketServer(app.server, COOKIE_SECRET, app);
+  app.decorate("io", io);
 
   return { app, io };
 }

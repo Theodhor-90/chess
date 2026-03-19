@@ -2,7 +2,7 @@
 
 ## Product Goal
 
-Online chess platform: two authenticated users play a live game via a shareable invite link. Server-authoritative rules, real-time moves, chess clocks, reconnection support. Post-game analysis with Stockfish engine, game database browser, and a polished, responsive UI.
+Online chess platform: two authenticated users play a live game via a shareable invite link. Server-authoritative rules, real-time moves, chess clocks, reconnection support. Post-game analysis with Stockfish engine, game database browser, computer opponents, tactical puzzles, and a polished, responsive UI.
 
 ## MVP Scope (M0–M10)
 
@@ -24,6 +24,13 @@ The UI overhaul ships in four milestones:
 2. **Core page redesign** (M12) — Restyle every page using the design system: auth, dashboard, game, analysis, history, profile, database.
 3. **Responsive design & mobile** (M13) — Flexible layouts, responsive board sizing, mobile navigation, touch UX.
 4. **Theming, polish & accessibility** (M14) — Dark mode, board/piece themes, animations, sounds, WCAG accessibility.
+
+## Engagement Features (M15–M16)
+
+Features that keep players engaged between games:
+
+1. **Computer bots** (M15) — Play against Stockfish at 5 difficulty levels with distinct bot personalities, think-time simulation, and move imperfection for lower levels.
+2. **Tactical puzzles** (M16) — Import the Lichess puzzle database (~4M puzzles), serve rated puzzles matched to user skill, track puzzle ratings and solve statistics, interactive multi-move puzzle UI.
 
 ## Non-Goals
 
@@ -451,6 +458,81 @@ Exit criteria:
 - Screen reader announcements for moves, game state changes (check, checkmate, draw), and clock warnings.
 - Color contrast audit — all text/background combinations meet WCAG AA (4.5:1 for normal text, 3:1 for large text).
 - `prefers-reduced-motion` media query disables all animations from Phase 14.2.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M15: Computer Bots
+
+**Goal:** Let users play against computer opponents (Stockfish) at various difficulty levels. Bot games use the existing game infrastructure — the bot acts as a virtual player with server-side move generation, think-time simulation, and difficulty-appropriate move selection. Bot profiles offer named opponents at estimated Elo levels from beginner to master.
+
+#### Phase 15.1 — Bot Backend
+
+Define bot difficulty profiles, build a BotPlayer service that generates moves using the existing EnginePool, add a `botLevel` column to the games schema, and create a `POST /games/bot` endpoint that creates and immediately starts a bot game. Add shared types to `@chess/shared`.
+
+Exit criteria:
+
+- Bot profiles defined: name, difficulty level (1–5), estimated Elo, engine depth, error rate (probability of picking a non-best move from MultiPV), think time range (min/max ms).
+- `botLevel` nullable integer column added to the `games` table. Non-null indicates a bot game.
+- `BotPlayer` service: given a game state, selects a move by evaluating the position at the profile's depth, then probabilistically picks from MultiPV lines based on error rate. Waits a randomized think-time before returning.
+- `POST /api/games/bot` endpoint: accepts `{ level: number, clock?: ClockConfig }`, creates a game with the bot as the opponent, sets status to `active`, makes the bot's first move if bot is white, and returns the game state.
+- Bot move cycle: after a human move, the server schedules the bot's reply via BotPlayer, then calls `gameService.makeMove()` and emits socket events. Clock ticks for the bot like a normal player.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 15.2 — Bot Frontend
+
+Bot selection page, GamePage integration for bot games, and bot identification in history/profile pages.
+
+Exit criteria:
+
+- `/play/bot` page with a bot selection grid: each profile shown as a card with name, estimated Elo, difficulty level indicator.
+- Clicking a bot profile sends `POST /api/games/bot` and navigates to `/game/:id`.
+- `GamePage` works with bot games without modification (bot moves arrive via existing socket events).
+- Bot opponent shown with a "Bot" badge and bot name as username in the game page, game list, history, and profile pages.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M16: Tactical Puzzles
+
+**Goal:** Import the Lichess puzzle database, serve rated puzzles matched to user skill, track puzzle ratings and solve statistics, and provide an interactive multi-move puzzle UI. Puzzles use request/response validation (not real-time sockets) with animated opponent moves on the Chessground board.
+
+#### Phase 16.1 — Puzzle Import & Storage
+
+Puzzle database schema, streaming CSV parser, CLI import tool, and shared types.
+
+Exit criteria:
+
+- `puzzles` table with indexed columns for rating, popularity, and themes.
+- Streaming CSV parser handles the full Lichess puzzle CSV (~4M rows, ~300MB) without loading into memory.
+- CLI import script processes all puzzles with progress reporting, batch inserts, and duplicate skipping.
+- Shared types exported from `@chess/shared`.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 16.2 — Puzzle API & Rating System
+
+REST endpoints for serving puzzles and validating attempts. Puzzle rating system for users.
+
+Exit criteria:
+
+- `puzzle_attempts` table for tracking solve history.
+- `puzzleRating` and `puzzleRatingDeviation` columns on users table (default 1500 and 350).
+- `GET /api/puzzles/next` serves a puzzle matched to the user's puzzle rating.
+- `POST /api/puzzles/:puzzleId/attempt` validates the full solution move sequence, updates user puzzle rating, records the attempt.
+- `GET /api/puzzles/stats` returns user's puzzle rating, total attempts, solve rate, and recent history.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 16.3 — Puzzle Frontend
+
+Interactive puzzle page with Chessground board, multi-move puzzle flow, success/fail feedback, and puzzle stats display.
+
+Exit criteria:
+
+- `/puzzles` page with puzzle board, stats panel, and theme badges.
+- Multi-move puzzle flow: setup move animation → user plays → validate → animate opponent response → repeat until solved or failed.
+- Correct/incorrect move visual feedback (green/red highlights, snap-back on wrong move).
+- Rating change display on solve/fail, "Next Puzzle" button.
+- Navigation link in header and dashboard quick link.
 - `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
 
 ---

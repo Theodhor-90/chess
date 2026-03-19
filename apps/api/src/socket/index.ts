@@ -74,7 +74,7 @@ export function setupSocketServer(
     const userId = socket.data.userId;
     addConnection(userId, socket.id);
 
-    registerGameHandlers(io, socket);
+    registerGameHandlers(io, socket, app);
     registerAnalysisHandlers(io, socket, app);
     registerEvaluateHandlers(io, socket, app);
 

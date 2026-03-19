@@ -58,6 +58,7 @@ export function ensureGamesTables(): void {
       result_reason TEXT,
       clock_white_remaining INTEGER,
       clock_black_remaining INTEGER,
+      bot_level INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     )
   `);
@@ -70,6 +71,11 @@ export function ensureGamesTables(): void {
   sqlite.exec(`
     CREATE INDEX IF NOT EXISTS games_black_player_id_idx ON games(black_player_id)
   `);
+  try {
+    sqlite.exec(`ALTER TABLE games ADD COLUMN bot_level INTEGER`);
+  } catch {
+    // Column already exists — ignore
+  }
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS moves (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

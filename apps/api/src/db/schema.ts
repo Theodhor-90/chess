@@ -30,6 +30,7 @@ export const games = sqliteTable(
     resultReason: text("result_reason"),
     clockWhiteRemaining: integer("clock_white_remaining"),
     clockBlackRemaining: integer("clock_black_remaining"),
+    botLevel: integer("bot_level"),
     createdAt: integer("created_at")
       .notNull()
       .default(sql`(unixepoch())`),

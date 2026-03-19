@@ -21,6 +21,9 @@ import {
   getClockState,
   getClockRemainingTimes,
 } from "../game/clock.js";
+import type { FastifyInstance } from "fastify";
+import { BOT_PROFILES } from "@chess/shared";
+import { makeBotMove } from "../bot/bot-player.js";
 
 type TypedSocket = Socket<
   ClientToServerEvents,
@@ -80,7 +83,11 @@ function isOpponentInRoom(
   return false;
 }
 
-export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket): void {
+export function registerGameHandlers(
+  io: TypedSocketServer,
+  socket: TypedSocket,
+  app: FastifyInstance,
+): void {
   function onTick(gameId: number, clockState: ClockState): void {
     io.to(`game:${gameId}`).emit("clockUpdate", clockState);
   }
@@ -266,6 +273,16 @@ export function registerGameHandlers(io: TypedSocketServer, socket: TypedSocket)
       clock: clockState,
     });
     ack?.({ ok: true });
+
+    // Schedule bot reply if this is a bot game and game is still active
+    if (!isTerminal && updatedGame.botLevel != null && app.engine) {
+      const botProfile = BOT_PROFILES.find((p) => p.level === updatedGame.botLevel);
+      if (botProfile) {
+        makeBotMove(app.engine, io, gameId, botProfile).catch((err) => {
+          console.error(`Bot move failed for game ${gameId}:`, err);
+        });
+      }
+    }
 
     if (isTerminal) {
       io.to(roomName).emit("gameOver", {
