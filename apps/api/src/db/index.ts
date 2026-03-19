@@ -94,6 +94,24 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec(
     "CREATE UNIQUE INDEX IF NOT EXISTS game_analyses_game_id_idx ON game_analyses(game_id)",
   );
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS puzzles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      puzzle_id TEXT NOT NULL UNIQUE,
+      fen TEXT NOT NULL,
+      moves TEXT NOT NULL,
+      rating INTEGER NOT NULL,
+      rating_deviation INTEGER NOT NULL,
+      popularity INTEGER NOT NULL,
+      nb_plays INTEGER NOT NULL,
+      themes TEXT NOT NULL,
+      game_url TEXT NOT NULL,
+      opening_tags TEXT
+    )
+  `);
+  sqliteDb.exec("CREATE INDEX IF NOT EXISTS puzzles_rating_idx ON puzzles(rating)");
+  sqliteDb.exec("CREATE INDEX IF NOT EXISTS puzzles_popularity_idx ON puzzles(popularity)");
+  sqliteDb.exec("CREATE INDEX IF NOT EXISTS puzzles_themes_idx ON puzzles(themes)");
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)

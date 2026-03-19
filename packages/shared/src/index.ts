@@ -558,3 +558,53 @@ export const BOT_PROFILES: readonly BotProfile[] = [
     thinkTimeMax: 4000,
   },
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Puzzle Types (M16)
+// ---------------------------------------------------------------------------
+
+export interface Puzzle {
+  puzzleId: string;
+  fen: string;
+  moves: string[];
+  rating: number;
+  ratingDeviation: number;
+  popularity: number;
+  nbPlays: number;
+  themes: string[];
+  gameUrl: string;
+  openingTags: string | null;
+}
+
+export interface PuzzleNextResponse {
+  puzzle: Puzzle;
+}
+
+export interface PuzzleAttemptRequest {
+  moves: string[];
+}
+
+export interface PuzzleAttemptResponse {
+  correct: boolean;
+  solution: string[];
+  ratingBefore: number;
+  ratingAfter: number;
+  ratingDelta: number;
+}
+
+export interface PuzzleAttemptSummary {
+  puzzleId: string;
+  puzzleRating: number;
+  solved: boolean;
+  ratingAfter: number;
+  attemptedAt: number;
+}
+
+export interface PuzzleStatsResponse {
+  rating: number;
+  ratingDeviation: number;
+  totalAttempts: number;
+  totalSolved: number;
+  solveRate: number;
+  recentAttempts: PuzzleAttemptSummary[];
+}

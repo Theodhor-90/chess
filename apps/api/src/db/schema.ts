@@ -75,3 +75,25 @@ export const gameAnalyses = sqliteTable(
   },
   (table) => [uniqueIndex("game_analyses_game_id_idx").on(table.gameId)],
 );
+
+export const puzzles = sqliteTable(
+  "puzzles",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    puzzleId: text("puzzle_id").notNull().unique(),
+    fen: text("fen").notNull(),
+    moves: text("moves").notNull(),
+    rating: integer("rating").notNull(),
+    ratingDeviation: integer("rating_deviation").notNull(),
+    popularity: integer("popularity").notNull(),
+    nbPlays: integer("nb_plays").notNull(),
+    themes: text("themes").notNull(),
+    gameUrl: text("game_url").notNull(),
+    openingTags: text("opening_tags"),
+  },
+  (table) => [
+    index("puzzles_rating_idx").on(table.rating),
+    index("puzzles_popularity_idx").on(table.popularity),
+    index("puzzles_themes_idx").on(table.themes),
+  ],
+);
