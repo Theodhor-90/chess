@@ -448,4 +448,17 @@ describe("DashboardPage", () => {
     expect(mockSocket.emit).toHaveBeenCalledWith("leaveRoom", { gameId: 5 });
     expect(mockSocket.emit).toHaveBeenCalledWith("joinRoom", { gameId: 5 });
   });
+
+  it("renders Play vs Bot quick link pointing to /play/bot", async () => {
+    mockFetchSuccess([]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("bot-link")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("bot-link")).toHaveAttribute("href", "/play/bot");
+    expect(screen.getByTestId("bot-link")).toHaveTextContent("Play vs Bot");
+  });
 });

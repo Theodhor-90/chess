@@ -47,6 +47,9 @@ export function DashboardPage() {
       </Card>
 
       <div className={styles.quickLinks}>
+        <Link to="/play/bot" data-testid="bot-link" className={styles.quickLink}>
+          <Button variant="secondary">Play vs Bot</Button>
+        </Link>
         <Link to="/training" data-testid="training-link" className={styles.quickLink}>
           <Button variant="secondary">Training Board</Button>
         </Link>
