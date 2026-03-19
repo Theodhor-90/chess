@@ -162,6 +162,19 @@ vi.mock("../src/components/AriaAnnouncer.module.css", () => ({
   },
 }));
 
+vi.mock("../src/components/ui/Badge.module.css", () => ({
+  default: {
+    badge: "badge",
+    sm: "sm",
+    md: "md",
+    success: "success",
+    danger: "danger",
+    warning: "warning",
+    neutral: "neutral",
+    info: "info",
+  },
+}));
+
 vi.mock("chessground", () => ({
   Chessground: vi.fn(() => ({
     set: vi.fn(),
@@ -1501,6 +1514,51 @@ describe("PlayerInfoBar", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("clock")).toBeInTheDocument();
+  });
+});
+
+describe("PlayerInfoBar bot badge", () => {
+  it("shows bot name and Bot badge when botLevel is set", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username=""
+          userId={null}
+          timeMs={600000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="black"
+          testIdPrefix="top"
+          botLevel={3}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("top-player-label")).toHaveTextContent("Club Charlie");
+    expect(screen.getByText("Bot")).toBeInTheDocument();
+    expect(screen.getByTestId("top-player-label").tagName).toBe("SPAN");
+  });
+
+  it("does not show Bot badge when botLevel is not set", () => {
+    render(
+      <MemoryRouter>
+        <PlayerInfoBar
+          username="alice"
+          userId={2}
+          timeMs={600000}
+          isActive={false}
+          lastUpdate={Date.now()}
+          fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+          color="black"
+          testIdPrefix="top"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("top-player-label")).toHaveTextContent("alice");
+    expect(screen.queryByText("Bot")).not.toBeInTheDocument();
+    expect(screen.getByTestId("top-player-label").tagName).toBe("A");
   });
 });
 

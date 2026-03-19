@@ -1,4 +1,4 @@
-import type { AuthResponse, ErrorResponse } from "@chess/shared";
+import type { AuthResponse, ErrorResponse, BotGameResponse, ClockConfig } from "@chess/shared";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -45,4 +45,11 @@ export async function logout(): Promise<void> {
 
 export function getMe(): Promise<AuthResponse> {
   return request<AuthResponse>("/api/auth/me");
+}
+
+export function createBotGame(level: number, clock?: ClockConfig): Promise<BotGameResponse> {
+  return request<BotGameResponse>("/api/games/bot", {
+    method: "POST",
+    body: JSON.stringify({ level, clock }),
+  });
 }

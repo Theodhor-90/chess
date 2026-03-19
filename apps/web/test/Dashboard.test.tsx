@@ -337,6 +337,30 @@ describe("GameList", () => {
     });
     expect(screen.queryByTestId("analyze-link-10")).not.toBeInTheDocument();
   });
+
+  it("shows bot name and Bot badge for bot games", async () => {
+    mockFetchSuccess([
+      {
+        id: 20,
+        status: "active",
+        players: {
+          white: { userId: 1, color: "white", username: "player_one" },
+        },
+        clock: { initialTime: 600, increment: 0 },
+        createdAt: 1700000000,
+        botLevel: 3,
+      },
+    ]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
+
+    renderWithProviders(<GameList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Club Charlie")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Bot")).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for opponent...")).not.toBeInTheDocument();
+  });
 });
 
 describe("DashboardPage", () => {
@@ -447,5 +471,18 @@ describe("DashboardPage", () => {
     expect(mockSocket.emit).toHaveBeenCalledWith("abort", { gameId: 5 });
     expect(mockSocket.emit).toHaveBeenCalledWith("leaveRoom", { gameId: 5 });
     expect(mockSocket.emit).toHaveBeenCalledWith("joinRoom", { gameId: 5 });
+  });
+
+  it("renders Play vs Bot quick link pointing to /play/bot", async () => {
+    mockFetchSuccess([]);
+    mockFetchSuccess({ user: { id: 1, email: "a@b.com", username: "player_one" } });
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("bot-link")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("bot-link")).toHaveAttribute("href", "/play/bot");
+    expect(screen.getByTestId("bot-link")).toHaveTextContent("Play vs Bot");
   });
 });

@@ -162,6 +162,7 @@ export interface RecentGameItem {
   resultReason: GameStatus;
   myColor: PlayerColor;
   playedAt: number;
+  botLevel?: number | null;
 }
 
 export interface PlayerStatsResponse {

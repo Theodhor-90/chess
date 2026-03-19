@@ -484,6 +484,7 @@ export function getPlayerStats(userId: number): PlayerStatsResponse | null {
       resultReason: row.status as GameStatus,
       myColor,
       playedAt: row.createdAt,
+      botLevel: row.botLevel ?? null,
     };
   });
 

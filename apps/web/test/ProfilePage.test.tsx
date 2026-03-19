@@ -246,6 +246,44 @@ describe("ProfilePage", () => {
       expect(screen.getByText("No games played yet.")).toBeInTheDocument();
     });
   });
+
+  it("shows Bot badge for bot games in recent games", async () => {
+    mockFetchSuccess(
+      makeStatsResponse({
+        recentGames: [
+          {
+            gameId: 10,
+            opponentUsername: "Expert Eva",
+            opponentId: 0,
+            result: "loss",
+            resultReason: "checkmate",
+            myColor: "white",
+            playedAt: 1710000000,
+            botLevel: 4,
+          },
+          {
+            gameId: 11,
+            opponentUsername: "bob",
+            opponentId: 3,
+            result: "win",
+            resultReason: "resigned",
+            myColor: "black",
+            playedAt: 1710100000,
+            botLevel: null,
+          },
+        ],
+      }),
+    );
+
+    renderWithProviders(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Expert Eva")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Bot")).toBeInTheDocument();
+    expect(screen.getByText("bob")).toBeInTheDocument();
+    expect(screen.getAllByText("Bot")).toHaveLength(1);
+  });
 });
 
 describe("NavHeader profile link", () => {

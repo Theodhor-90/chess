@@ -225,6 +225,7 @@ export function GamePage() {
             fen={game.fen}
             color={topClockColor}
             testIdPrefix="top"
+            botLevel={topClockColor !== playerColor ? game.botLevel : undefined}
           />
 
           {/* Board */}
@@ -240,6 +241,7 @@ export function GamePage() {
             fen={game.fen}
             color={bottomClockColor}
             testIdPrefix="bottom"
+            botLevel={bottomClockColor !== playerColor ? game.botLevel : undefined}
           />
           {viewedMoveIndex !== null && (
             <div className={styles.viewingMoveIndicator}>

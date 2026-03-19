@@ -4,6 +4,7 @@ import { Table } from "./ui/Table.js";
 import { Badge } from "./ui/Badge.js";
 import type { TableColumn } from "./ui/Table.js";
 import type { GameListItem, GameStatus } from "@chess/shared";
+import { BOT_PROFILES } from "@chess/shared";
 import { TableSkeleton } from "./ui/Skeleton.js";
 import styles from "./GameList.module.css";
 
@@ -26,11 +27,21 @@ function getOpponentLabel(game: GameListItem, myUserId: number | null): string {
   if (!myUserId) return "";
   if (game.players.white?.userId === myUserId) {
     const opponent = game.players.black;
-    return opponent ? (opponent.username ?? `User #${opponent.userId}`) : "Waiting for opponent...";
+    if (opponent) return opponent.username ?? `User #${opponent.userId}`;
+    if (game.botLevel != null) {
+      const profile = BOT_PROFILES.find((p) => p.level === game.botLevel);
+      return profile?.name ?? "Bot";
+    }
+    return "Waiting for opponent...";
   }
   if (game.players.black?.userId === myUserId) {
     const opponent = game.players.white;
-    return opponent ? (opponent.username ?? `User #${opponent.userId}`) : "Waiting for opponent...";
+    if (opponent) return opponent.username ?? `User #${opponent.userId}`;
+    if (game.botLevel != null) {
+      const profile = BOT_PROFILES.find((p) => p.level === game.botLevel);
+      return profile?.name ?? "Bot";
+    }
+    return "Waiting for opponent...";
   }
   return "";
 }
@@ -126,18 +137,32 @@ export function GameList() {
       render: (game) => {
         const opponentId = getOpponentId(game, myUserId);
         const label = getOpponentLabel(game, myUserId);
+        const botBadge =
+          game.botLevel != null ? (
+            <Badge variant="info" size="sm">
+              Bot
+            </Badge>
+          ) : null;
         if (opponentId) {
           return (
-            <Link
-              to={`/profile/${opponentId}`}
-              className={styles.opponentLink}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {label}
-            </Link>
+            <span className={styles.opponentCell}>
+              <Link
+                to={`/profile/${opponentId}`}
+                className={styles.opponentLink}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {label}
+              </Link>
+              {botBadge}
+            </span>
           );
         }
-        return label;
+        return (
+          <span className={styles.opponentCell}>
+            {label}
+            {botBadge}
+          </span>
+        );
       },
     },
     {

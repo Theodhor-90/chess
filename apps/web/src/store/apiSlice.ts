@@ -23,6 +23,8 @@ import type {
   PaginatedResponse,
   UserPreferences,
   UserPreferencesResponse,
+  BotGameRequest,
+  BotGameResponse,
 } from "@chess/shared";
 
 export const apiSlice = createApi({
@@ -186,6 +188,14 @@ export const apiSlice = createApi({
         body: { preferences },
       }),
     }),
+    createBotGame: builder.mutation<BotGameResponse, BotGameRequest>({
+      query: (body) => ({
+        url: "/games/bot",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Game"],
+    }),
   }),
 });
 
@@ -209,4 +219,5 @@ export const {
   useGetDatabaseGameQuery,
   useGetPreferencesQuery,
   useUpdatePreferencesMutation,
+  useCreateBotGameMutation,
 } = apiSlice;
