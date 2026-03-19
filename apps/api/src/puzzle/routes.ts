@@ -4,13 +4,16 @@ import type {
   PuzzleNextResponse,
   PuzzleAttemptRequest,
   PuzzleAttemptResponse,
+  PuzzleStatsResponse,
+  PuzzleAttemptSummary,
   ErrorResponse,
 } from "@chess/shared";
 import { requireAuth } from "../auth/plugin.js";
-import { db } from "../db/index.js";
-import { puzzles } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { db, sqlite } from "../db/index.js";
+import { puzzles, users, puzzleAttempts } from "../db/schema.js";
+import { eq, desc } from "drizzle-orm";
 import * as puzzleService from "./service.js";
+import { computeRatingUpdate } from "./rating.js";
 
 const puzzleIdParamsSchema = {
   type: "object" as const,
@@ -68,17 +71,104 @@ async function puzzleRoutes(app: FastifyInstance) {
 
       const result = puzzleService.validateAttempt(puzzleId, moves);
 
-      // Rating update and attempt recording will be added in t03.
-      // For now, return placeholder rating values.
+      // Fetch user's current puzzle rating
+      const user = db.select().from(users).where(eq(users.id, request.userId!)).get();
+      if (!user) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+
+      const { newRating, newRD, delta } = computeRatingUpdate(
+        user.puzzleRating,
+        user.puzzleRatingDeviation,
+        puzzleRow.rating,
+        result.correct,
+      );
+
+      // Atomic: insert attempt + update user rating
+      sqlite.transaction(() => {
+        db.insert(puzzleAttempts)
+          .values({
+            userId: request.userId!,
+            puzzleId,
+            solved: result.correct ? 1 : 0,
+            userRatingBefore: user.puzzleRating,
+            userRatingAfter: newRating,
+            puzzleRating: puzzleRow.rating,
+          })
+          .run();
+
+        db.update(users)
+          .set({
+            puzzleRating: newRating,
+            puzzleRatingDeviation: newRD,
+          })
+          .where(eq(users.id, request.userId!))
+          .run();
+      })();
+
       return reply.code(200).send({
         correct: result.correct,
         solution: result.solution,
-        ratingBefore: 0,
-        ratingAfter: 0,
-        ratingDelta: 0,
+        ratingBefore: user.puzzleRating,
+        ratingAfter: newRating,
+        ratingDelta: delta,
       });
     },
   );
+
+  // GET /stats — puzzle rating and solve statistics
+  app.get<{
+    Reply: PuzzleStatsResponse | ErrorResponse;
+  }>("/stats", { preHandler: [requireAuth] }, async (request, reply) => {
+    const user = db.select().from(users).where(eq(users.id, request.userId!)).get();
+    if (!user) {
+      return reply.code(401).send({ error: "Unauthorized" });
+    }
+
+    // Aggregate stats
+    const statsRow = sqlite
+      .prepare(
+        "SELECT COUNT(*) as total, COALESCE(SUM(solved), 0) as solved FROM puzzle_attempts WHERE user_id = ?",
+      )
+      .get(request.userId!) as { total: number; solved: number };
+
+    const totalAttempts = statsRow.total;
+    const totalSolved = statsRow.solved;
+    const solveRate =
+      totalAttempts > 0 ? Math.round((totalSolved / totalAttempts) * 10000) / 10000 : 0;
+
+    // Recent attempts (last 20, newest first)
+    const recentRows = db
+      .select({
+        puzzleId: puzzleAttempts.puzzleId,
+        puzzleRating: puzzleAttempts.puzzleRating,
+        solved: puzzleAttempts.solved,
+        userRatingAfter: puzzleAttempts.userRatingAfter,
+        createdAt: puzzleAttempts.createdAt,
+      })
+      .from(puzzleAttempts)
+      .where(eq(puzzleAttempts.userId, request.userId!))
+      .orderBy(desc(puzzleAttempts.createdAt))
+      .limit(20)
+      .all();
+
+    const recentAttempts: PuzzleAttemptSummary[] = recentRows.map((r) => ({
+      puzzleId: r.puzzleId,
+      puzzleRating: r.puzzleRating,
+      solved: r.solved === 1,
+      ratingAfter: r.userRatingAfter,
+      attemptedAt: r.createdAt,
+    }));
+
+    return reply.code(200).send({
+      rating: user.puzzleRating,
+      ratingDeviation: user.puzzleRatingDeviation,
+      totalAttempts,
+      totalSolved,
+      solveRate,
+      recentAttempts,
+    });
+  });
 }
 
 export const puzzleRoutesPlugin = fp(puzzleRoutes, {

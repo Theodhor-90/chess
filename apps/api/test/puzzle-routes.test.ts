@@ -3,7 +3,7 @@ import { buildApp } from "../src/server.js";
 import { db, sqlite } from "../src/db/index.js";
 import { puzzles } from "../src/db/schema.js";
 import { ensureSchema, uniqueEmail, registerAndLogin } from "./helpers.js";
-import type { PuzzleNextResponse, PuzzleAttemptResponse } from "@chess/shared";
+import type { PuzzleNextResponse, PuzzleAttemptResponse, PuzzleStatsResponse } from "@chess/shared";
 
 beforeAll(() => {
   ensureSchema();
@@ -155,6 +155,9 @@ describe("POST /api/puzzles/:puzzleId/attempt", () => {
     const body = res.json() as PuzzleAttemptResponse;
     expect(body.correct).toBe(true);
     expect(body.solution).toEqual(["b7b5", "e2e4", "d5e4"]);
+    expect(body.ratingBefore).toBe(1500);
+    expect(body.ratingAfter).toBeGreaterThan(1500);
+    expect(body.ratingDelta).toBeGreaterThan(0);
   });
 
   it("incorrect solution returns correct: false with full solution", async () => {
@@ -170,6 +173,9 @@ describe("POST /api/puzzles/:puzzleId/attempt", () => {
     const body = res.json() as PuzzleAttemptResponse;
     expect(body.correct).toBe(false);
     expect(body.solution).toEqual(["b7b5", "e2e4", "d5e4"]);
+    expect(body.ratingBefore).toBe(1500);
+    expect(body.ratingAfter).toBeLessThan(1500);
+    expect(body.ratingDelta).toBeLessThan(0);
   });
 
   it("wrong number of moves returns correct: false", async () => {
@@ -222,5 +228,105 @@ describe("POST /api/puzzles/:puzzleId/attempt", () => {
       payload: {},
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("GET /api/puzzles/stats", () => {
+  let app: ReturnType<typeof buildApp>["app"];
+  beforeEach(() => {
+    ({ app } = buildApp());
+  });
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("returns 401 without auth", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/stats",
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toEqual({ error: "Unauthorized" });
+  });
+
+  it("returns default stats for user with no attempts", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("pz-stats-empty"));
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/stats",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as PuzzleStatsResponse;
+    expect(body.rating).toBe(1500);
+    expect(body.ratingDeviation).toBe(350);
+    expect(body.totalAttempts).toBe(0);
+    expect(body.totalSolved).toBe(0);
+    expect(body.solveRate).toBe(0);
+    expect(body.recentAttempts).toEqual([]);
+  });
+
+  it("returns updated stats after solving a puzzle", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("pz-stats-solve"));
+    // Solve test_pz_001: user moves = ["b7b5", "d5e4"]
+    await app.inject({
+      method: "POST",
+      url: "/api/puzzles/test_pz_001/attempt",
+      headers: { cookie },
+      payload: { moves: ["b7b5", "d5e4"] },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/stats",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as PuzzleStatsResponse;
+    expect(body.rating).toBeGreaterThan(1500);
+    expect(body.ratingDeviation).toBe(349);
+    expect(body.totalAttempts).toBe(1);
+    expect(body.totalSolved).toBe(1);
+    expect(body.solveRate).toBe(1);
+    expect(body.recentAttempts).toHaveLength(1);
+    expect(body.recentAttempts[0].puzzleId).toBe("test_pz_001");
+    expect(body.recentAttempts[0].solved).toBe(true);
+    expect(body.recentAttempts[0].ratingAfter).toBe(body.rating);
+    expect(body.recentAttempts[0].attemptedAt).toBeGreaterThan(0);
+  });
+
+  it("returns correct solve rate after mixed attempts", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("pz-stats-mixed"));
+    // Solve test_pz_002
+    await app.inject({
+      method: "POST",
+      url: "/api/puzzles/test_pz_002/attempt",
+      headers: { cookie },
+      payload: { moves: ["d7d5"] },
+    });
+    // Fail test_pz_001
+    await app.inject({
+      method: "POST",
+      url: "/api/puzzles/test_pz_001/attempt",
+      headers: { cookie },
+      payload: { moves: ["a7a6", "b7b6"] },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/puzzles/stats",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as PuzzleStatsResponse;
+    expect(body.totalAttempts).toBe(2);
+    expect(body.totalSolved).toBe(1);
+    expect(body.solveRate).toBe(0.5);
+    expect(body.recentAttempts).toHaveLength(2);
+    // Recent attempts are ordered newest first
+    expect(body.recentAttempts[0].puzzleId).toBe("test_pz_001");
+    expect(body.recentAttempts[0].solved).toBe(false);
+    expect(body.recentAttempts[1].puzzleId).toBe("test_pz_002");
+    expect(body.recentAttempts[1].solved).toBe(true);
   });
 });
