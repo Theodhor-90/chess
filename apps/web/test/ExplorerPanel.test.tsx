@@ -30,6 +30,7 @@ describe("ExplorerPanel", () => {
         fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         onMoveClick={vi.fn()}
         onHoverMove={vi.fn()}
+        onArrowsChange={vi.fn()}
       />,
     );
 
@@ -44,6 +45,7 @@ describe("ExplorerPanel", () => {
         fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         onMoveClick={vi.fn()}
         onHoverMove={vi.fn()}
+        onArrowsChange={vi.fn()}
       />,
     );
 
@@ -57,6 +59,7 @@ describe("ExplorerPanel", () => {
         fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         onMoveClick={vi.fn()}
         onHoverMove={vi.fn()}
+        onArrowsChange={vi.fn()}
       />,
     );
 
@@ -71,6 +74,7 @@ describe("ExplorerPanel", () => {
         fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         onMoveClick={vi.fn()}
         onHoverMove={vi.fn()}
+        onArrowsChange={vi.fn()}
       />,
     );
 
