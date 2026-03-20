@@ -25,7 +25,40 @@ import type {
   UserPreferencesResponse,
   BotGameRequest,
   BotGameResponse,
+  ExplorerResponse,
+  ExplorerPlayerResponse,
+  ExplorerEngineResponse,
+  RatingBracket,
+  SpeedCategory,
 } from "@chess/shared";
+
+export interface ExplorerMastersArgs {
+  fen: string;
+  since?: string;
+  until?: string;
+}
+
+export interface ExplorerPlatformArgs {
+  fen: string;
+  ratings?: RatingBracket[];
+  speeds?: SpeedCategory[];
+  since?: string;
+  until?: string;
+}
+
+export interface ExplorerPlayerArgs {
+  fen: string;
+  userId: number;
+  color: "white" | "black";
+  speeds?: SpeedCategory[];
+  since?: string;
+  until?: string;
+}
+
+export interface ExplorerEngineArgs {
+  fen: string;
+  depth?: number;
+}
 
 export const apiSlice = createApi({
   reducerPath: "api",
@@ -196,6 +229,45 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["Game"],
     }),
+    getExplorerMasters: builder.query<ExplorerResponse, ExplorerMastersArgs>({
+      query: ({ fen, since, until }) => {
+        const params = new URLSearchParams();
+        params.set("fen", fen);
+        if (since) params.set("since", since);
+        if (until) params.set("until", until);
+        return `/explorer/masters?${params.toString()}`;
+      },
+    }),
+    getExplorerPlatform: builder.query<ExplorerResponse, ExplorerPlatformArgs>({
+      query: ({ fen, ratings, speeds, since, until }) => {
+        const params = new URLSearchParams();
+        params.set("fen", fen);
+        if (ratings && ratings.length > 0) params.set("ratings", ratings.join(","));
+        if (speeds && speeds.length > 0) params.set("speeds", speeds.join(","));
+        if (since) params.set("since", since);
+        if (until) params.set("until", until);
+        return `/explorer/platform?${params.toString()}`;
+      },
+    }),
+    getExplorerPlayer: builder.query<ExplorerPlayerResponse, ExplorerPlayerArgs>({
+      query: ({ fen, userId, color, speeds, since, until }) => {
+        const params = new URLSearchParams();
+        params.set("fen", fen);
+        params.set("userId", String(userId));
+        params.set("color", color);
+        if (speeds && speeds.length > 0) params.set("speeds", speeds.join(","));
+        if (since) params.set("since", since);
+        if (until) params.set("until", until);
+        return `/explorer/player?${params.toString()}`;
+      },
+    }),
+    postExplorerEngine: builder.mutation<ExplorerEngineResponse, ExplorerEngineArgs>({
+      query: (body) => ({
+        url: "/explorer/engine",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
@@ -220,4 +292,8 @@ export const {
   useGetPreferencesQuery,
   useUpdatePreferencesMutation,
   useCreateBotGameMutation,
+  useGetExplorerMastersQuery,
+  useGetExplorerPlatformQuery,
+  useGetExplorerPlayerQuery,
+  usePostExplorerEngineMutation,
 } = apiSlice;

@@ -1,0 +1,132 @@
+.table {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-sm);
+  width: 100%;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-light);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.headerCell {
+  min-width: 48px;
+}
+
+.headerCellBar {
+  flex: 1;
+  min-width: 100px;
+}
+
+.headerCellRight {
+  min-width: 48px;
+  text-align: right;
+}
+
+.row {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-default);
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.row:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.moveSan {
+  min-width: 48px;
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family-mono);
+}
+
+.gameCount {
+  min-width: 48px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.barCell {
+  flex: 1;
+  min-width: 100px;
+}
+
+.bar {
+  display: flex;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  width: 100%;
+}
+
+.barWhite {
+  background-color: var(--color-gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.barDraw {
+  background-color: var(--color-gray-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.barBlack {
+  background-color: var(--color-gray-800);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.barLabel {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.barLabelLight {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-inverse);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.avgRating {
+  min-width: 48px;
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
