@@ -692,3 +692,13 @@ export function getSpeedCategory(clockSeconds: number): SpeedCategory {
   if (clockSeconds <= 1800) return "rapid";
   return "classical";
 }
+
+export interface ExplorerEngineResponse {
+  score: EvalScore;
+  lines: EngineLineInfo[];
+  depth: number;
+}
+
+export interface ExplorerPlayerResponse extends ExplorerResponse {
+  partial: boolean;
+}

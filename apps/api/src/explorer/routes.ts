@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance } from "fastify";
 import { Chess } from "chess.js";
-import { normalizeFen, loadOpenings, classifyPosition } from "@chess/shared";
+import { normalizeFen, loadOpenings, classifyPosition, getSpeedCategory } from "@chess/shared";
 import type {
   OpeningInfo,
   ExplorerResponse,
@@ -10,6 +10,8 @@ import type {
   SpeedCategory,
   PositionMoveStats,
   ErrorResponse,
+  ExplorerEngineResponse,
+  ExplorerPlayerResponse,
 } from "@chess/shared";
 import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
@@ -286,6 +288,270 @@ async function explorerRoutes(app: FastifyInstance) {
         black: totalBlack,
         moves,
         topGames: [],
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Player Explorer
+  // ---------------------------------------------------------------------------
+
+  interface PlayerQuery {
+    fen: string;
+    userId: string;
+    color: string;
+    speeds?: string;
+    since?: string;
+    until?: string;
+  }
+
+  const playerQuerySchema = {
+    type: "object" as const,
+    required: ["fen", "userId", "color"],
+    properties: {
+      fen: { type: "string" as const, minLength: 1 },
+      userId: { type: "string" as const, pattern: "^\\d+$" },
+      color: { type: "string" as const, enum: ["white", "black"] },
+      speeds: { type: "string" as const },
+      since: { type: "string" as const, pattern: "^\\d{4}(-\\d{2})?$" },
+      until: { type: "string" as const, pattern: "^\\d{4}(-\\d{2})?$" },
+    },
+  };
+
+  const PLAYER_GAME_LIMIT = 500;
+
+  // GET /player
+  app.get<{ Querystring: PlayerQuery; Reply: ExplorerPlayerResponse | ErrorResponse }>(
+    "/player",
+    { schema: { querystring: playerQuerySchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const normalizedFen = validateAndNormalizeFen(request.query.fen);
+      if (normalizedFen === null) {
+        return reply.code(400).send({ error: "Invalid FEN" });
+      }
+
+      const userId = parseInt(request.query.userId, 10);
+      const color = request.query.color as "white" | "black";
+
+      const speeds = parseSpeedCategories(request.query.speeds);
+      if (speeds === null) {
+        return reply.code(400).send({ error: "Invalid speed category" });
+      }
+
+      const terminalStatuses = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
+
+      let sqlQuery = `
+        SELECT g.id, g.pgn, g.result_winner, g.clock_initial_time, g.clock_increment, g.created_at
+        FROM games g
+        WHERE g.status IN (${terminalStatuses.map(() => "?").join(",")})
+      `;
+      const params: (string | number)[] = [...terminalStatuses];
+
+      if (color === "white") {
+        sqlQuery += ` AND g.white_player_id = ?`;
+      } else {
+        sqlQuery += ` AND g.black_player_id = ?`;
+      }
+      params.push(userId);
+
+      if (request.query.since) {
+        const sinceParts = request.query.since.split("-");
+        const sinceYear = parseInt(sinceParts[0], 10);
+        const sinceMonth = sinceParts.length > 1 ? parseInt(sinceParts[1], 10) - 1 : 0;
+        const sinceTimestamp = Math.floor(new Date(sinceYear, sinceMonth, 1).getTime() / 1000);
+        sqlQuery += ` AND g.created_at >= ?`;
+        params.push(sinceTimestamp);
+      }
+      if (request.query.until) {
+        const untilParts = request.query.until.split("-");
+        const untilYear = parseInt(untilParts[0], 10);
+        const untilMonth = untilParts.length > 1 ? parseInt(untilParts[1], 10) : 12;
+        const untilTimestamp = Math.floor(
+          new Date(untilYear, untilMonth, 0, 23, 59, 59).getTime() / 1000,
+        );
+        sqlQuery += ` AND g.created_at <= ?`;
+        params.push(untilTimestamp);
+      }
+
+      sqlQuery += ` ORDER BY g.created_at DESC LIMIT ?`;
+      params.push(PLAYER_GAME_LIMIT + 1);
+
+      interface PlayerGameRow {
+        id: number;
+        pgn: string;
+        result_winner: string | null;
+        clock_initial_time: number;
+        clock_increment: number;
+        created_at: number;
+      }
+
+      const gameRows = sqlite.prepare(sqlQuery).all(...params) as PlayerGameRow[];
+
+      const partial = gameRows.length > PLAYER_GAME_LIMIT;
+      const gamesToProcess = gameRows.slice(0, PLAYER_GAME_LIMIT);
+
+      const filteredGames = gamesToProcess.filter((g) => {
+        const speed = getSpeedCategory(g.clock_initial_time);
+        return speeds.includes(speed);
+      });
+
+      interface MoveAccum {
+        white: number;
+        draws: number;
+        black: number;
+        totalGames: number;
+        uci: string;
+      }
+
+      const moveStats = new Map<string, MoveAccum>();
+
+      for (const gameRow of filteredGames) {
+        if (!gameRow.pgn || gameRow.pgn.trim() === "") continue;
+
+        const chess = new Chess();
+        try {
+          chess.loadPgn(gameRow.pgn);
+        } catch {
+          continue;
+        }
+
+        const history = chess.history({ verbose: true });
+        if (history.length === 0) continue;
+
+        const replay = new Chess();
+
+        for (let i = 0; i < history.length; i++) {
+          const currentFen = normalizeFen(replay.fen());
+
+          if (currentFen === normalizedFen) {
+            const move = history[i];
+            const san = move.san;
+            const uci = move.from + move.to + (move.promotion ?? "");
+
+            let resultType: "white" | "draws" | "black";
+            if (gameRow.result_winner === null) {
+              resultType = "draws";
+            } else if (gameRow.result_winner === color) {
+              resultType = "white";
+            } else {
+              resultType = "black";
+            }
+
+            const existing = moveStats.get(san);
+            if (existing) {
+              existing[resultType] += 1;
+              existing.totalGames += 1;
+            } else {
+              const accum: MoveAccum = {
+                white: 0,
+                draws: 0,
+                black: 0,
+                totalGames: 0,
+                uci,
+              };
+              accum[resultType] = 1;
+              accum.totalGames = 1;
+              moveStats.set(san, accum);
+            }
+
+            break;
+          }
+
+          try {
+            replay.move(history[i].san);
+          } catch {
+            break;
+          }
+        }
+      }
+
+      const explorerMoves: ExplorerMove[] = [];
+      for (const [san, accum] of moveStats) {
+        const tempChess = new Chess(normalizedFen + " 0 1");
+        let resultFen: string | null = null;
+        try {
+          tempChess.move(san);
+          resultFen = normalizeFen(tempChess.fen());
+        } catch {
+          resultFen = null;
+        }
+
+        explorerMoves.push({
+          san,
+          uci: accum.uci,
+          white: accum.white,
+          draws: accum.draws,
+          black: accum.black,
+          totalGames: accum.totalGames,
+          avgRating: 0,
+          opening: resultFen ? classifyPosition(resultFen, openingsMap) : null,
+        });
+      }
+
+      explorerMoves.sort((a, b) => b.totalGames - a.totalGames);
+
+      let totalWhite = 0,
+        totalDraws = 0,
+        totalBlack = 0;
+      for (const m of explorerMoves) {
+        totalWhite += m.white;
+        totalDraws += m.draws;
+        totalBlack += m.black;
+      }
+
+      return reply.code(200).send({
+        opening: getOpeningInfo(normalizedFen),
+        white: totalWhite,
+        draws: totalDraws,
+        black: totalBlack,
+        moves: explorerMoves,
+        topGames: [],
+        partial,
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Engine Evaluation
+  // ---------------------------------------------------------------------------
+
+  interface EngineBody {
+    fen: string;
+    depth?: number;
+  }
+
+  const engineBodySchema = {
+    type: "object" as const,
+    required: ["fen"],
+    additionalProperties: false,
+    properties: {
+      fen: { type: "string" as const, minLength: 1 },
+      depth: { type: "integer" as const, minimum: 1, maximum: 25 },
+    },
+  };
+
+  // POST /engine
+  app.post<{ Body: EngineBody; Reply: ExplorerEngineResponse | ErrorResponse }>(
+    "/engine",
+    { schema: { body: engineBodySchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      try {
+        new Chess(request.body.fen);
+      } catch {
+        return reply.code(400).send({ error: "Invalid FEN" });
+      }
+
+      if (!app.hasDecorator("engine")) {
+        return reply.code(503).send({ error: "Engine not available" });
+      }
+
+      const depth = request.body.depth ?? 20;
+      const result = await app.engine.evaluate(request.body.fen, depth);
+
+      return reply.code(200).send({
+        score: result.score,
+        lines: result.engineLines ?? [],
+        depth: result.depth,
       });
     },
   );
