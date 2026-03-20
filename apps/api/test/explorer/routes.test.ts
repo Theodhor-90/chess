@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from "vitest";
 import { buildApp } from "../../src/server.js";
 import { sqlite } from "../../src/db/index.js";
+import { gamesSqlite } from "../../src/db/games-db.js";
 import { ensureSchema, uniqueEmail, registerAndLogin } from "../helpers.js";
 import type {
   ExplorerResponse,
@@ -14,8 +15,10 @@ const AFTER_E4_E5_FEN = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq 
 const AFTER_E4_C5_FEN = "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -";
 
 const TEST_PREFIX = `expl_rt_${Date.now()}`;
+const PLATFORM_TEST_PREFIX = `expl_plat_topgames_${Date.now()}`;
+const platformGameIds: number[] = [];
 
-beforeAll(() => {
+beforeAll(async () => {
   ensureSchema();
 
   // Clean any pre-existing data for these positions to ensure test isolation
@@ -62,6 +65,139 @@ beforeAll(() => {
     INSERT INTO opening_position_moves (position_fen, move_san, move_uci, result_fen, master_white, master_draws, master_black, master_total_games, master_avg_rating, platform_stats)
     VALUES ('${AFTER_E4_FEN}', 'c5', 'c7c5', '${AFTER_E4_C5_FEN}', 14000, 7000, 14000, 35000, 2450, '{}')
   `);
+
+  // ---- Masters top games: seed database_games ----
+  try {
+    gamesSqlite.exec(`
+      CREATE TABLE IF NOT EXISTS database_games (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        white TEXT NOT NULL,
+        black TEXT NOT NULL,
+        white_elo INTEGER NOT NULL,
+        black_elo INTEGER NOT NULL,
+        result TEXT NOT NULL,
+        eco TEXT,
+        opening TEXT,
+        date TEXT,
+        time_control TEXT,
+        termination TEXT,
+        lichess_url TEXT NOT NULL UNIQUE,
+        pgn TEXT NOT NULL
+      )
+    `);
+  } catch {
+    // Table already exists
+  }
+
+  const mastersGameToken = `masters_topgames_${Date.now()}`;
+
+  // Clean any pre-existing test data
+  gamesSqlite.exec(
+    `DELETE FROM database_games WHERE lichess_url LIKE 'https://lichess.org/test_masters_%'`,
+  );
+
+  // Game M1: ECO=B00, passes through starting + after-e4 positions
+  // NOTE: ECO codes are intentionally simplified for test purposes — all games
+  // use B00 to match the seeded opening_positions data, even though these game
+  // lines would have different ECO codes in a real database.
+  gamesSqlite
+    .prepare(
+      `INSERT INTO database_games (white, black, white_elo, black_elo, result, eco, opening, date, time_control, termination, lichess_url, pgn)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      "Kasparov, G.",
+      "Karpov, A.",
+      2851,
+      2780,
+      "1-0",
+      "B00",
+      "Kings Pawn",
+      "2005.01.15",
+      "Classical",
+      "Normal",
+      `https://lichess.org/test_masters_${mastersGameToken}_1`,
+      "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6",
+    );
+
+  // Game M2: ECO=B00, passes through starting + after-e4 positions
+  gamesSqlite
+    .prepare(
+      `INSERT INTO database_games (white, black, white_elo, black_elo, result, eco, opening, date, time_control, termination, lichess_url, pgn)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      "Carlsen, M.",
+      "Anand, V.",
+      2870,
+      2790,
+      "0-1",
+      "B00",
+      "Kings Pawn",
+      "2013.11.22",
+      "Classical",
+      "Normal",
+      `https://lichess.org/test_masters_${mastersGameToken}_2`,
+      "1. e4 c5 2. Nf3 d6 3. d4 cxd4",
+    );
+
+  // Game M3: ECO=B00, passes through starting + after-e4 positions
+  gamesSqlite
+    .prepare(
+      `INSERT INTO database_games (white, black, white_elo, black_elo, result, eco, opening, date, time_control, termination, lichess_url, pgn)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      "Fischer, R.",
+      "Spassky, B.",
+      2785,
+      2660,
+      "1-0",
+      "B00",
+      "Kings Pawn",
+      "1972.08.31",
+      "Classical",
+      "Normal",
+      `https://lichess.org/test_masters_${mastersGameToken}_3`,
+      "1. e4 e5 2. Nf3 Nc6 3. Bb5",
+    );
+
+  // ---- Platform top games: seed independent platform games ----
+  // These are seeded in the top-level beforeAll to avoid ordering dependencies
+  // between describe blocks (Vitest does not guarantee describe block execution order).
+  const { app: platformSetupApp } = buildApp();
+  await platformSetupApp.ready();
+
+  const { userId: platformUser1Id } = await registerAndLogin(
+    platformSetupApp,
+    uniqueEmail(`${PLATFORM_TEST_PREFIX}-user1`),
+  );
+  const { userId: platformUser2Id } = await registerAndLogin(
+    platformSetupApp,
+    uniqueEmail(`${PLATFORM_TEST_PREFIX}-user2`),
+  );
+
+  const platToken = `plat_topgames_${Date.now()}`;
+
+  // Platform Game P1: 1.e4 e5 2.Nf3, white wins, blitz
+  const pg1 = sqlite
+    .prepare(
+      `INSERT INTO games (invite_token, status, white_player_id, black_player_id, fen, pgn, current_turn, clock_initial_time, clock_increment, result_winner, result_reason, created_at)
+       VALUES (?, 'checkmate', ?, ?, 'rnbqkbnr/pppppppp/8/8/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2', '1. e4 e5 2. Nf3', 'black', 300, 0, 'white', 'checkmate', ?)`,
+    )
+    .run(`${platToken}_1`, platformUser1Id, platformUser2Id, Math.floor(Date.now() / 1000));
+  platformGameIds.push(Number(pg1.lastInsertRowid));
+
+  // Platform Game P2: 1.e4 c5, draw, blitz
+  const pg2 = sqlite
+    .prepare(
+      `INSERT INTO games (invite_token, status, white_player_id, black_player_id, fen, pgn, current_turn, clock_initial_time, clock_increment, result_winner, result_reason, created_at)
+       VALUES (?, 'draw', ?, ?, 'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2', '1. e4 c5', 'white', 300, 0, NULL, 'draw', ?)`,
+    )
+    .run(`${platToken}_2`, platformUser2Id, platformUser1Id, Math.floor(Date.now() / 1000));
+  platformGameIds.push(Number(pg2.lastInsertRowid));
+
+  await platformSetupApp.close();
 });
 
 afterAll(() => {
@@ -69,6 +205,12 @@ afterAll(() => {
   sqlite.exec(`DELETE FROM opening_position_moves WHERE position_fen = '${AFTER_E4_FEN}'`);
   sqlite.exec(`DELETE FROM opening_positions WHERE position_fen = '${STARTING_FEN}'`);
   sqlite.exec(`DELETE FROM opening_positions WHERE position_fen = '${AFTER_E4_FEN}'`);
+  gamesSqlite.exec(
+    `DELETE FROM database_games WHERE lichess_url LIKE 'https://lichess.org/test_masters_%'`,
+  );
+  for (const id of platformGameIds) {
+    sqlite.prepare("DELETE FROM games WHERE id = ?").run(id);
+  }
 });
 
 describe("GET /api/explorer/masters", () => {
@@ -188,6 +330,55 @@ describe("GET /api/explorer/masters", () => {
     expect(res.statusCode).toBe(200);
     const body = res.json() as ExplorerResponse;
     expect(body.moves.length).toBe(3);
+  });
+
+  it("returns top games for a position with ECO code", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail(`${TEST_PREFIX}-masters-topgames`));
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/explorer/masters?fen=rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ExplorerResponse;
+
+    // All 3 seeded games have ECO=B00 and pass through the after-e4 position
+    expect(body.topGames.length).toBe(3);
+
+    // Sorted by combined rating desc: Carlsen/Anand (5660), Kasparov/Karpov (5631), Fischer/Spassky (5445)
+    expect(body.topGames[0].white).toBe("Carlsen, M.");
+    expect(body.topGames[0].whiteRating).toBe(2870);
+    expect(body.topGames[0].blackRating).toBe(2790);
+    expect(body.topGames[0].result).toBe("0-1");
+    expect(body.topGames[0].year).toBe(2013);
+
+    expect(body.topGames[1].white).toBe("Kasparov, G.");
+    expect(body.topGames[2].white).toBe("Fischer, R.");
+
+    for (const game of body.topGames) {
+      expect(game.id).toBeGreaterThan(0);
+      expect(typeof game.white).toBe("string");
+      expect(typeof game.black).toBe("string");
+      expect(game.whiteRating).toBeGreaterThan(0);
+      expect(game.blackRating).toBeGreaterThan(0);
+      expect(game.result).toMatch(/^(1-0|0-1|1\/2-1\/2)$/);
+      expect(game.year).toBeGreaterThan(0);
+    }
+  });
+
+  it("returns empty topGames when position has no ECO code", async () => {
+    const { cookie } = await registerAndLogin(
+      app,
+      uniqueEmail(`${TEST_PREFIX}-masters-topgames-noeco`),
+    );
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/explorer/masters?fen=8/8/8/8/8/8/8/4K2k w - - 0 1",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ExplorerResponse;
+    expect(body.topGames).toEqual([]);
   });
 });
 
@@ -356,6 +547,28 @@ describe("GET /api/explorer/platform", () => {
     const body = res.json() as ExplorerResponse;
     expect(body.opening).not.toBeNull();
     expect(body.opening!.eco).toBe("B00");
+  });
+
+  it("returns top games from platform games", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail(`${TEST_PREFIX}-plat-topgames`));
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/explorer/platform?fen=rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ExplorerResponse;
+
+    // Platform games P1 and P2 are seeded in top-level beforeAll and both
+    // pass through the starting position. Both should appear as topGames.
+    expect(body.topGames.length).toBeGreaterThanOrEqual(2);
+    for (const game of body.topGames) {
+      expect(game.id).toBeGreaterThan(0);
+      expect(typeof game.white).toBe("string");
+      expect(typeof game.black).toBe("string");
+      expect(game.result).toMatch(/^(1-0|0-1|1\/2-1\/2)$/);
+      expect(game.year).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -582,6 +795,47 @@ describe("GET /api/explorer/player", () => {
     const body = res.json() as ExplorerPlayerResponse;
     expect(body.moves).toEqual([]);
     expect(body.partial).toBe(false);
+  });
+
+  it("returns top games for the player", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail(`${PLAYER_TEST_PREFIX}-topgames`));
+    const fen = encodeURIComponent("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/explorer/player?fen=${fen}&userId=${testUserId}&color=white`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ExplorerPlayerResponse;
+
+    // 3 games as white pass through starting position with a next move:
+    // Game 1 (e4), Game 2 (e4), Game 3 (d4)
+    expect(body.topGames.length).toBe(3);
+    for (const game of body.topGames) {
+      expect(game.id).toBeGreaterThan(0);
+      expect(typeof game.white).toBe("string");
+      expect(typeof game.black).toBe("string");
+      expect(game.result).toMatch(/^(1-0|0-1|1\/2-1\/2)$/);
+    }
+  });
+
+  it("includes opening info for known positions", async () => {
+    const { cookie } = await registerAndLogin(
+      app,
+      uniqueEmail(`${PLAYER_TEST_PREFIX}-opening-info`),
+    );
+    const fen = encodeURIComponent("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/explorer/player?fen=${fen}&userId=${testUserId}&color=black`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ExplorerPlayerResponse;
+
+    // The after-e4 position has eco=B00 in opening_positions table
+    expect(body.opening).not.toBeNull();
+    expect(body.opening!.eco).toBe("B00");
   });
 });
 

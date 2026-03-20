@@ -6,6 +6,7 @@ import type {
   OpeningInfo,
   ExplorerResponse,
   ExplorerMove,
+  ExplorerTopGame,
   RatingBracket,
   SpeedCategory,
   PositionMoveStats,
@@ -15,6 +16,7 @@ import type {
 } from "@chess/shared";
 import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
+import { gamesSqlite } from "../db/games-db.js";
 
 const ALL_RATING_BRACKETS: RatingBracket[] = [
   "0-1000",
@@ -185,6 +187,175 @@ async function explorerRoutes(app: FastifyInstance) {
       : classifyPosition(normalizedFen, openingsMap);
   }
 
+  interface DatabaseGameRow {
+    id: number;
+    white: string;
+    black: string;
+    white_elo: number;
+    black_elo: number;
+    result: string;
+    date: string | null;
+    pgn: string;
+  }
+
+  const gamesDbAvailable = (() => {
+    try {
+      const row = gamesSqlite
+        .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'database_games'")
+        .get();
+      return row !== undefined;
+    } catch {
+      return false;
+    }
+  })();
+
+  function getMastersTopGames(
+    normalizedFen: string,
+    openingsMap: Map<string, OpeningInfo>,
+  ): ExplorerTopGame[] {
+    if (!gamesDbAvailable) return [];
+
+    const posRow = getPositionStmt.get(normalizedFen) as PositionRow | undefined;
+    const eco = posRow?.eco ?? classifyPosition(normalizedFen, openingsMap)?.eco;
+    if (!eco) return [];
+
+    const candidates = gamesSqlite
+      .prepare(
+        `SELECT id, white, black, white_elo, black_elo, result, date, pgn
+         FROM database_games
+         WHERE eco = ?
+         ORDER BY (white_elo + black_elo) DESC
+         LIMIT 100`,
+      )
+      .all(eco) as DatabaseGameRow[];
+
+    const confirmed: ExplorerTopGame[] = [];
+    for (const game of candidates) {
+      if (confirmed.length >= 8) break;
+      if (!game.pgn || game.pgn.trim() === "") continue;
+
+      const chess = new Chess();
+      try {
+        chess.loadPgn(game.pgn);
+      } catch {
+        continue;
+      }
+
+      const history = chess.history({ verbose: true });
+      const replay = new Chess();
+      let found = false;
+
+      for (let i = 0; i < history.length; i++) {
+        if (normalizeFen(replay.fen()) === normalizedFen) {
+          found = true;
+          break;
+        }
+        try {
+          replay.move(history[i].san);
+        } catch {
+          break;
+        }
+      }
+      if (!found && normalizeFen(replay.fen()) === normalizedFen) {
+        found = true;
+      }
+
+      if (found) {
+        const year = game.date ? parseInt(game.date.split(".")[0], 10) : 0;
+        confirmed.push({
+          id: game.id,
+          white: game.white,
+          black: game.black,
+          whiteRating: game.white_elo,
+          blackRating: game.black_elo,
+          result: game.result,
+          year: isNaN(year) ? 0 : year,
+        });
+      }
+    }
+
+    return confirmed;
+  }
+
+  function getPlatformTopGames(normalizedFen: string): ExplorerTopGame[] {
+    const terminalStatuses = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
+
+    const candidates = sqlite
+      .prepare(
+        `SELECT g.id, g.white_player_id, g.black_player_id, g.result_winner, g.pgn, g.created_at,
+                wu.username AS white_username, bu.username AS black_username
+         FROM games g
+         LEFT JOIN users wu ON wu.id = g.white_player_id
+         LEFT JOIN users bu ON bu.id = g.black_player_id
+         WHERE g.status IN (${terminalStatuses.map(() => "?").join(",")})
+           AND g.pgn != ''
+         ORDER BY g.created_at DESC
+         LIMIT 100`,
+      )
+      .all(...terminalStatuses) as {
+      id: number;
+      white_player_id: number;
+      black_player_id: number;
+      result_winner: string | null;
+      pgn: string;
+      created_at: number;
+      white_username: string | null;
+      black_username: string | null;
+    }[];
+
+    const confirmed: ExplorerTopGame[] = [];
+    for (const game of candidates) {
+      if (confirmed.length >= 8) break;
+
+      const chess = new Chess();
+      try {
+        chess.loadPgn(game.pgn);
+      } catch {
+        continue;
+      }
+
+      const history = chess.history({ verbose: true });
+      const replay = new Chess();
+      let found = false;
+
+      for (let i = 0; i < history.length; i++) {
+        if (normalizeFen(replay.fen()) === normalizedFen) {
+          found = true;
+          break;
+        }
+        try {
+          replay.move(history[i].san);
+        } catch {
+          break;
+        }
+      }
+      if (!found && normalizeFen(replay.fen()) === normalizedFen) {
+        found = true;
+      }
+
+      if (found) {
+        let resultStr: string;
+        if (game.result_winner === "white") resultStr = "1-0";
+        else if (game.result_winner === "black") resultStr = "0-1";
+        else resultStr = "1/2-1/2";
+
+        const year = new Date(game.created_at * 1000).getFullYear();
+
+        confirmed.push({
+          id: game.id,
+          white: game.white_username ?? `User #${game.white_player_id}`,
+          black: game.black_username ?? `User #${game.black_player_id}`,
+          whiteRating: 0,
+          blackRating: 0,
+          result: resultStr,
+          year,
+        });
+      }
+    }
+
+    return confirmed;
+  }
+
   // GET /masters
   app.get<{ Querystring: MastersQuery; Reply: ExplorerResponse | ErrorResponse }>(
     "/masters",
@@ -226,7 +397,7 @@ async function explorerRoutes(app: FastifyInstance) {
         draws: totalDraws,
         black: totalBlack,
         moves,
-        topGames: [],
+        topGames: getMastersTopGames(normalizedFen, openingsMap),
       });
     },
   );
@@ -287,7 +458,7 @@ async function explorerRoutes(app: FastifyInstance) {
         draws: totalDraws,
         black: totalBlack,
         moves,
-        topGames: [],
+        topGames: getPlatformTopGames(normalizedFen),
       });
     },
   );
@@ -341,8 +512,12 @@ async function explorerRoutes(app: FastifyInstance) {
       const terminalStatuses = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
 
       let sqlQuery = `
-        SELECT g.id, g.pgn, g.result_winner, g.clock_initial_time, g.clock_increment, g.created_at
+        SELECT g.id, g.pgn, g.result_winner, g.clock_initial_time, g.clock_increment, g.created_at,
+               wu.username AS white_username, bu.username AS black_username,
+               g.white_player_id, g.black_player_id
         FROM games g
+        LEFT JOIN users wu ON wu.id = g.white_player_id
+        LEFT JOIN users bu ON bu.id = g.black_player_id
         WHERE g.status IN (${terminalStatuses.map(() => "?").join(",")})
       `;
       const params: (string | number)[] = [...terminalStatuses];
@@ -383,6 +558,10 @@ async function explorerRoutes(app: FastifyInstance) {
         clock_initial_time: number;
         clock_increment: number;
         created_at: number;
+        white_username: string | null;
+        black_username: string | null;
+        white_player_id: number;
+        black_player_id: number;
       }
 
       const gameRows = sqlite.prepare(sqlQuery).all(...params) as PlayerGameRow[];
@@ -404,6 +583,7 @@ async function explorerRoutes(app: FastifyInstance) {
       }
 
       const moveStats = new Map<string, MoveAccum>();
+      const topGameCandidates: ExplorerTopGame[] = [];
 
       for (const gameRow of filteredGames) {
         if (!gameRow.pgn || gameRow.pgn.trim() === "") continue;
@@ -452,6 +632,23 @@ async function explorerRoutes(app: FastifyInstance) {
               accum[resultType] = 1;
               accum.totalGames = 1;
               moveStats.set(san, accum);
+            }
+
+            if (topGameCandidates.length < 8) {
+              let resultStr: string;
+              if (gameRow.result_winner === "white") resultStr = "1-0";
+              else if (gameRow.result_winner === "black") resultStr = "0-1";
+              else resultStr = "1/2-1/2";
+
+              topGameCandidates.push({
+                id: gameRow.id,
+                white: gameRow.white_username ?? `User #${gameRow.white_player_id}`,
+                black: gameRow.black_username ?? `User #${gameRow.black_player_id}`,
+                whiteRating: 0,
+                blackRating: 0,
+                result: resultStr,
+                year: new Date(gameRow.created_at * 1000).getFullYear(),
+              });
             }
 
             break;
@@ -505,7 +702,7 @@ async function explorerRoutes(app: FastifyInstance) {
         draws: totalDraws,
         black: totalBlack,
         moves: explorerMoves,
-        topGames: [],
+        topGames: topGameCandidates,
         partial,
       });
     },
