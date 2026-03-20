@@ -24,6 +24,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { BOT_PROFILES } from "@chess/shared";
 import { makeBotMove } from "../bot/bot-player.js";
+import { aggregatePlatformGame, tagGameOpening } from "../explorer/service.js";
 
 type TypedSocket = Socket<
   ClientToServerEvents,
@@ -105,8 +106,18 @@ export function registerGameHandlers(
         result: game.result!,
         clock: clockState,
       });
+      onGameCompleted(gameId);
     } catch {
       // Game may have already ended via resign/draw/abort before timeout fires
+    }
+  }
+
+  function onGameCompleted(gameId: number): void {
+    try {
+      tagGameOpening(gameId);
+      aggregatePlatformGame(gameId);
+    } catch (err) {
+      console.error(`Opening aggregation failed for game ${gameId}:`, err);
     }
   }
 
@@ -290,6 +301,7 @@ export function registerGameHandlers(
         result: moveResult.result!,
         clock: clockState,
       });
+      onGameCompleted(gameId);
     }
   });
 
@@ -316,6 +328,7 @@ export function registerGameHandlers(
       result: game.result!,
       clock: clockState,
     });
+    onGameCompleted(gameId);
   });
 
   socket.on("offerDraw", (data) => {
@@ -341,6 +354,7 @@ export function registerGameHandlers(
         result: game.result!,
         clock: clockState,
       });
+      onGameCompleted(gameId);
     } else if (game.drawOffer) {
       io.to(roomName).emit("drawOffered", { by: game.drawOffer });
     }
@@ -369,6 +383,7 @@ export function registerGameHandlers(
         result: game.result!,
         clock: clockState,
       });
+      onGameCompleted(gameId);
     }
   });
 

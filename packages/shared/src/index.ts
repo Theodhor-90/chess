@@ -1,3 +1,5 @@
+import type { OpeningInfo } from "./openings.js";
+
 export interface HealthResponse {
   status: "ok";
 }
@@ -607,4 +609,86 @@ export interface PuzzleStatsResponse {
   totalSolved: number;
   solveRate: number;
   recentAttempts: PuzzleAttemptSummary[];
+}
+
+// ---------------------------------------------------------------------------
+// Opening Explorer Types (M17)
+// ---------------------------------------------------------------------------
+
+export type { OpeningInfo } from "./openings.js";
+export { normalizeFen, loadOpenings, classifyPosition, classifyGame } from "./openings.js";
+
+export type RatingBracket =
+  | "0-1000"
+  | "1000-1200"
+  | "1200-1400"
+  | "1400-1600"
+  | "1600-1800"
+  | "1800-2000"
+  | "2000-2200"
+  | "2200+";
+
+export type SpeedCategory = "bullet" | "blitz" | "rapid" | "classical";
+
+export interface PositionMoveStats {
+  white: number;
+  draws: number;
+  black: number;
+  totalGames: number;
+  avgRating: number;
+}
+
+export interface ExplorerMove {
+  san: string;
+  uci: string;
+  white: number;
+  draws: number;
+  black: number;
+  totalGames: number;
+  avgRating: number;
+  opening: OpeningInfo | null;
+}
+
+export interface ExplorerTopGame {
+  id: number;
+  white: string;
+  black: string;
+  whiteRating: number;
+  blackRating: number;
+  result: string;
+  year: number;
+}
+
+export interface ExplorerResponse {
+  opening: OpeningInfo | null;
+  white: number;
+  draws: number;
+  black: number;
+  moves: ExplorerMove[];
+  topGames: ExplorerTopGame[];
+}
+
+export interface ExplorerFilter {
+  ratings?: RatingBracket[];
+  speeds?: SpeedCategory[];
+  since?: string;
+  until?: string;
+}
+
+export function getRatingBracket(avgRating: number): RatingBracket {
+  if (avgRating < 1000) return "0-1000";
+  if (avgRating < 1200) return "1000-1200";
+  if (avgRating < 1400) return "1200-1400";
+  if (avgRating < 1600) return "1400-1600";
+  if (avgRating < 1800) return "1600-1800";
+  if (avgRating < 2000) return "1800-2000";
+  if (avgRating < 2200) return "2000-2200";
+  return "2200+";
+}
+
+export function getSpeedCategory(clockSeconds: number): SpeedCategory {
+  if (clockSeconds <= 120) return "bullet";
+  if (clockSeconds <= 600) return "blitz";
+  if (clockSeconds <= 1800) return "rapid";
+  return "classical";
 }

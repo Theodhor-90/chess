@@ -33,6 +33,8 @@ export const games = sqliteTable(
     clockWhiteRemaining: integer("clock_white_remaining"),
     clockBlackRemaining: integer("clock_black_remaining"),
     botLevel: integer("bot_level"),
+    openingEco: text("opening_eco"),
+    openingName: text("opening_name"),
     createdAt: integer("created_at")
       .notNull()
       .default(sql`(unixepoch())`),
@@ -119,5 +121,39 @@ export const puzzleAttempts = sqliteTable(
   (table) => [
     index("puzzle_attempts_user_id_idx").on(table.userId),
     index("puzzle_attempts_user_id_created_at_idx").on(table.userId, table.createdAt),
+  ],
+);
+
+export const openingPositions = sqliteTable("opening_positions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  positionFen: text("position_fen").notNull().unique(),
+  eco: text("eco"),
+  openingName: text("opening_name"),
+  masterWhite: integer("master_white").notNull().default(0),
+  masterDraws: integer("master_draws").notNull().default(0),
+  masterBlack: integer("master_black").notNull().default(0),
+  masterTotalGames: integer("master_total_games").notNull().default(0),
+  masterAvgRating: integer("master_avg_rating").notNull().default(0),
+  platformStats: text("platform_stats").notNull().default("{}"),
+});
+
+export const openingPositionMoves = sqliteTable(
+  "opening_position_moves",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    positionFen: text("position_fen").notNull(),
+    moveSan: text("move_san").notNull(),
+    moveUci: text("move_uci").notNull(),
+    resultFen: text("result_fen").notNull(),
+    masterWhite: integer("master_white").notNull().default(0),
+    masterDraws: integer("master_draws").notNull().default(0),
+    masterBlack: integer("master_black").notNull().default(0),
+    masterTotalGames: integer("master_total_games").notNull().default(0),
+    masterAvgRating: integer("master_avg_rating").notNull().default(0),
+    platformStats: text("platform_stats").notNull().default("{}"),
+  },
+  (table) => [
+    uniqueIndex("opening_position_moves_fen_san_idx").on(table.positionFen, table.moveSan),
+    index("opening_position_moves_fen_idx").on(table.positionFen),
   ],
 );
