@@ -2,7 +2,7 @@
 
 ## Product Goal
 
-Online chess platform: two authenticated users play a live game via a shareable invite link. Server-authoritative rules, real-time moves, chess clocks, reconnection support. Post-game analysis with Stockfish engine, game database browser, computer opponents, tactical puzzles, and a polished, responsive UI.
+Online chess platform: two authenticated users play a live game via a shareable invite link. Server-authoritative rules, real-time moves, chess clocks, reconnection support. Post-game analysis with Stockfish engine, game database browser, computer opponents, tactical puzzles, a polished responsive UI, and a flagship opening explorer with repertoire builder and spaced-repetition training.
 
 ## MVP Scope (M0–M10)
 
@@ -32,13 +32,21 @@ Features that keep players engaged between games:
 1. **Computer bots** (M15) — Play against Stockfish at 5 difficulty levels with distinct bot personalities, think-time simulation, and move imperfection for lower levels.
 2. **Tactical puzzles** (M16) — Import the Lichess puzzle database (~4M puzzles), serve rated puzzles matched to user skill, track puzzle ratings and solve statistics, interactive multi-move puzzle UI.
 
+## Opening Explorer & Repertoire (M17–M19)
+
+The platform's flagship feature, spanning three milestones:
+
+1. **Opening Explorer** (M17) — Position-indexed three-tab explorer (masters, platform, engine) with per-move statistics, ECO classification, board arrows, and filtering by rating/speed/date.
+2. **Repertoire Builder** (M18) — Personal opening stats overlay, repertoire tree management, PGN import/export, opponent preparation mode, coverage analysis.
+3. **Repertoire Training** (M19) — FSRS spaced repetition, interactive line-based drill UI, scheduling dashboard, retention analytics, and training heatmaps.
+
 ## Non-Goals
 
 - Live analysis during active games (this is cheating assistance)
 - Free analysis board (paste arbitrary FEN/PGN with no game reference)
 - Multiplayer / shared analysis sessions
 - ~~Server-side engine execution~~ → moved to M9 (native Stockfish replaces client-side WASM)
-- Opening book / database integration
+- ~~Opening book / database integration~~ → moved to M17–M19 (flagship opening explorer with repertoire training)
 - Tablebase endgame lookup
 
 ---
@@ -533,6 +541,207 @@ Exit criteria:
 - Correct/incorrect move visual feedback (green/red highlights, snap-back on wrong move).
 - Rating change display on solve/fail, "Next Puzzle" button.
 - Navigation link in header and dashboard quick link.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+## Opening Explorer & Repertoire Scope (M17–M19)
+
+The platform's flagship feature: a multi-source opening explorer, personal repertoire builder, and spaced-repetition training system.
+
+1. **Opening Explorer** (M17) — Position-indexed opening database with three data sources (masters, platform games, engine), FEN-keyed statistics, ECO/opening name classification, board arrows, and filtering.
+2. **Repertoire Builder** (M18) — Personal opening statistics overlay, repertoire tree management (mark preferred moves, build/edit/import lines), opponent preparation mode, and integration with the analysis board.
+3. **Repertoire Training** (M19) — FSRS-based spaced repetition scheduler, interactive drill UI, line-based training with board context, scheduling dashboard, and training statistics.
+
+### Tech Stack Additions
+
+| Layer                  | Choice                                            | Rationale                                                                    |
+| ---------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Opening classification | Lichess `chess-openings` TSV (CC0, 3,641 entries) | Standard dataset, FEN-keyed, handles transpositions, same source as Lichess  |
+| Position indexing      | SQLite aggregate tables (FEN-keyed)               | Consistent with existing stack, no new infrastructure needed                 |
+| Explorer arrows        | Chessground `drawable.autoShapes`                 | Already installed; supports custom brushes, per-shape lineWidth modifiers    |
+| SRS algorithm          | FSRS via `ts-fsrs`                                | State-of-the-art, 20-30% fewer reviews than SM-2, TypeScript, zero deps, MIT |
+
+### Architecture Decisions
+
+#### Position-Based Indexing (Not Move-Order)
+
+The opening explorer is keyed by **board position** (FEN with side-to-move, castling, en passant), not by the sequence of moves that reached it. This means transpositions are automatically merged — 1.d4 Nf6 2.c4 and 1.c4 Nf6 2.d4 show the same statistics. All major platforms (Lichess, Chess.com, ChessBase) use this approach.
+
+#### Three-Tab Explorer Pattern
+
+Every major platform converges on three data sources: Masters (curated OTB games), Community (platform games), and Engine (Stockfish evaluation). We adopt this pattern with tabs for Masters, Platform, and Engine.
+
+#### Explorer Board Arrows
+
+Following Chess.com's most-praised UX innovation: arrows are drawn directly on the board showing candidate moves. Arrow thickness encodes popularity (game count), arrow color encodes success rate (green = good for side to move). Uses Chessground's `autoShapes` API with custom brushes and per-shape `modifiers.lineWidth`.
+
+#### Repertoire Card Model
+
+One SRS card per `(position_fen, correct_move, side)` tuple. Only the user's own moves are scheduled for review; opponent moves are context/prompts. FEN is normalized (strip halfmove clock and fullmove number) to handle transpositions. Training presents full lines from the starting position, not isolated positions.
+
+---
+
+### M17: Opening Explorer
+
+**Goal:** Build a position-indexed opening explorer with three data sources (masters games, platform games, server-side engine evaluation), per-move statistics (win/draw/loss, game count, average rating), ECO/opening name classification, explorer arrows on the board, and filtering by rating range, time control, and date range. The explorer integrates into the existing analysis board as a toggleable panel.
+
+#### Phase 17.1 — Opening Data Infrastructure
+
+Opening classification system, position-indexed statistics tables, and masters game aggregation pipeline.
+
+Exit criteria:
+
+- Lichess `chess-openings` TSV data bundled as JSON at build time. `Map<string, { eco: string; name: string }>` keyed by FEN. Lookup function: given a FEN, return the opening name or `null`.
+- New `opening_positions` table: `positionFen` (TEXT, PK), `eco` (TEXT), `openingName` (TEXT), `masterStats` (JSON: `{ white, draws, black, totalGames, avgRating }`), `platformStats` (JSON: same shape, partitioned by rating bracket and speed).
+- Aggregation script that processes the existing `database_games` table (M10 masters import) into `opening_positions` stats. For each game: replay moves via chess.js, at each position update the aggregate stats. Handles batch processing with progress reporting.
+- Platform game aggregation: after each completed game on the platform, a background job updates `opening_positions.platformStats` for each position in the game. Stats are bucketed by rating bracket (0–1000, 1000–1200, ..., 2200+) and speed (bullet, blitz, rapid, classical).
+- Opening name assigned to games: `openingEco` and `openingName` columns added to the `games` table, populated on game completion by walking the move list against the opening classification map.
+- Shared types exported from `@chess/shared`: `OpeningInfo`, `PositionStats`, `ExplorerMove`, `ExplorerResponse`, `ExplorerFilter`, `RatingBracket`, `SpeedCategory`.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 17.2 — Explorer API
+
+REST endpoints for querying opening statistics from all three data sources with filtering.
+
+Exit criteria:
+
+- `GET /api/explorer/masters?fen=...&since=&until=` — Returns moves from the masters database for the given position. Each move includes: `san`, `uci`, `white` (wins), `draws`, `black` (wins), `totalGames`, `avgRating`, `opening` (name/eco after this move). Sorted by `totalGames` descending. Includes `topGames` array (up to 8 notable games at this position, sorted by combined rating).
+- `GET /api/explorer/platform?fen=...&ratings=&speeds=&since=&until=` — Same response shape but from platform games. `ratings` param accepts comma-separated brackets (e.g., `1400,1600,1800`). `speeds` param accepts comma-separated categories. Date range filters by `since`/`until` in YYYY-MM format.
+- `GET /api/explorer/player?fen=...&userId=&color=&speeds=&since=&until=` — Per-player opening stats. Returns the same move-level stats filtered to a single player's games as the specified color.
+- `POST /api/explorer/engine?fen=` — Evaluates the position with server-side Stockfish (reuses existing engine pool). Returns top 3 lines with scores, best moves in SAN/UCI, and depth. Uses existing `evaluatePosition` socket event infrastructure but exposed as a REST endpoint for the explorer.
+- All endpoints return an `opening` field with the current position's ECO code and name (or `null` if beyond book).
+- Input validation: FEN format validation, rating bracket validation, date format validation.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 17.3 — Explorer Frontend
+
+Three-tab explorer panel integrated into the analysis board with move table, statistics bars, board arrows, and filtering controls.
+
+Exit criteria:
+
+- Explorer panel added to the analysis page as a toggleable side panel (book icon toggle, similar to Lichess). Three tabs: Masters, Platform, Engine.
+- **Move table**: Each row shows move SAN, game count, horizontal stacked bar (white wins | draws | black wins) with percentage labels, average rating. Sorted by total games descending. Clicking a move plays it on the board and updates the explorer.
+- **Explorer arrows on the board**: Top 5 moves drawn as arrows via Chessground `autoShapes`. Arrow thickness scales with game count (lineWidth 3–15 proportional to `move.totalGames / maxTotalGames`). Arrow color uses custom brushes: green-tinted for moves with >55% score, neutral for 45–55%, red-tinted for <45%. Arrows update on position change.
+- **Opening name display**: Current position's ECO code and opening name displayed above the move table. Updates as the user navigates moves. Links to a future opening page (placeholder for now).
+- **Top games section**: Below the move table, a list of up to 8 notable games at this position showing player names, ratings, result, and year. Clickable to open in the database game viewer.
+- **Filter controls**: Masters tab: date range (year pickers). Platform tab: rating bracket checkboxes, speed category checkboxes, date range. Player tab: user search input, color selector (white/black), speed/date filters.
+- **Engine tab**: Shows top 3 engine lines with evaluation scores, move sequences, and depth. Reuses existing `EngineLinesPanel` component styling. Evaluates on tab switch (not on page load).
+- **Hover interaction**: Hovering over a move in the table highlights the corresponding arrow on the board.
+- **Empty state**: When a position has no data, show "No games found in this position" with suggestion to try a different database tab.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M18: Repertoire Builder
+
+**Goal:** Personal opening statistics overlay on the explorer, a full repertoire tree builder where users mark preferred moves and build complete opening lines, repertoire import/export via PGN, opponent preparation mode, and deep integration with the analysis board and explorer.
+
+#### Phase 18.1 — Personal Opening Stats
+
+Per-user opening statistics computed from their platform games, displayed as an overlay on the explorer and as a standalone stats view.
+
+Exit criteria:
+
+- `opening_player_stats` table: `userId` (FK), `positionFen` (TEXT), `color` (TEXT), `white` (wins), `draws`, `black` (wins), `totalGames`, `avgRating`, composite PK on `(userId, positionFen, color)`.
+- Stats populated from existing game history on first request (background job processes all user's completed games). Incrementally updated after each new completed game.
+- `GET /api/explorer/personal?fen=...&color=` — Returns the authenticated user's stats for each move from the given position. Same response shape as other explorer tabs but scoped to the user's games.
+- Personal stats tab added to the explorer panel (4th tab: "My Games"). Shows the user's own win/draw/loss rates per move, game count, and links to their actual games in that line.
+- **Stats overlay mode**: When enabled via a toggle, personal stats appear as a secondary row below each move in the Masters/Platform tabs — showing "You: 3W / 1D / 2L" alongside the global stats. Visual comparison of personal vs. global performance.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 18.2 — Repertoire Tree Management
+
+Backend and data model for building, editing, and storing opening repertoires as move trees.
+
+Exit criteria:
+
+- `repertoires` table: `id`, `userId` (FK), `name` (TEXT), `color` (TEXT: 'white' | 'black'), `description` (TEXT, nullable), `createdAt`, `updatedAt`.
+- `repertoire_moves` table: `id`, `repertoireId` (FK), `positionFen` (TEXT, normalized — strip halfmove clock and fullmove number), `moveSan` (TEXT), `moveUci` (TEXT), `resultFen` (TEXT, normalized), `isMainLine` (BOOLEAN), `comment` (TEXT, nullable), `sortOrder` (INTEGER). Unique constraint on `(repertoireId, positionFen, moveSan)`.
+- `POST /api/repertoires` — Create a new repertoire (name, color, optional description).
+- `GET /api/repertoires` — List user's repertoires with move counts and last-updated timestamps.
+- `GET /api/repertoires/:id` — Full repertoire tree as nested JSON (same `SerializedAnalysisNode`-like structure but with repertoire-specific fields: `isMainLine`, `comment`).
+- `PUT /api/repertoires/:id` — Update name/description.
+- `DELETE /api/repertoires/:id` — Delete repertoire and all its moves.
+- `POST /api/repertoires/:id/moves` — Add a move at a position (positionFen, moveSan). Server validates the move is legal via chess.js, computes resultFen, stores.
+- `DELETE /api/repertoires/:id/moves/:moveId` — Remove a move and all its descendants from the tree.
+- `PUT /api/repertoires/:id/moves/:moveId` — Update comment, isMainLine flag, sortOrder.
+- `POST /api/repertoires/:id/import` — Import from PGN string. Parses PGN including all variations/sidelines recursively, deduplicates by `(positionFen, moveSan)`, bulk-inserts.
+- `GET /api/repertoires/:id/export` — Export as PGN string with variations.
+- Tree operations maintain referential integrity — deleting a branch removes all descendant moves.
+- Shared types: `Repertoire`, `RepertoireMove`, `RepertoireTree`, `RepertoireImportRequest`.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 18.3 — Repertoire Builder Frontend
+
+Interactive repertoire building UI integrated with the analysis board and opening explorer.
+
+Exit criteria:
+
+- `/repertoires` page listing the user's repertoires as cards (name, color indicator, move count, coverage percentage, last updated). "New Repertoire" button.
+- `/repertoires/:id` page with the full repertoire builder: Chessground board + move tree panel + explorer panel side by side.
+- **Building flow**: The board is interactive (not view-only). User navigates using the explorer to find moves, then clicks "Add to Repertoire" (or a keyboard shortcut) to mark the current move as their preferred response. The move tree panel shows the growing repertoire.
+- **Move tree panel**: Displays the repertoire as a nested move list with main lines and sidelines (indented variations). Current position highlighted. Clickable to navigate. Context menu per move: set as main line, add comment, delete branch.
+- **Explorer integration**: The opening explorer panel is visible alongside the repertoire builder. Explorer stats inform the user's choice of which move to add. When viewing a position, moves already in the repertoire are visually marked (checkmark icon) in the explorer move table.
+- **Board arrows for repertoire**: Repertoire moves are shown as arrows on the board (green for main line, blue for sidelines). Explorer arrows shown in a dimmer palette underneath.
+- **PGN import**: Modal with a textarea to paste PGN. Preview shows the parsed tree before confirming import. Handles variations, comments, and NAGs.
+- **PGN export**: Download button that exports the repertoire as a `.pgn` file.
+- **Opponent preparation mode**: Select an opponent (by username search). The explorer's Player tab loads that opponent's stats. Repertoire builder highlights positions where the opponent's most-played move deviates from your repertoire (gap indicator).
+- **Coverage indicator**: For each branch point in the repertoire, show whether all major opponent responses (>5% frequency in the explorer) have a repertoire move. "Coverage: 85%" per variation.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+---
+
+### M19: Repertoire Training
+
+**Goal:** Train opening repertoires using FSRS spaced repetition. Interactive drill UI presents full lines on the board — the system plays opponent moves, the user plays their repertoire moves. Scheduling dashboard shows due reviews, learning progress, and retention statistics. The training loop handles correct/incorrect responses, animated opponent moves, hints, and post-session summaries.
+
+#### Phase 19.1 — SRS Scheduling Backend
+
+FSRS-based scheduling engine, card generation from repertoire trees, review endpoints, and training statistics.
+
+Exit criteria:
+
+- `ts-fsrs` package installed as a dependency of `@chess/api`.
+- `repertoire_cards` table: `id`, `repertoireId` (FK), `positionFen` (TEXT, normalized), `moveSan` (TEXT), `moveUci` (TEXT), `resultFen` (TEXT), `side` (TEXT), `due` (INTEGER, unix timestamp), `stability` (REAL), `difficulty` (REAL), `elapsedDays` (INTEGER), `scheduledDays` (INTEGER), `learningSteps` (INTEGER), `reps` (INTEGER), `lapses` (INTEGER), `state` (INTEGER: 0=New, 1=Learning, 2=Review, 3=Relearning), `lastReview` (INTEGER, nullable). Unique constraint on `(repertoireId, positionFen, moveSan)`.
+- `review_logs` table: `id`, `cardId` (FK), `rating` (INTEGER, 1–4), `state` (INTEGER), `due` (INTEGER), `stability` (REAL), `difficulty` (REAL), `elapsedDays` (INTEGER), `scheduledDays` (INTEGER), `reviewedAt` (INTEGER). For future FSRS parameter personalization.
+- Card generation: when a repertoire is modified (move added/removed), cards are synced. Adding a move creates a card with FSRS `createEmptyCard()` defaults. Removing a move deletes the card and its review logs. Only "own moves" (user's side) become cards; opponent moves are context.
+- `GET /api/repertoires/:id/train/next` — Returns the next training line: a sequence of `{ fen, san, uci, isUserMove, isDue }` from the starting position to a leaf, containing at least one due card. Line selection: BFS from starting position, prioritizing lines with the most due cards. Includes the count of remaining due cards.
+- `POST /api/repertoires/:id/train/review` — Submit a review: `{ cardId, rating }`. Server runs `fsrs.next(card, now, rating)`, updates the card, inserts a review log, returns the updated card state and next interval.
+- `GET /api/repertoires/:id/train/stats` — Training statistics: total cards, new/learning/review/relearning counts, due today, due tomorrow, average retention (estimated from stability and elapsed time), streak (consecutive days with reviews), total reviews.
+- FSRS parameters configurable per user (future): `requestRetention` (default 0.9), `maximumInterval` (default 365 days), `enableFuzz` (default true).
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 19.2 — Training Frontend
+
+Interactive drill UI with board-based line training, animated opponent moves, feedback, and session management.
+
+Exit criteria:
+
+- `/repertoires/:id/train` page with Chessground board, progress panel, and session controls.
+- **Training flow**: (1) System loads a line via `GET .../train/next`. (2) Board shows the starting position. (3) System animates opponent moves (the non-user moves) with a brief delay (300ms). (4) At each user-move position, the board becomes interactive — user must play the correct move. (5) Correct move: green highlight, "Good!" feedback, advance to next position. (6) Wrong move: red highlight, snap-back animation (300ms), show the correct move as a green arrow, mark as `Rating.Again`. (7) Repeat until the line is complete. (8) After each user move, `POST .../train/review` is called with the appropriate rating.
+- **Rating determination**: Wrong move = `Again(1)`. Correct move with hint used = `Hard(2)`. Correct move (normal) = `Good(3)`. Correct move under 2 seconds = `Easy(4)`. Response timer starts when the board becomes interactive.
+- **Hint system**: A "Show Hint" button reveals the destination square of the correct move (highlights it in yellow) without revealing the piece or origin. Uses `Again` → `Hard` penalty if used.
+- **Progress panel**: Shows current line progress (move X of Y), session stats (correct/incorrect/remaining), due card count, and current repertoire retention percentage.
+- **Session summary**: After all due cards are reviewed (or user ends session), show a summary modal: cards reviewed, new cards learned, accuracy percentage, next review due date, retention estimate. "Continue" button for overdue cards, "Done" button to return to repertoire page.
+- **Keyboard shortcuts**: Enter to confirm move, H for hint, Escape to end session, arrow keys disabled during training (prevent peeking ahead).
+- **Empty state**: When no cards are due, show "All caught up! Next review due in X hours/days" with option to study new cards ahead of schedule.
+- Navigation: "Train" button on each repertoire card in `/repertoires`, and within the repertoire builder page.
+- `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
+
+#### Phase 19.3 — Training Dashboard & Analytics
+
+Cross-repertoire training dashboard, learning analytics, heatmaps, and retention forecasting.
+
+Exit criteria:
+
+- `/training` page (accessible from nav header) showing a unified dashboard across all repertoires.
+- **Daily review summary**: Total cards due today across all repertoires, broken down by repertoire. One-click "Start Training" button that queues due cards from all repertoires.
+- **Calendar heatmap**: GitHub-style contribution grid showing daily review activity over the last 6 months. Color intensity = number of reviews that day. Current streak prominently displayed.
+- **Per-repertoire stats cards**: For each repertoire, show: total cards, mastered (state=Review with stability >30 days), learning, new, due today, estimated daily review time (based on average review speed), retention percentage.
+- **Difficult positions**: List of the 10 cards with highest lapse count (most frequently forgotten). Each shows the position as a mini-board thumbnail, the correct move, lapse count, and current stability. Clicking opens the repertoire builder at that position.
+- **Retention forecast**: A line chart projecting the user's retention over the next 30 days assuming they complete all scheduled reviews. Uses FSRS retrievability formula `R = 0.9^(t/S)` across all cards.
+- **Learning velocity**: Chart showing new cards learned per day over the last 30 days, with a trend line.
 - `pnpm build`, `pnpm typecheck`, and `pnpm test` pass.
 
 ---
