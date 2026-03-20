@@ -1,0 +1,8 @@
+/* Puzzle move feedback highlights — applied via Chessground highlight.custom */
+cg-board square.correct-move {
+  background-color: rgba(21, 120, 27, 0.45) !important;
+}
+
+cg-board square.incorrect-move {
+  background-color: rgba(204, 0, 0, 0.45) !important;
+}
