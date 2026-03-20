@@ -164,11 +164,60 @@ export function ensurePuzzleTables(): void {
   );
 }
 
+export function ensureOpeningTables(): void {
+  try {
+    sqlite.exec(`ALTER TABLE games ADD COLUMN opening_eco TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    sqlite.exec(`ALTER TABLE games ADD COLUMN opening_name TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS opening_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      position_fen TEXT NOT NULL UNIQUE,
+      eco TEXT,
+      opening_name TEXT,
+      master_white INTEGER NOT NULL DEFAULT 0,
+      master_draws INTEGER NOT NULL DEFAULT 0,
+      master_black INTEGER NOT NULL DEFAULT 0,
+      master_total_games INTEGER NOT NULL DEFAULT 0,
+      master_avg_rating INTEGER NOT NULL DEFAULT 0,
+      platform_stats TEXT NOT NULL DEFAULT '{}'
+    )
+  `);
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS opening_position_moves (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      master_white INTEGER NOT NULL DEFAULT 0,
+      master_draws INTEGER NOT NULL DEFAULT 0,
+      master_black INTEGER NOT NULL DEFAULT 0,
+      master_total_games INTEGER NOT NULL DEFAULT 0,
+      master_avg_rating INTEGER NOT NULL DEFAULT 0,
+      platform_stats TEXT NOT NULL DEFAULT '{}'
+    )
+  `);
+  sqlite.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS opening_position_moves_fen_san_idx ON opening_position_moves(position_fen, move_san)",
+  );
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS opening_position_moves_fen_idx ON opening_position_moves(position_fen)",
+  );
+}
+
 export function ensureSchema(): void {
   ensureUsersTable();
   ensureGamesTables();
   ensureAnalysesTable();
   ensurePuzzleTables();
+  ensureOpeningTables();
 }
 
 export function cleanGamesTables(): void {
