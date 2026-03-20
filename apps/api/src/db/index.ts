@@ -142,6 +142,51 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec(
     "CREATE INDEX IF NOT EXISTS puzzle_attempts_user_id_created_at_idx ON puzzle_attempts(user_id, created_at)",
   );
+  try {
+    sqliteDb.exec(`ALTER TABLE games ADD COLUMN opening_eco TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
+  try {
+    sqliteDb.exec(`ALTER TABLE games ADD COLUMN opening_name TEXT`);
+  } catch {
+    // Column already exists — ignore
+  }
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS opening_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      position_fen TEXT NOT NULL UNIQUE,
+      eco TEXT,
+      opening_name TEXT,
+      master_white INTEGER NOT NULL DEFAULT 0,
+      master_draws INTEGER NOT NULL DEFAULT 0,
+      master_black INTEGER NOT NULL DEFAULT 0,
+      master_total_games INTEGER NOT NULL DEFAULT 0,
+      master_avg_rating INTEGER NOT NULL DEFAULT 0,
+      platform_stats TEXT NOT NULL DEFAULT '{}'
+    )
+  `);
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS opening_position_moves (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      master_white INTEGER NOT NULL DEFAULT 0,
+      master_draws INTEGER NOT NULL DEFAULT 0,
+      master_black INTEGER NOT NULL DEFAULT 0,
+      master_total_games INTEGER NOT NULL DEFAULT 0,
+      master_avg_rating INTEGER NOT NULL DEFAULT 0,
+      platform_stats TEXT NOT NULL DEFAULT '{}'
+    )
+  `);
+  sqliteDb.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS opening_position_moves_fen_san_idx ON opening_position_moves(position_fen, move_san)",
+  );
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS opening_position_moves_fen_idx ON opening_position_moves(position_fen)",
+  );
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)
