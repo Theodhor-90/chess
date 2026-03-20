@@ -5,6 +5,7 @@ import type { TypedSocketServer } from "../socket/index.js";
 import * as gameService from "../game/service.js";
 import { switchClock, getClockState, getClockRemainingTimes, stopClock } from "../game/clock.js";
 import * as store from "../game/store.js";
+import { aggregatePlatformGame, tagGameOpening } from "../explorer/service.js";
 
 export const BOT_USER_ID = 0;
 
@@ -208,5 +209,11 @@ export async function makeBotMove(
       result: moveResult.result!,
       clock: clockState,
     });
+    try {
+      tagGameOpening(gameId);
+      aggregatePlatformGame(gameId);
+    } catch (err) {
+      console.error(`Opening aggregation failed for bot game ${gameId}:`, err);
+    }
   }
 }
