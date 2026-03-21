@@ -1,0 +1,30 @@
+.overlayRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-1) var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.overlayLabel {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-disabled);
+  min-width: 28px;
+}
+
+.overlayStats {
+  font-variant-numeric: tabular-nums;
+}
+
+.statWin {
+  color: var(--color-success);
+}
+
+.statDraw {
+  color: var(--color-text-secondary);
+}
+
+.statLoss {
+  color: var(--color-error);
+}

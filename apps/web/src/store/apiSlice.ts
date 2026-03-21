@@ -60,6 +60,14 @@ export interface ExplorerEngineArgs {
   depth?: number;
 }
 
+export interface ExplorerPersonalArgs {
+  fen: string;
+  color: "white" | "black";
+  speeds?: SpeedCategory[];
+  since?: string;
+  until?: string;
+}
+
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
@@ -268,6 +276,17 @@ export const apiSlice = createApi({
         body,
       }),
     }),
+    getExplorerPersonal: builder.query<ExplorerResponse, ExplorerPersonalArgs>({
+      query: ({ fen, color, speeds, since, until }) => {
+        const params = new URLSearchParams();
+        params.set("fen", fen);
+        params.set("color", color);
+        if (speeds && speeds.length > 0) params.set("speeds", speeds.join(","));
+        if (since) params.set("since", since);
+        if (until) params.set("until", until);
+        return `/explorer/personal?${params.toString()}`;
+      },
+    }),
   }),
 });
 
@@ -296,4 +315,5 @@ export const {
   useGetExplorerPlatformQuery,
   useGetExplorerPlayerQuery,
   usePostExplorerEngineMutation,
+  useGetExplorerPersonalQuery,
 } = apiSlice;
