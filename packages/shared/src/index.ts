@@ -784,3 +784,11 @@ export interface AddRepertoireMoveResponse {
 export interface DeleteRepertoireMoveResponse {
   deleted: number;
 }
+
+export interface RepertoireImportResponse {
+  imported: number;
+}
+
+export interface RepertoireExportResponse {
+  pgn: string;
+}

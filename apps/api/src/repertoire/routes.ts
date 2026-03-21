@@ -9,11 +9,14 @@ import type {
   CreateRepertoireResponse,
   AddRepertoireMoveResponse,
   DeleteRepertoireMoveResponse,
+  RepertoireImportResponse,
+  RepertoireExportResponse,
   ErrorResponse,
 } from "@chess/shared";
 import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
 import { reconstructFullFen, getDescendantFens } from "./tree-ops.js";
+import { parsePgnToMoves, treeToMoves } from "./pgn-utils.js";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
@@ -134,6 +137,19 @@ interface UpdateMoveBody {
   isMainLine?: boolean;
   comment?: string;
   sortOrder?: number;
+}
+
+const importBodySchema = {
+  type: "object" as const,
+  required: ["pgn"],
+  additionalProperties: false,
+  properties: {
+    pgn: { type: "string" as const, minLength: 1, maxLength: 100000 },
+  },
+};
+
+interface ImportBody {
+  pgn: string;
 }
 
 async function repertoireRoutes(app: FastifyInstance) {
@@ -556,6 +572,97 @@ async function repertoireRoutes(app: FastifyInstance) {
         isMainLine: updated.is_main_line === 1,
         comment: updated.comment,
       });
+    },
+  );
+
+  app.post<{ Params: IdParams; Body: ImportBody; Reply: RepertoireImportResponse | ErrorResponse }>(
+    "/:id/import",
+    { schema: { params: idParamsSchema, body: importBodySchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const repertoireId = parseInt(request.params.id, 10);
+
+      const row = verifyOwnership(repertoireId, userId);
+      if (!row) {
+        return reply.code(404).send({ error: "Repertoire not found" });
+      }
+
+      const { pgn } = request.body;
+
+      let parsedMoves;
+      try {
+        parsedMoves = parsePgnToMoves(pgn);
+      } catch {
+        return reply.code(400).send({ error: "Invalid PGN" });
+      }
+
+      if (parsedMoves.length === 0) {
+        return reply.code(400).send({ error: "Invalid PGN" });
+      }
+
+      // Upsert all moves in a transaction
+      const upsertStmt = sqlite.prepare(`
+        INSERT INTO repertoire_moves (repertoire_id, position_fen, move_san, move_uci, result_fen, is_main_line, comment, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+        ON CONFLICT (repertoire_id, position_fen, move_san)
+        DO UPDATE SET is_main_line = excluded.is_main_line, comment = COALESCE(excluded.comment, repertoire_moves.comment)
+      `);
+
+      const importTransaction = sqlite.transaction(() => {
+        let imported = 0;
+        for (const move of parsedMoves) {
+          const info = upsertStmt.run(
+            repertoireId,
+            move.positionFen,
+            move.moveSan,
+            move.moveUci,
+            move.resultFen,
+            move.isMainLine ? 1 : 0,
+            move.comment,
+          );
+          imported += info.changes;
+        }
+        return imported;
+      });
+
+      const imported = importTransaction();
+
+      // Update repertoire timestamp
+      updateRepertoireTimestampStmt.run(repertoireId);
+
+      return reply.code(200).send({ imported });
+    },
+  );
+
+  app.get<{ Params: IdParams; Reply: RepertoireExportResponse | ErrorResponse }>(
+    "/:id/export",
+    { schema: { params: idParamsSchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const repertoireId = parseInt(request.params.id, 10);
+
+      const row = verifyOwnership(repertoireId, userId);
+      if (!row) {
+        return reply.code(404).send({ error: "Repertoire not found" });
+      }
+
+      const moves = getRepertoireMovesStmt.all(repertoireId) as RepertoireMoveRow[];
+      const tree = buildTree(moves);
+
+      // Build PGN headers
+      const headers = [
+        `[Event "Repertoire: ${row.name}"]`,
+        `[Site ""]`,
+        `[Date ""]`,
+        `[Result "*"]`,
+      ];
+
+      // Serialize tree to PGN move text
+      const moveText = treeToMoves(tree);
+
+      const pgn = headers.join("\n") + "\n\n" + moveText + (moveText ? " *" : "*");
+
+      return reply.code(200).send({ pgn });
     },
   );
 }
