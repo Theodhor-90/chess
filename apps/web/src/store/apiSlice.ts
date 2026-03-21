@@ -453,4 +453,5 @@ export const {
   useImportRepertoirePgnMutation,
   useGetRepertoireExportQuery,
   useLazyGetRepertoireExportQuery,
+  useLazyGetExplorerPlayerQuery,
 } = apiSlice;

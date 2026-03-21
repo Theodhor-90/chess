@@ -11,6 +11,7 @@ import {
   useAddRepertoireMoveMutation,
   useDeleteRepertoireMoveMutation,
   useUpdateRepertoireMoveMutation,
+  useLazyGetRepertoireExportQuery,
 } from "../store/apiSlice.js";
 import { useBoardTheme } from "../components/BoardThemeProvider.js";
 import { ExplorerPanel } from "../components/ExplorerPanel.js";
@@ -22,6 +23,9 @@ import { Badge } from "../components/ui/Badge.js";
 import { Modal } from "../components/ui/Modal.js";
 import { useToast } from "../components/ui/ToastProvider.js";
 import { PageSkeleton } from "../components/ui/Skeleton.js";
+import { RepertoirePgnImport } from "../components/RepertoirePgnImport.js";
+import { OpponentPrepPanel } from "../components/OpponentPrepPanel.js";
+import type { GapInfo } from "../components/OpponentPrepPanel.js";
 import styles from "./RepertoireBuilderPage.module.css";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
@@ -96,6 +100,12 @@ export function RepertoireBuilderPage() {
   const [updateMove] = useUpdateRepertoireMoveMutation();
   const { showToast } = useToast();
   const { boardTheme, pieceTheme } = useBoardTheme();
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [opponentPrepVisible, setOpponentPrepVisible] = useState(false);
+  const [opponentGaps, setOpponentGaps] = useState<Map<string, GapInfo[]>>(new Map());
+
+  const [triggerExport, { isFetching: isExporting }] = useLazyGetRepertoireExportQuery();
 
   const themeClasses = [
     boardTheme !== "brown" ? `board-theme-${boardTheme}` : "",
@@ -288,6 +298,73 @@ export function RepertoireBuilderPage() {
     setExplorerVisible((prev) => !prev);
   }, []);
 
+  const handleExportPgn = useCallback(async () => {
+    try {
+      const result = await triggerExport(repertoireId).unwrap();
+      const sanitizedName = (repertoire?.name ?? "repertoire")
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+      const color = repertoire?.color ?? "white";
+      const filename = `${sanitizedName}-${color}.pgn`;
+      const blob = new Blob([result.pgn], { type: "application/x-chess-pgn" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("PGN exported", "success");
+    } catch {
+      showToast("Failed to export PGN", "error");
+    }
+  }, [repertoireId, repertoire, triggerExport, showToast]);
+
+  const handleOpponentPrepToggle = useCallback(() => {
+    setOpponentPrepVisible((prev) => {
+      if (prev) {
+        setOpponentGaps(new Map());
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleGapsChange = useCallback((newGaps: Map<string, GapInfo[]>) => {
+    setOpponentGaps(newGaps);
+  }, []);
+
+  const gapFens = useMemo(() => {
+    const fens = new Set<string>();
+    for (const [fen, gapList] of opponentGaps.entries()) {
+      if (gapList.length > 0) {
+        fens.add(fen);
+      }
+    }
+    return fens;
+  }, [opponentGaps]);
+
+  const overallCoverage = useMemo(() => {
+    if (!opponentPrepVisible || opponentGaps.size === 0) return null;
+
+    let gapCount = 0;
+    for (const gapList of opponentGaps.values()) {
+      if (gapList.length > 0) gapCount++;
+    }
+
+    const coveredCount = opponentGaps.size - gapCount;
+    return Math.round((coveredCount / opponentGaps.size) * 100);
+  }, [opponentPrepVisible, opponentGaps]);
+
+  const coverageMapForTree = useMemo(() => {
+    if (!opponentPrepVisible) return undefined;
+    const map = new Map<string, number>();
+    for (const [fen, gapList] of opponentGaps.entries()) {
+      map.set(fen, gapList.length === 0 ? 100 : 0);
+    }
+    return map.size > 0 ? map : undefined;
+  }, [opponentPrepVisible, opponentGaps]);
+
   // Keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -420,6 +497,35 @@ export function RepertoireBuilderPage() {
         </div>
       </div>
 
+      <div className={styles.toolbar}>
+        <Button variant="secondary" size="sm" onClick={() => setImportModalOpen(true)}>
+          Import PGN
+        </Button>
+        <Button variant="secondary" size="sm" onClick={handleExportPgn} loading={isExporting}>
+          Export PGN
+        </Button>
+        <Button
+          variant={opponentPrepVisible ? "primary" : "secondary"}
+          size="sm"
+          onClick={handleOpponentPrepToggle}
+        >
+          {opponentPrepVisible ? "Close Prep" : "Prep vs Opponent"}
+        </Button>
+        {overallCoverage !== null && (
+          <span
+            className={`${styles.coverageBadge} ${
+              overallCoverage >= 100
+                ? styles.coverageBadgeGreen
+                : overallCoverage >= 50
+                  ? styles.coverageBadgeYellow
+                  : styles.coverageBadgeRed
+            }`}
+          >
+            Coverage: {overallCoverage}%
+          </span>
+        )}
+      </div>
+
       <div className={styles.layout}>
         <div className={styles.boardColumn}>
           <div className={themeClasses || undefined}>
@@ -464,8 +570,20 @@ export function RepertoireBuilderPage() {
               onNavigate={handleNavigate}
               onDeleteMove={handleDeleteMove}
               onSetMainLine={handleSetMainLine}
+              coverageMap={coverageMapForTree}
+              gapFens={opponentPrepVisible ? gapFens : undefined}
             />
           </Card>
+
+          {opponentPrepVisible && (
+            <OpponentPrepPanel
+              repertoireColor={repertoire.color}
+              currentFen={currentFen}
+              tree={repertoire.tree}
+              onNavigate={handleNavigate}
+              onGapsChange={handleGapsChange}
+            />
+          )}
 
           <button
             type="button"
@@ -491,6 +609,12 @@ export function RepertoireBuilderPage() {
           )}
         </div>
       </div>
+
+      <RepertoirePgnImport
+        repertoireId={repertoireId}
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+      />
 
       {/* Delete Branch Confirmation Modal */}
       <Modal

@@ -8,6 +8,8 @@ interface RepertoireMoveTreeProps {
   onNavigate: (fen: string) => void;
   onDeleteMove: (moveId: number) => void;
   onSetMainLine: (moveId: number) => void;
+  coverageMap?: Map<string, number>;
+  gapFens?: Set<string>;
 }
 
 export function RepertoireMoveTree({
@@ -16,6 +18,8 @@ export function RepertoireMoveTree({
   onNavigate,
   onDeleteMove,
   onSetMainLine,
+  coverageMap,
+  gapFens,
 }: RepertoireMoveTreeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
@@ -72,10 +76,30 @@ export function RepertoireMoveTree({
       .filter(Boolean)
       .join(" ");
 
+    let coverageDot: React.ReactNode = null;
+    if (coverageMap && coverageMap.has(node.fen)) {
+      const pct = coverageMap.get(node.fen)!;
+      let dotClass = styles.coverageDotGreen;
+      if (pct < 50) dotClass = styles.coverageDotRed;
+      else if (pct < 100) dotClass = styles.coverageDotYellow;
+      coverageDot = (
+        <span className={`${styles.coverageDot} ${dotClass}`} title={`Coverage: ${pct}%`} />
+      );
+    }
+
+    let gapIndicator: React.ReactNode = null;
+    if (gapFens && gapFens.has(node.fen)) {
+      gapIndicator = (
+        <span className={styles.gapWarning} title="Opponent plays uncovered move here" />
+      );
+    }
+
     return (
       <span key={`${node.id ?? "root"}-${node.fen}-${ply}`} className={styles.movePair}>
         {isWhiteMove && <span className={styles.moveNumber}>{moveNum}. </span>}
         {!isWhiteMove && afterSideline && <span className={styles.moveNumber}>{moveNum}... </span>}
+        {coverageDot}
+        {gapIndicator}
         <button
           type="button"
           ref={isActive ? activeRef : undefined}

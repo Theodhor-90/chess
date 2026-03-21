@@ -116,3 +116,46 @@
 .collapsibleToggle:hover {
   color: var(--color-text);
 }
+
+.coverageDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  margin-right: 2px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.coverageDotGreen {
+  background-color: var(--color-success);
+}
+
+.coverageDotYellow {
+  background-color: var(--color-warning);
+}
+
+.coverageDotRed {
+  background-color: var(--color-error);
+}
+
+.gapWarning {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-error);
+  margin-right: 2px;
+  vertical-align: middle;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
