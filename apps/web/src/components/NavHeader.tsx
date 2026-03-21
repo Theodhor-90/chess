@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { to: "/history", label: "History" },
   { to: "/training", label: "Training" },
   { to: "/puzzles", label: "Puzzles" },
+  { to: "/repertoires", label: "Repertoires" },
   { to: "/database", label: "Database" },
 ] as const;
 
