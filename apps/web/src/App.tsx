@@ -20,6 +20,7 @@ import { BotSelectPage } from "./pages/BotSelectPage.js";
 import { PuzzlePage } from "./pages/PuzzlePage.js";
 import { RepertoireListPage } from "./pages/RepertoireListPage.js";
 import { RepertoireBuilderPage } from "./pages/RepertoireBuilderPage.js";
+import { RepertoireTrainingPage } from "./pages/RepertoireTrainingPage.js";
 
 export function AppRoutes() {
   return (
@@ -109,6 +110,14 @@ export function AppRoutes() {
           element={
             <ProtectedRoute>
               <RepertoireListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/repertoires/:id/train"
+          element={
+            <ProtectedRoute>
+              <RepertoireTrainingPage />
             </ProtectedRoute>
           }
         />

@@ -10,6 +10,7 @@ import "./styles/piece-themes/merida.css";
 import "./styles/piece-themes/alpha.css";
 import "./styles/piece-themes/california.css";
 import "./styles/puzzle-highlights.css";
+import "./styles/training-highlights.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "./components/ThemeProvider.js";

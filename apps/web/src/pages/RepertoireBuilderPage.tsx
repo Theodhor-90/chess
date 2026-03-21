@@ -511,6 +511,11 @@ export function RepertoireBuilderPage() {
         >
           {opponentPrepVisible ? "Close Prep" : "Prep vs Opponent"}
         </Button>
+        <Link to={`/repertoires/${repertoireId}/train`}>
+          <Button variant="secondary" size="sm" data-testid="builder-train-button">
+            Train
+          </Button>
+        </Link>
         {overallCoverage !== null && (
           <span
             className={`${styles.coverageBadge} ${

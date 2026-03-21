@@ -174,6 +174,19 @@ export function RepertoireListPage() {
                 <span>{item.moveCount} moves</span>
                 <span>{formatRelativeTime(item.updatedAt)}</span>
               </div>
+              <div className={styles.cardActions}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/repertoires/${item.id}/train`);
+                  }}
+                  data-testid={`train-button-${item.id}`}
+                >
+                  Train
+                </Button>
+              </div>
               {item.description && (
                 <span className={styles.cardDescription}>
                   {item.description.length > 100
