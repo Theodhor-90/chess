@@ -6,6 +6,10 @@ import * as gameService from "../game/service.js";
 import { switchClock, getClockState, getClockRemainingTimes, stopClock } from "../game/clock.js";
 import * as store from "../game/store.js";
 import { aggregatePlatformGame, tagGameOpening } from "../explorer/service.js";
+import { aggregatePlayerGameIfIndexed } from "../explorer/player-stats.js";
+import { db } from "../db/index.js";
+import { games as gamesTable } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 export const BOT_USER_ID = 0;
 
@@ -214,6 +218,19 @@ export async function makeBotMove(
       aggregatePlatformGame(gameId);
     } catch (err) {
       console.error(`Opening aggregation failed for bot game ${gameId}:`, err);
+    }
+    try {
+      const gameRow = db.select().from(gamesTable).where(eq(gamesTable.id, gameId)).get();
+      if (gameRow) {
+        if (gameRow.whitePlayerId && gameRow.whitePlayerId !== 0) {
+          aggregatePlayerGameIfIndexed(gameRow.whitePlayerId, gameId);
+        }
+        if (gameRow.blackPlayerId && gameRow.blackPlayerId !== 0) {
+          aggregatePlayerGameIfIndexed(gameRow.blackPlayerId, gameId);
+        }
+      }
+    } catch (err) {
+      console.error(`Player stats aggregation failed for bot game ${gameId}:`, err);
     }
   }
 }

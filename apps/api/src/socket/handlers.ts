@@ -25,6 +25,10 @@ import type { FastifyInstance } from "fastify";
 import { BOT_PROFILES } from "@chess/shared";
 import { makeBotMove } from "../bot/bot-player.js";
 import { aggregatePlatformGame, tagGameOpening } from "../explorer/service.js";
+import { aggregatePlayerGameIfIndexed } from "../explorer/player-stats.js";
+import { db } from "../db/index.js";
+import { games } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
 type TypedSocket = Socket<
   ClientToServerEvents,
@@ -118,6 +122,19 @@ export function registerGameHandlers(
       aggregatePlatformGame(gameId);
     } catch (err) {
       console.error(`Opening aggregation failed for game ${gameId}:`, err);
+    }
+    try {
+      const gameRow = db.select().from(games).where(eq(games.id, gameId)).get();
+      if (gameRow) {
+        if (gameRow.whitePlayerId && gameRow.whitePlayerId !== 0) {
+          aggregatePlayerGameIfIndexed(gameRow.whitePlayerId, gameId);
+        }
+        if (gameRow.blackPlayerId && gameRow.blackPlayerId !== 0) {
+          aggregatePlayerGameIfIndexed(gameRow.blackPlayerId, gameId);
+        }
+      }
+    } catch (err) {
+      console.error(`Player stats aggregation failed for game ${gameId}:`, err);
     }
   }
 

@@ -702,3 +702,11 @@ export interface ExplorerEngineResponse {
 export interface ExplorerPlayerResponse extends ExplorerResponse {
   partial: boolean;
 }
+
+export interface PersonalExplorerQuery {
+  fen: string;
+  color: "white" | "black";
+  speeds?: string;
+  since?: string;
+  until?: string;
+}

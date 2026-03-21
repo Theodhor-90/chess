@@ -1,5 +1,5 @@
 import fp from "fastify-plugin";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { Chess } from "chess.js";
 import { normalizeFen, loadOpenings, classifyPosition, getSpeedCategory } from "@chess/shared";
 import type {
@@ -17,6 +17,7 @@ import type {
 import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
 import { gamesSqlite } from "../db/games-db.js";
+import { backfillPlayerStats } from "./player-stats.js";
 
 const ALL_RATING_BRACKETS: RatingBracket[] = [
   "0-1000",
@@ -178,6 +179,9 @@ async function explorerRoutes(app: FastifyInstance) {
   );
   const getPositionStmt = sqlite.prepare(
     "SELECT eco, opening_name FROM opening_positions WHERE position_fen = ?",
+  );
+  const getPlayerStatsByFenStmt = sqlite.prepare(
+    "SELECT move_san, move_uci, result_fen, white, draws, black, total_games, avg_opponent_rating FROM opening_player_stats WHERE user_id = ? AND position_fen = ? AND color = ?",
   );
 
   function getOpeningInfo(normalizedFen: string): OpeningInfo | null {
@@ -489,6 +493,37 @@ async function explorerRoutes(app: FastifyInstance) {
     },
   };
 
+  interface PersonalQuery {
+    fen: string;
+    color: string;
+    speeds?: string;
+    since?: string;
+    until?: string;
+  }
+
+  const personalQuerySchema = {
+    type: "object" as const,
+    required: ["fen", "color"],
+    properties: {
+      fen: { type: "string" as const, minLength: 1 },
+      color: { type: "string" as const, enum: ["white", "black"] },
+      speeds: { type: "string" as const },
+      since: { type: "string" as const, pattern: "^\\d{4}(-\\d{2})?$" },
+      until: { type: "string" as const, pattern: "^\\d{4}(-\\d{2})?$" },
+    },
+  };
+
+  interface PlayerStatsRow {
+    move_san: string;
+    move_uci: string;
+    result_fen: string;
+    white: number;
+    draws: number;
+    black: number;
+    total_games: number;
+    avg_opponent_rating: number;
+  }
+
   const PLAYER_GAME_LIMIT = 500;
 
   // GET /player
@@ -507,6 +542,71 @@ async function explorerRoutes(app: FastifyInstance) {
       const speeds = parseSpeedCategories(request.query.speeds);
       if (speeds === null) {
         return reply.code(400).send({ error: "Invalid speed category" });
+      }
+
+      const queriedUserId = parseInt(request.query.userId, 10);
+      const isSelfQuery = request.userId !== null && queriedUserId === request.userId;
+      const hasPlayerFilters =
+        request.query.speeds !== undefined ||
+        request.query.since !== undefined ||
+        request.query.until !== undefined;
+
+      if (isSelfQuery && !hasPlayerFilters) {
+        const selfRow = sqlite
+          .prepare("SELECT player_stats_indexed FROM users WHERE id = ?")
+          .get(queriedUserId) as { player_stats_indexed: number } | undefined;
+
+        if (selfRow && selfRow.player_stats_indexed === 1) {
+          const rows = getPlayerStatsByFenStmt.all(
+            queriedUserId,
+            normalizedFen,
+            color,
+          ) as PlayerStatsRow[];
+
+          const fastMoves: ExplorerMove[] = rows.map((row) => {
+            let wins: number, losses: number;
+            if (color === "white") {
+              wins = row.white;
+              losses = row.black;
+            } else {
+              wins = row.black;
+              losses = row.white;
+            }
+            return {
+              san: row.move_san,
+              uci: row.move_uci,
+              white: wins,
+              draws: row.draws,
+              black: losses,
+              totalGames: row.total_games,
+              avgRating: row.avg_opponent_rating,
+              opening: classifyPosition(row.result_fen, openingsMap),
+            };
+          });
+
+          fastMoves.sort((a, b) => b.totalGames - a.totalGames);
+
+          let totalWhite = 0,
+            totalDraws = 0,
+            totalBlack = 0;
+          for (const m of fastMoves) {
+            totalWhite += m.white;
+            totalDraws += m.draws;
+            totalBlack += m.black;
+          }
+
+          const topGames = getPersonalTopGames(queriedUserId, normalizedFen, color);
+
+          return reply.code(200).send({
+            opening: getOpeningInfo(normalizedFen),
+            white: totalWhite,
+            draws: totalDraws,
+            black: totalBlack,
+            moves: fastMoves,
+            topGames,
+            partial: false,
+          });
+        }
       }
 
       const terminalStatuses = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
@@ -704,6 +804,394 @@ async function explorerRoutes(app: FastifyInstance) {
         moves: explorerMoves,
         topGames: topGameCandidates,
         partial,
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Personal Explorer
+  // ---------------------------------------------------------------------------
+
+  function getPersonalTopGames(
+    userId: number,
+    normalizedFen: string,
+    color: "white" | "black",
+  ): ExplorerTopGame[] {
+    const terminalStatuses = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
+
+    const colorFilter = color === "white" ? "g.white_player_id = ?" : "g.black_player_id = ?";
+
+    const candidates = sqlite
+      .prepare(
+        `SELECT g.id, g.white_player_id, g.black_player_id, g.result_winner, g.pgn, g.created_at,
+                wu.username AS white_username, bu.username AS black_username
+         FROM games g
+         LEFT JOIN users wu ON wu.id = g.white_player_id
+         LEFT JOIN users bu ON bu.id = g.black_player_id
+         WHERE g.status IN (${terminalStatuses.map(() => "?").join(",")})
+           AND ${colorFilter}
+           AND g.pgn != ''
+         ORDER BY g.created_at DESC
+         LIMIT 50`,
+      )
+      .all(...terminalStatuses, userId) as {
+      id: number;
+      white_player_id: number;
+      black_player_id: number;
+      result_winner: string | null;
+      pgn: string;
+      created_at: number;
+      white_username: string | null;
+      black_username: string | null;
+    }[];
+
+    const confirmed: ExplorerTopGame[] = [];
+    for (const game of candidates) {
+      if (confirmed.length >= 8) break;
+
+      const chess = new Chess();
+      try {
+        chess.loadPgn(game.pgn);
+      } catch {
+        continue;
+      }
+
+      const history = chess.history({ verbose: true });
+      const replay = new Chess();
+      let found = false;
+
+      for (let i = 0; i < history.length; i++) {
+        if (normalizeFen(replay.fen()) === normalizedFen) {
+          found = true;
+          break;
+        }
+        try {
+          replay.move(history[i].san);
+        } catch {
+          break;
+        }
+      }
+      if (!found && normalizeFen(replay.fen()) === normalizedFen) {
+        found = true;
+      }
+
+      if (found) {
+        let resultStr: string;
+        if (game.result_winner === "white") resultStr = "1-0";
+        else if (game.result_winner === "black") resultStr = "0-1";
+        else resultStr = "1/2-1/2";
+
+        const year = new Date(game.created_at * 1000).getFullYear();
+
+        confirmed.push({
+          id: game.id,
+          white: game.white_username ?? `User #${game.white_player_id}`,
+          black: game.black_username ?? `User #${game.black_player_id}`,
+          whiteRating: 0,
+          blackRating: 0,
+          result: resultStr,
+          year,
+        });
+      }
+    }
+
+    return confirmed;
+  }
+
+  async function replayPersonalStats(
+    request: FastifyRequest<{ Querystring: PersonalQuery }>,
+    reply: FastifyReply,
+    userId: number,
+    normalizedFen: string,
+    color: "white" | "black",
+    speeds: SpeedCategory[],
+    openingsMap: Map<string, OpeningInfo>,
+  ): Promise<void> {
+    const terminalStatuses = ["checkmate", "stalemate", "resigned", "draw", "timeout"];
+
+    let sqlQuery = `
+      SELECT g.id, g.pgn, g.result_winner, g.clock_initial_time, g.clock_increment, g.created_at,
+             wu.username AS white_username, bu.username AS black_username,
+             g.white_player_id, g.black_player_id
+      FROM games g
+      LEFT JOIN users wu ON wu.id = g.white_player_id
+      LEFT JOIN users bu ON bu.id = g.black_player_id
+      WHERE g.status IN (${terminalStatuses.map(() => "?").join(",")})
+    `;
+    const params: (string | number)[] = [...terminalStatuses];
+
+    if (color === "white") {
+      sqlQuery += ` AND g.white_player_id = ?`;
+    } else {
+      sqlQuery += ` AND g.black_player_id = ?`;
+    }
+    params.push(userId);
+
+    if (request.query.since) {
+      const sinceParts = request.query.since.split("-");
+      const sinceYear = parseInt(sinceParts[0], 10);
+      const sinceMonth = sinceParts.length > 1 ? parseInt(sinceParts[1], 10) - 1 : 0;
+      const sinceTimestamp = Math.floor(new Date(sinceYear, sinceMonth, 1).getTime() / 1000);
+      sqlQuery += ` AND g.created_at >= ?`;
+      params.push(sinceTimestamp);
+    }
+    if (request.query.until) {
+      const untilParts = request.query.until.split("-");
+      const untilYear = parseInt(untilParts[0], 10);
+      const untilMonth = untilParts.length > 1 ? parseInt(untilParts[1], 10) : 12;
+      const untilTimestamp = Math.floor(
+        new Date(untilYear, untilMonth, 0, 23, 59, 59).getTime() / 1000,
+      );
+      sqlQuery += ` AND g.created_at <= ?`;
+      params.push(untilTimestamp);
+    }
+
+    sqlQuery += ` ORDER BY g.created_at DESC LIMIT 501`;
+
+    interface ReplayGameRow {
+      id: number;
+      pgn: string;
+      result_winner: string | null;
+      clock_initial_time: number;
+      clock_increment: number;
+      created_at: number;
+      white_username: string | null;
+      black_username: string | null;
+      white_player_id: number;
+      black_player_id: number;
+    }
+
+    const gameRows = sqlite.prepare(sqlQuery).all(...params) as ReplayGameRow[];
+    const gamesToProcess = gameRows.slice(0, 500);
+
+    const filteredGames = gamesToProcess.filter((g) => {
+      const speed = getSpeedCategory(g.clock_initial_time);
+      return speeds.includes(speed);
+    });
+
+    interface MoveAccum {
+      white: number;
+      draws: number;
+      black: number;
+      totalGames: number;
+      uci: string;
+    }
+
+    const moveStats = new Map<string, MoveAccum>();
+    const topGameCandidates: ExplorerTopGame[] = [];
+
+    for (const gameRow of filteredGames) {
+      if (!gameRow.pgn || gameRow.pgn.trim() === "") continue;
+
+      const chess = new Chess();
+      try {
+        chess.loadPgn(gameRow.pgn);
+      } catch {
+        continue;
+      }
+
+      const history = chess.history({ verbose: true });
+      if (history.length === 0) continue;
+
+      const replay = new Chess();
+
+      for (let i = 0; i < history.length; i++) {
+        const currentFen = normalizeFen(replay.fen());
+
+        if (currentFen === normalizedFen) {
+          const move = history[i];
+          const san = move.san;
+          const uci = move.from + move.to + (move.promotion ?? "");
+
+          let resultType: "white" | "draws" | "black";
+          if (gameRow.result_winner === null) {
+            resultType = "draws";
+          } else if (gameRow.result_winner === color) {
+            resultType = "white";
+          } else {
+            resultType = "black";
+          }
+
+          const existing = moveStats.get(san);
+          if (existing) {
+            existing[resultType] += 1;
+            existing.totalGames += 1;
+          } else {
+            const accum: MoveAccum = {
+              white: 0,
+              draws: 0,
+              black: 0,
+              totalGames: 0,
+              uci,
+            };
+            accum[resultType] = 1;
+            accum.totalGames = 1;
+            moveStats.set(san, accum);
+          }
+
+          if (topGameCandidates.length < 8) {
+            let resultStr: string;
+            if (gameRow.result_winner === "white") resultStr = "1-0";
+            else if (gameRow.result_winner === "black") resultStr = "0-1";
+            else resultStr = "1/2-1/2";
+
+            topGameCandidates.push({
+              id: gameRow.id,
+              white: gameRow.white_username ?? `User #${gameRow.white_player_id}`,
+              black: gameRow.black_username ?? `User #${gameRow.black_player_id}`,
+              whiteRating: 0,
+              blackRating: 0,
+              result: resultStr,
+              year: new Date(gameRow.created_at * 1000).getFullYear(),
+            });
+          }
+
+          break;
+        }
+
+        try {
+          replay.move(history[i].san);
+        } catch {
+          break;
+        }
+      }
+    }
+
+    const explorerMoves: ExplorerMove[] = [];
+    for (const [san, accum] of moveStats) {
+      const tempChess = new Chess(normalizedFen + " 0 1");
+      let resultFen: string | null = null;
+      try {
+        tempChess.move(san);
+        resultFen = normalizeFen(tempChess.fen());
+      } catch {
+        resultFen = null;
+      }
+
+      explorerMoves.push({
+        san,
+        uci: accum.uci,
+        white: accum.white,
+        draws: accum.draws,
+        black: accum.black,
+        totalGames: accum.totalGames,
+        avgRating: 0,
+        opening: resultFen ? classifyPosition(resultFen, openingsMap) : null,
+      });
+    }
+
+    explorerMoves.sort((a, b) => b.totalGames - a.totalGames);
+
+    let totalWhite = 0,
+      totalDraws = 0,
+      totalBlack = 0;
+    for (const m of explorerMoves) {
+      totalWhite += m.white;
+      totalDraws += m.draws;
+      totalBlack += m.black;
+    }
+
+    return reply.code(200).send({
+      opening: getOpeningInfo(normalizedFen),
+      white: totalWhite,
+      draws: totalDraws,
+      black: totalBlack,
+      moves: explorerMoves,
+      topGames: topGameCandidates,
+    });
+  }
+
+  // GET /personal
+  app.get<{ Querystring: PersonalQuery; Reply: ExplorerResponse | ErrorResponse }>(
+    "/personal",
+    { schema: { querystring: personalQuerySchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const normalizedFen = validateAndNormalizeFen(request.query.fen);
+      if (normalizedFen === null) {
+        return reply.code(400).send({ error: "Invalid FEN" });
+      }
+
+      const color = request.query.color as "white" | "black";
+
+      const speeds = parseSpeedCategories(request.query.speeds);
+      if (speeds === null) {
+        return reply.code(400).send({ error: "Invalid speed category" });
+      }
+
+      const userRow = sqlite
+        .prepare("SELECT player_stats_indexed FROM users WHERE id = ?")
+        .get(userId) as { player_stats_indexed: number } | undefined;
+
+      if (!userRow) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+
+      if (userRow.player_stats_indexed !== 1) {
+        await backfillPlayerStats(userId);
+      }
+
+      const hasFilters =
+        request.query.speeds !== undefined ||
+        request.query.since !== undefined ||
+        request.query.until !== undefined;
+
+      if (hasFilters) {
+        return replayPersonalStats(
+          request,
+          reply,
+          userId,
+          normalizedFen,
+          color,
+          speeds,
+          openingsMap,
+        );
+      }
+
+      const rows = getPlayerStatsByFenStmt.all(userId, normalizedFen, color) as PlayerStatsRow[];
+
+      const moves: ExplorerMove[] = rows.map((row) => {
+        let wins: number, losses: number;
+        if (color === "white") {
+          wins = row.white;
+          losses = row.black;
+        } else {
+          wins = row.black;
+          losses = row.white;
+        }
+
+        return {
+          san: row.move_san,
+          uci: row.move_uci,
+          white: wins,
+          draws: row.draws,
+          black: losses,
+          totalGames: row.total_games,
+          avgRating: row.avg_opponent_rating,
+          opening: classifyPosition(row.result_fen, openingsMap),
+        };
+      });
+
+      moves.sort((a, b) => b.totalGames - a.totalGames);
+
+      let totalWhite = 0,
+        totalDraws = 0,
+        totalBlack = 0;
+      for (const m of moves) {
+        totalWhite += m.white;
+        totalDraws += m.draws;
+        totalBlack += m.black;
+      }
+
+      const topGames = getPersonalTopGames(userId, normalizedFen, color);
+
+      return reply.code(200).send({
+        opening: getOpeningInfo(normalizedFen),
+        white: totalWhite,
+        draws: totalDraws,
+        black: totalBlack,
+        moves,
+        topGames,
       });
     },
   );

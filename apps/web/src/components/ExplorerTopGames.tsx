@@ -4,7 +4,7 @@ import type { ExplorerTopGame } from "@chess/shared";
 import { Badge } from "./ui/Badge.js";
 import styles from "./ExplorerTopGames.module.css";
 
-type ExplorerSource = "masters" | "platform";
+type ExplorerSource = "masters" | "platform" | "personal";
 
 interface ExplorerTopGamesProps {
   games: ExplorerTopGame[];

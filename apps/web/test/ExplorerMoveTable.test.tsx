@@ -109,4 +109,50 @@ describe("ExplorerMoveTable", () => {
 
     expect(screen.getByText("—")).toBeInTheDocument();
   });
+
+  it("renders overlay content when renderOverlay is provided", () => {
+    const moves: ExplorerMove[] = [
+      {
+        san: "e4",
+        uci: "e2e4",
+        white: 100,
+        draws: 50,
+        black: 50,
+        totalGames: 200,
+        avgRating: 2000,
+        opening: null,
+      },
+    ];
+
+    render(
+      <ExplorerMoveTable
+        moves={moves}
+        onMoveClick={vi.fn()}
+        onHoverMove={vi.fn()}
+        renderOverlay={(san) => <div data-testid={`overlay-${san}`}>overlay content</div>}
+      />,
+    );
+
+    expect(screen.getByTestId("overlay-e4")).toBeInTheDocument();
+    expect(screen.getByText("overlay content")).toBeInTheDocument();
+  });
+
+  it("does not render overlay when renderOverlay is not provided", () => {
+    const moves: ExplorerMove[] = [
+      {
+        san: "e4",
+        uci: "e2e4",
+        white: 100,
+        draws: 50,
+        black: 50,
+        totalGames: 200,
+        avgRating: 2000,
+        opening: null,
+      },
+    ];
+
+    render(<ExplorerMoveTable moves={moves} onMoveClick={vi.fn()} onHoverMove={vi.fn()} />);
+
+    expect(screen.queryByTestId("overlay-e4")).not.toBeInTheDocument();
+  });
 });

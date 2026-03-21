@@ -1,15 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import type { DrawShape } from "chessground/draw";
 import type { ExplorerMove, ExplorerTopGame } from "@chess/shared";
 import {
   useGetExplorerMastersQuery,
   useGetExplorerPlatformQuery,
   usePostExplorerEngineMutation,
+  useGetExplorerPersonalQuery,
+  useGetMeQuery,
 } from "../store/apiSlice.js";
 import { ExplorerMoveTable } from "./ExplorerMoveTable.js";
 import { ExplorerOpeningName } from "./ExplorerOpeningName.js";
 import { ExplorerTopGames } from "./ExplorerTopGames.js";
+import { ExplorerPersonalOverlay } from "./ExplorerPersonalOverlay.js";
 import type { ExplorerSource } from "./ExplorerTopGames.js";
 import { ExplorerMastersFilters } from "./ExplorerMastersFilters.js";
 import type { MastersFilterState } from "./ExplorerMastersFilters.js";
@@ -28,6 +31,7 @@ import styles from "./ExplorerPanel.module.css";
 const LS_EXPLORER_TAB = "explorer-tab";
 const LS_EXPLORER_MASTERS_FILTERS = "explorer-masters-filters";
 const LS_EXPLORER_PLATFORM_FILTERS = "explorer-platform-filters";
+const LS_EXPLORER_PERSONAL_OVERLAY = "explorer-personal-overlay";
 
 function readLsString(key: string, fallback: string): string {
   try {
@@ -65,7 +69,7 @@ function writeLsJson(key: string, value: unknown): void {
   }
 }
 
-type ExplorerTab = "masters" | "platform" | "engine";
+type ExplorerTab = "masters" | "platform" | "engine" | "personal";
 
 interface ExplorerPanelProps {
   fen: string;
@@ -107,6 +111,7 @@ interface MastersTabContentProps {
     opening: { eco: string; name: string } | null,
     topGames: ExplorerTopGame[],
   ) => void;
+  renderOverlay?: (san: string) => ReactNode;
 }
 
 function MastersTabContent({
@@ -115,6 +120,7 @@ function MastersTabContent({
   onMoveClick,
   onHoverMove,
   onMovesLoaded,
+  renderOverlay,
 }: MastersTabContentProps) {
   const debouncedFilters = useDebounce(filters, DEBOUNCE_MS);
   const { data, isLoading, isError, refetch } = useGetExplorerMastersQuery(
@@ -162,7 +168,12 @@ function MastersTabContent({
   }
 
   return (
-    <ExplorerMoveTable moves={data.moves} onMoveClick={onMoveClick} onHoverMove={onHoverMove} />
+    <ExplorerMoveTable
+      moves={data.moves}
+      onMoveClick={onMoveClick}
+      onHoverMove={onHoverMove}
+      renderOverlay={renderOverlay}
+    />
   );
 }
 
@@ -178,6 +189,7 @@ interface PlatformTabContentProps {
     opening: { eco: string; name: string } | null,
     topGames: ExplorerTopGame[],
   ) => void;
+  renderOverlay?: (san: string) => ReactNode;
 }
 
 function PlatformTabContent({
@@ -186,6 +198,7 @@ function PlatformTabContent({
   onMoveClick,
   onHoverMove,
   onMovesLoaded,
+  renderOverlay,
 }: PlatformTabContentProps) {
   const debouncedFilters = useDebounce(filters, DEBOUNCE_MS);
   const { data, isLoading, isError, refetch } = useGetExplorerPlatformQuery(
@@ -236,7 +249,12 @@ function PlatformTabContent({
   }
 
   return (
-    <ExplorerMoveTable moves={data.moves} onMoveClick={onMoveClick} onHoverMove={onHoverMove} />
+    <ExplorerMoveTable
+      moves={data.moves}
+      onMoveClick={onMoveClick}
+      onHoverMove={onHoverMove}
+      renderOverlay={renderOverlay}
+    />
   );
 }
 
@@ -304,12 +322,117 @@ function EngineTabContent({ fen, depth }: EngineTabContentProps) {
   );
 }
 
+// --- Personal (My Games) Tab ---
+
+interface PersonalTabContentProps {
+  fen: string;
+  color: "white" | "black";
+  onMoveClick: (san: string, uci: string) => void;
+  onHoverMove: (uci: string | null) => void;
+  onMovesLoaded: (
+    moves: ExplorerMove[],
+    opening: { eco: string; name: string } | null,
+    topGames: ExplorerTopGame[],
+  ) => void;
+}
+
+function PersonalTabContent({
+  fen,
+  color,
+  onMoveClick,
+  onHoverMove,
+  onMovesLoaded,
+}: PersonalTabContentProps) {
+  const [retryCount, setRetryCount] = useState(0);
+  const { data, isLoading, isError, isFetching, refetch } = useGetExplorerPersonalQuery(
+    { fen, color },
+    { skip: !fen },
+  );
+
+  const prevDataRef = useRef(data);
+  useEffect(() => {
+    if (data && data !== prevDataRef.current) {
+      prevDataRef.current = data;
+      onMovesLoaded(data.moves, data.opening, data.topGames);
+    }
+  }, [data, onMovesLoaded]);
+
+  useEffect(() => {
+    if (!data && !isLoading) {
+      onMovesLoaded([], null, []);
+    }
+  }, [data, isLoading, onMovesLoaded]);
+
+  // Retry logic for indexing state (202 or empty first-time response)
+  useEffect(() => {
+    if (!isFetching && isError && retryCount < 5) {
+      const timer = setTimeout(() => {
+        setRetryCount((c) => c + 1);
+        refetch();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isFetching, isError, retryCount, refetch]);
+
+  // Reset retry count when fen or color changes
+  useEffect(() => {
+    setRetryCount(0);
+  }, [fen, color]);
+
+  if (isLoading || (isError && retryCount < 5)) {
+    return (
+      <div className={styles.emptyState}>
+        <div className={styles.indexingSpinner} aria-hidden="true" />
+        <p className={styles.indexingText}>Indexing your games...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className={styles.errorState}>
+        <p className={styles.errorText}>Failed to load personal data.</p>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setRetryCount(0);
+            refetch();
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!data || data.moves.length === 0) {
+    return (
+      <div className={styles.emptyState}>
+        <p className={styles.emptyText}>
+          You haven&apos;t played any games from this position as {color}.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <ExplorerMoveTable moves={data.moves} onMoveClick={onMoveClick} onHoverMove={onHoverMove} />
+  );
+}
+
 // --- Main Explorer Panel ---
 
 function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: ExplorerPanelProps) {
   const [activeTab, setActiveTab] = useState<ExplorerTab>(() => {
     const stored = readLsString(LS_EXPLORER_TAB, "masters");
-    if (stored === "masters" || stored === "platform" || stored === "engine") return stored;
+    if (
+      stored === "masters" ||
+      stored === "platform" ||
+      stored === "engine" ||
+      stored === "personal"
+    )
+      return stored;
     return "masters";
   });
   const [hoveredUci, setHoveredUci] = useState<string | null>(null);
@@ -328,6 +451,18 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
   );
   const [engineDepth, setEngineDepth] = useState(20);
 
+  // Auth state for personal features
+  const { data: meData } = useGetMeQuery();
+  const isAuthenticated = !!meData?.user;
+
+  // Personal color selector state — default to "white"
+  const [personalColor, setPersonalColor] = useState<"white" | "black">("white");
+
+  // Stats overlay toggle — persisted in localStorage
+  const [overlayEnabled, setOverlayEnabled] = useState(
+    () => readLsString(LS_EXPLORER_PERSONAL_OVERLAY, "false") === "true",
+  );
+
   useEffect(() => {
     writeLs(LS_EXPLORER_TAB, activeTab);
   }, [activeTab]);
@@ -339,6 +474,16 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
   useEffect(() => {
     writeLsJson(LS_EXPLORER_PLATFORM_FILTERS, platformFilters);
   }, [platformFilters]);
+
+  useEffect(() => {
+    writeLs(LS_EXPLORER_PERSONAL_OVERLAY, String(overlayEnabled));
+  }, [overlayEnabled]);
+
+  useEffect(() => {
+    if (!isAuthenticated && activeTab === "personal") {
+      setActiveTab("masters");
+    }
+  }, [isAuthenticated, activeTab]);
 
   // Current explorer moves (for arrow computation)
   const [currentMoves, setCurrentMoves] = useState<ExplorerMove[]>([]);
@@ -403,6 +548,29 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
     }
   }, []);
 
+  // Fetch personal stats for overlay on Masters/Platform tabs
+  const shouldFetchOverlay =
+    overlayEnabled &&
+    isAuthenticated &&
+    (activeTab === "masters" || activeTab === "platform") &&
+    !!fen;
+
+  const { data: overlayData } = useGetExplorerPersonalQuery(
+    { fen, color: personalColor },
+    { skip: !shouldFetchOverlay },
+  );
+
+  // Render function for overlay sub-rows in ExplorerMoveTable
+  const renderOverlay = useCallback(
+    (san: string): ReactNode => {
+      if (!overlayEnabled || !overlayData) return null;
+      const personalMove = overlayData.moves.find((m) => m.san === san);
+      if (!personalMove || personalMove.totalGames === 0) return null;
+      return <ExplorerPersonalOverlay move={personalMove} />;
+    },
+    [overlayEnabled, overlayData],
+  );
+
   return (
     <div className={styles.panel} data-testid="explorer-panel">
       <div className={styles.tabBar} role="tablist" aria-label="Explorer data source">
@@ -433,7 +601,56 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
         >
           Engine
         </button>
+        {isAuthenticated && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "personal"}
+            className={`${styles.tab}${activeTab === "personal" ? ` ${styles.tabActive}` : ""}`}
+            onClick={() => setActiveTab("personal")}
+          >
+            My Games
+          </button>
+        )}
       </div>
+
+      {isAuthenticated && (activeTab === "masters" || activeTab === "platform") && (
+        <div className={styles.overlayToggle}>
+          <label className={styles.overlayToggleLabel} htmlFor="personal-overlay-toggle">
+            Show my stats
+          </label>
+          <input
+            id="personal-overlay-toggle"
+            type="checkbox"
+            className={styles.overlayToggleInput}
+            checked={overlayEnabled}
+            onChange={(e) => setOverlayEnabled(e.target.checked)}
+          />
+        </div>
+      )}
+      {(activeTab === "personal" ||
+        (overlayEnabled &&
+          isAuthenticated &&
+          (activeTab === "masters" || activeTab === "platform"))) && (
+        <div className={styles.colorSelector}>
+          <button
+            type="button"
+            className={`${styles.colorButton}${personalColor === "white" ? ` ${styles.colorButtonActive}` : ""}`}
+            onClick={() => setPersonalColor("white")}
+            aria-pressed={personalColor === "white"}
+          >
+            White
+          </button>
+          <button
+            type="button"
+            className={`${styles.colorButton}${personalColor === "black" ? ` ${styles.colorButtonActive}` : ""}`}
+            onClick={() => setPersonalColor("black")}
+            aria-pressed={personalColor === "black"}
+          >
+            Black
+          </button>
+        </div>
+      )}
 
       {activeTab === "masters" && (
         <ExplorerMastersFilters filters={mastersFilters} onChange={setMastersFilters} />
@@ -468,6 +685,7 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
             onMoveClick={onMoveClick}
             onHoverMove={handleHoverMove}
             onMovesLoaded={handleMovesLoaded}
+            renderOverlay={overlayEnabled && isAuthenticated ? renderOverlay : undefined}
           />
         )}
         {activeTab === "platform" && (
@@ -477,11 +695,24 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
             onMoveClick={onMoveClick}
             onHoverMove={handleHoverMove}
             onMovesLoaded={handleMovesLoaded}
+            renderOverlay={overlayEnabled && isAuthenticated ? renderOverlay : undefined}
+          />
+        )}
+        {activeTab === "personal" && (
+          <PersonalTabContent
+            fen={fen}
+            color={personalColor}
+            onMoveClick={onMoveClick}
+            onHoverMove={handleHoverMove}
+            onMovesLoaded={handleMovesLoaded}
           />
         )}
         {activeTab === "engine" && <EngineTabContent fen={fen} depth={engineDepth} />}
         {activeTab !== "engine" && currentTopGames.length > 0 && (
-          <ExplorerTopGames games={currentTopGames} source={activeTab as ExplorerSource} />
+          <ExplorerTopGames
+            games={currentTopGames}
+            source={activeTab === "personal" ? "personal" : (activeTab as ExplorerSource)}
+          />
         )}
       </div>
     </div>
