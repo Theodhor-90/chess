@@ -735,6 +735,7 @@ export interface RepertoireListItem {
 }
 
 export interface RepertoireNode {
+  id: number | null;
   fen: string;
   san: string | null;
   uci: string | null;

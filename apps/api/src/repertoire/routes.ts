@@ -212,6 +212,7 @@ async function repertoireRoutes(app: FastifyInstance) {
 
     // Recursive tree builder with cycle detection
     function buildNode(
+      id: number | null,
       fen: string,
       san: string | null,
       uci: string | null,
@@ -226,6 +227,7 @@ async function repertoireRoutes(app: FastifyInstance) {
         for (const child of childMoves) {
           children.push(
             buildNode(
+              child.id,
               child.result_fen,
               child.move_san,
               child.move_uci,
@@ -238,6 +240,7 @@ async function repertoireRoutes(app: FastifyInstance) {
         visited.delete(fen);
       }
       return {
+        id,
         fen,
         san,
         uci,
@@ -248,7 +251,7 @@ async function repertoireRoutes(app: FastifyInstance) {
       };
     }
 
-    return buildNode(STARTING_FEN, null, null, true, null, new Set());
+    return buildNode(null, STARTING_FEN, null, null, true, null, new Set());
   }
 
   function verifyOwnership(repertoireId: number, userId: number): RepertoireRow | null {
