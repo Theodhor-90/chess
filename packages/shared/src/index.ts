@@ -710,3 +710,85 @@ export interface PersonalExplorerQuery {
   since?: string;
   until?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Repertoire Types (M18)
+// ---------------------------------------------------------------------------
+
+export interface Repertoire {
+  id: number;
+  userId: number;
+  name: string;
+  color: "white" | "black";
+  description: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RepertoireListItem {
+  id: number;
+  name: string;
+  color: "white" | "black";
+  description: string | null;
+  moveCount: number;
+  updatedAt: number;
+}
+
+export interface RepertoireNode {
+  fen: string;
+  san: string | null;
+  uci: string | null;
+  isMainLine: boolean;
+  comment: string | null;
+  opening: OpeningInfo | null;
+  children: RepertoireNode[];
+}
+
+export interface RepertoireTree {
+  id: number;
+  name: string;
+  color: "white" | "black";
+  description: string | null;
+  tree: RepertoireNode;
+}
+
+export interface CreateRepertoireRequest {
+  name: string;
+  color: "white" | "black";
+  description?: string;
+}
+
+export interface UpdateRepertoireRequest {
+  name?: string;
+  description?: string;
+}
+
+export interface CreateRepertoireResponse {
+  id: number;
+  name: string;
+  color: "white" | "black";
+  description: string | null;
+  createdAt: number;
+}
+
+export interface AddRepertoireMoveResponse {
+  id: number;
+  positionFen: string;
+  moveSan: string;
+  moveUci: string;
+  resultFen: string;
+  isMainLine: boolean;
+  comment: string | null;
+}
+
+export interface DeleteRepertoireMoveResponse {
+  deleted: number;
+}
+
+export interface RepertoireImportResponse {
+  imported: number;
+}
+
+export interface RepertoireExportResponse {
+  pgn: string;
+}

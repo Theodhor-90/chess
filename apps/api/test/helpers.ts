@@ -245,6 +245,40 @@ export function ensurePlayerStatsTables(): void {
   );
 }
 
+export function ensureRepertoireTables(): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS repertoires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      description TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  sqlite.exec("CREATE INDEX IF NOT EXISTS repertoires_user_id_idx ON repertoires(user_id)");
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS repertoire_moves (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      repertoire_id INTEGER NOT NULL REFERENCES repertoires(id),
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      is_main_line INTEGER NOT NULL DEFAULT 1,
+      comment TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  sqlite.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS repertoire_moves_rep_fen_san_idx ON repertoire_moves(repertoire_id, position_fen, move_san)",
+  );
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS repertoire_moves_rep_fen_idx ON repertoire_moves(repertoire_id, position_fen)",
+  );
+}
+
 export function ensureSchema(): void {
   ensureUsersTable();
   ensureGamesTables();
@@ -252,6 +286,7 @@ export function ensureSchema(): void {
   ensurePuzzleTables();
   ensureOpeningTables();
   ensurePlayerStatsTables();
+  ensureRepertoireTables();
 }
 
 export function cleanGamesTables(): void {

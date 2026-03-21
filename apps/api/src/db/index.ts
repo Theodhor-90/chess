@@ -218,6 +218,41 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec(
     "CREATE INDEX IF NOT EXISTS opening_player_stats_user_idx ON opening_player_stats(user_id)",
   );
+
+  // repertoires table
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS repertoires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      description TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  sqliteDb.exec("CREATE INDEX IF NOT EXISTS repertoires_user_id_idx ON repertoires(user_id)");
+
+  // repertoire_moves table
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS repertoire_moves (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      repertoire_id INTEGER NOT NULL REFERENCES repertoires(id),
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      is_main_line INTEGER NOT NULL DEFAULT 1,
+      comment TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  sqliteDb.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS repertoire_moves_rep_fen_san_idx ON repertoire_moves(repertoire_id, position_fen, move_san)",
+  );
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS repertoire_moves_rep_fen_idx ON repertoire_moves(repertoire_id, position_fen)",
+  );
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)

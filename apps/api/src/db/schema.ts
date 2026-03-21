@@ -188,3 +188,48 @@ export const openingPlayerStats = sqliteTable(
     index("opening_player_stats_user_idx").on(table.userId),
   ],
 );
+
+export const repertoires = sqliteTable(
+  "repertoires",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    name: text("name").notNull(),
+    color: text("color").notNull(),
+    description: text("description"),
+    createdAt: integer("created_at")
+      .notNull()
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at")
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [index("repertoires_user_id_idx").on(table.userId)],
+);
+
+export const repertoireMoves = sqliteTable(
+  "repertoire_moves",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    repertoireId: integer("repertoire_id")
+      .notNull()
+      .references(() => repertoires.id),
+    positionFen: text("position_fen").notNull(),
+    moveSan: text("move_san").notNull(),
+    moveUci: text("move_uci").notNull(),
+    resultFen: text("result_fen").notNull(),
+    isMainLine: integer("is_main_line").notNull().default(1),
+    comment: text("comment"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("repertoire_moves_rep_fen_san_idx").on(
+      table.repertoireId,
+      table.positionFen,
+      table.moveSan,
+    ),
+    index("repertoire_moves_rep_fen_idx").on(table.repertoireId, table.positionFen),
+  ],
+);
