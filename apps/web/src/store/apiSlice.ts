@@ -39,6 +39,10 @@ import type {
   DeleteRepertoireMoveResponse,
   RepertoireImportResponse,
   RepertoireExportResponse,
+  TrainingNextResponse,
+  TrainingReviewRequest,
+  TrainingReviewResponse,
+  TrainingStatsResponse,
 } from "@chess/shared";
 
 export interface ExplorerMastersArgs {
@@ -109,7 +113,7 @@ export const apiSlice = createApi({
     baseUrl: "/api",
     credentials: "include",
   }),
-  tagTypes: ["Game", "Me", "Repertoires", "Repertoire"],
+  tagTypes: ["Game", "Me", "Repertoires", "Repertoire", "TrainingNext", "TrainingStats"],
   endpoints: (builder) => ({
     // Auth endpoints
     register: builder.mutation<AuthResponse, RegisterRequest>({
@@ -413,6 +417,32 @@ export const apiSlice = createApi({
     getRepertoireExport: builder.query<RepertoireExportResponse, number>({
       query: (id) => `/repertoires/${id}/export`,
     }),
+
+    // Training endpoints
+    getTrainingNext: builder.query<TrainingNextResponse, number>({
+      query: (id) => `/repertoires/${id}/train/next`,
+      providesTags: (_result, _error, id) => [{ type: "TrainingNext", id }],
+    }),
+
+    submitTrainingReview: builder.mutation<
+      TrainingReviewResponse,
+      { repertoireId: number; body: TrainingReviewRequest }
+    >({
+      query: ({ repertoireId, body }) => ({
+        url: `/repertoires/${repertoireId}/train/review`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { repertoireId }) => [
+        { type: "TrainingNext", id: repertoireId },
+        { type: "TrainingStats", id: repertoireId },
+      ],
+    }),
+
+    getTrainingStats: builder.query<TrainingStatsResponse, number>({
+      query: (id) => `/repertoires/${id}/train/stats`,
+      providesTags: (_result, _error, id) => [{ type: "TrainingStats", id }],
+    }),
   }),
 });
 
@@ -454,4 +484,8 @@ export const {
   useGetRepertoireExportQuery,
   useLazyGetRepertoireExportQuery,
   useLazyGetExplorerPlayerQuery,
+  useGetTrainingNextQuery,
+  useLazyGetTrainingNextQuery,
+  useSubmitTrainingReviewMutation,
+  useGetTrainingStatsQuery,
 } = apiSlice;

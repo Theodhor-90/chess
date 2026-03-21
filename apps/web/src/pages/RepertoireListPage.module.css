@@ -80,6 +80,12 @@
   white-space: nowrap;
 }
 
+.cardActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
 .kebabButton {
   background: none;
   border: none;
