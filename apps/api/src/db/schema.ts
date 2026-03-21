@@ -12,6 +12,7 @@ export const users = sqliteTable("users", {
   preferences: text("preferences"),
   puzzleRating: integer("puzzle_rating").notNull().default(1500),
   puzzleRatingDeviation: integer("puzzle_rating_deviation").notNull().default(350),
+  playerStatsIndexed: integer("player_stats_indexed").notNull().default(0),
 });
 
 export const games = sqliteTable(
@@ -155,5 +156,35 @@ export const openingPositionMoves = sqliteTable(
   (table) => [
     uniqueIndex("opening_position_moves_fen_san_idx").on(table.positionFen, table.moveSan),
     index("opening_position_moves_fen_idx").on(table.positionFen),
+  ],
+);
+
+export const openingPlayerStats = sqliteTable(
+  "opening_player_stats",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    positionFen: text("position_fen").notNull(),
+    moveSan: text("move_san").notNull(),
+    moveUci: text("move_uci").notNull(),
+    resultFen: text("result_fen").notNull(),
+    color: text("color").notNull(),
+    white: integer("white").notNull().default(0),
+    draws: integer("draws").notNull().default(0),
+    black: integer("black").notNull().default(0),
+    totalGames: integer("total_games").notNull().default(0),
+    avgOpponentRating: integer("avg_opponent_rating").notNull().default(0),
+  },
+  (table) => [
+    uniqueIndex("opening_player_stats_user_fen_san_color_idx").on(
+      table.userId,
+      table.positionFen,
+      table.moveSan,
+      table.color,
+    ),
+    index("opening_player_stats_user_fen_idx").on(table.userId, table.positionFen),
+    index("opening_player_stats_user_idx").on(table.userId),
   ],
 );

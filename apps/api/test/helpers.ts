@@ -58,6 +58,11 @@ export function ensureUsersTable(): void {
   } catch {
     // Column already exists — ignore
   }
+  try {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN player_stats_indexed INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists — ignore
+  }
 }
 
 export function ensureGamesTables(): void {
@@ -212,12 +217,41 @@ export function ensureOpeningTables(): void {
   );
 }
 
+export function ensurePlayerStatsTables(): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS opening_player_stats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      color TEXT NOT NULL,
+      white INTEGER NOT NULL DEFAULT 0,
+      draws INTEGER NOT NULL DEFAULT 0,
+      black INTEGER NOT NULL DEFAULT 0,
+      total_games INTEGER NOT NULL DEFAULT 0,
+      avg_opponent_rating INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  sqlite.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS opening_player_stats_user_fen_san_color_idx ON opening_player_stats(user_id, position_fen, move_san, color)",
+  );
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS opening_player_stats_user_fen_idx ON opening_player_stats(user_id, position_fen)",
+  );
+  sqlite.exec(
+    "CREATE INDEX IF NOT EXISTS opening_player_stats_user_idx ON opening_player_stats(user_id)",
+  );
+}
+
 export function ensureSchema(): void {
   ensureUsersTable();
   ensureGamesTables();
   ensureAnalysesTable();
   ensurePuzzleTables();
   ensureOpeningTables();
+  ensurePlayerStatsTables();
 }
 
 export function cleanGamesTables(): void {

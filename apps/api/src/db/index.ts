@@ -187,6 +187,37 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec(
     "CREATE INDEX IF NOT EXISTS opening_position_moves_fen_idx ON opening_position_moves(position_fen)",
   );
+  // opening_player_stats table
+  try {
+    sqliteDb.exec(`ALTER TABLE users ADD COLUMN player_stats_indexed INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists — ignore
+  }
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS opening_player_stats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      color TEXT NOT NULL,
+      white INTEGER NOT NULL DEFAULT 0,
+      draws INTEGER NOT NULL DEFAULT 0,
+      black INTEGER NOT NULL DEFAULT 0,
+      total_games INTEGER NOT NULL DEFAULT 0,
+      avg_opponent_rating INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  sqliteDb.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS opening_player_stats_user_fen_san_color_idx ON opening_player_stats(user_id, position_fen, move_san, color)",
+  );
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS opening_player_stats_user_fen_idx ON opening_player_stats(user_id, position_fen)",
+  );
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS opening_player_stats_user_idx ON opening_player_stats(user_id)",
+  );
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)
