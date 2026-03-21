@@ -30,6 +30,15 @@ import type {
   ExplorerEngineResponse,
   RatingBracket,
   SpeedCategory,
+  RepertoireListItem,
+  RepertoireTree,
+  CreateRepertoireRequest,
+  CreateRepertoireResponse,
+  UpdateRepertoireRequest,
+  AddRepertoireMoveResponse,
+  DeleteRepertoireMoveResponse,
+  RepertoireImportResponse,
+  RepertoireExportResponse,
 } from "@chess/shared";
 
 export interface ExplorerMastersArgs {
@@ -68,13 +77,39 @@ export interface ExplorerPersonalArgs {
   until?: string;
 }
 
+export interface AddRepertoireMoveArgs {
+  repertoireId: number;
+  positionFen: string;
+  moveSan: string;
+  isMainLine?: boolean;
+  comment?: string;
+}
+
+export interface UpdateRepertoireMoveArgs {
+  repertoireId: number;
+  moveId: number;
+  isMainLine?: boolean;
+  comment?: string;
+  sortOrder?: number;
+}
+
+export interface DeleteRepertoireMoveArgs {
+  repertoireId: number;
+  moveId: number;
+}
+
+export interface ImportRepertoirePgnArgs {
+  repertoireId: number;
+  pgn: string;
+}
+
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
     baseUrl: "/api",
     credentials: "include",
   }),
-  tagTypes: ["Game", "Me"],
+  tagTypes: ["Game", "Me", "Repertoires", "Repertoire"],
   endpoints: (builder) => ({
     // Auth endpoints
     register: builder.mutation<AuthResponse, RegisterRequest>({
@@ -287,6 +322,97 @@ export const apiSlice = createApi({
         return `/explorer/personal?${params.toString()}`;
       },
     }),
+
+    // Repertoire endpoints
+    getRepertoires: builder.query<RepertoireListItem[], void>({
+      query: () => "/repertoires",
+      providesTags: ["Repertoires"],
+    }),
+
+    getRepertoire: builder.query<RepertoireTree, number>({
+      query: (id) => `/repertoires/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Repertoire", id }],
+    }),
+
+    createRepertoire: builder.mutation<CreateRepertoireResponse, CreateRepertoireRequest>({
+      query: (body) => ({
+        url: "/repertoires",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Repertoires"],
+    }),
+
+    updateRepertoire: builder.mutation<
+      { success: true },
+      { id: number; body: UpdateRepertoireRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/repertoires/${id}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => ["Repertoires", { type: "Repertoire", id }],
+    }),
+
+    deleteRepertoire: builder.mutation<{ success: true }, number>({
+      query: (id) => ({
+        url: `/repertoires/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Repertoires"],
+    }),
+
+    addRepertoireMove: builder.mutation<AddRepertoireMoveResponse, AddRepertoireMoveArgs>({
+      query: ({ repertoireId, ...body }) => ({
+        url: `/repertoires/${repertoireId}/moves`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { repertoireId }) => [
+        "Repertoires",
+        { type: "Repertoire", id: repertoireId },
+      ],
+    }),
+
+    deleteRepertoireMove: builder.mutation<DeleteRepertoireMoveResponse, DeleteRepertoireMoveArgs>({
+      query: ({ repertoireId, moveId }) => ({
+        url: `/repertoires/${repertoireId}/moves/${moveId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_result, _error, { repertoireId }) => [
+        "Repertoires",
+        { type: "Repertoire", id: repertoireId },
+      ],
+    }),
+
+    updateRepertoireMove: builder.mutation<AddRepertoireMoveResponse, UpdateRepertoireMoveArgs>({
+      query: ({ repertoireId, moveId, ...body }) => ({
+        url: `/repertoires/${repertoireId}/moves/${moveId}`,
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { repertoireId }) => [
+        "Repertoires",
+        { type: "Repertoire", id: repertoireId },
+      ],
+    }),
+
+    importRepertoirePgn: builder.mutation<RepertoireImportResponse, ImportRepertoirePgnArgs>({
+      query: ({ repertoireId, pgn }) => ({
+        url: `/repertoires/${repertoireId}/import`,
+        method: "POST",
+        body: { pgn },
+      }),
+      invalidatesTags: (_result, _error, { repertoireId }) => [
+        "Repertoires",
+        { type: "Repertoire", id: repertoireId },
+      ],
+    }),
+
+    getRepertoireExport: builder.query<RepertoireExportResponse, number>({
+      query: (id) => `/repertoires/${id}/export`,
+    }),
   }),
 });
 
@@ -316,4 +442,16 @@ export const {
   useGetExplorerPlayerQuery,
   usePostExplorerEngineMutation,
   useGetExplorerPersonalQuery,
+  useGetRepertoiresQuery,
+  useGetRepertoireQuery,
+  useCreateRepertoireMutation,
+  useUpdateRepertoireMutation,
+  useDeleteRepertoireMutation,
+  useAddRepertoireMoveMutation,
+  useDeleteRepertoireMoveMutation,
+  useUpdateRepertoireMoveMutation,
+  useImportRepertoirePgnMutation,
+  useGetRepertoireExportQuery,
+  useLazyGetRepertoireExportQuery,
+  useLazyGetExplorerPlayerQuery,
 } = apiSlice;

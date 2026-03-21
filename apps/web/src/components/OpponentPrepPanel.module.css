@@ -1,0 +1,181 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.searchContainer {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.searchInput {
+  flex: 1;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  box-sizing: border-box;
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -1px;
+  border-color: var(--color-primary);
+}
+
+.opponentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.opponentItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2);
+  background: none;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  text-align: left;
+  width: 100%;
+  transition: background-color var(--transition-default);
+}
+
+.opponentItem:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.opponentItemActive {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+}
+
+.opponentGames {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.activeOpponent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2);
+  background-color: var(--color-primary-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.activeOpponentName {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary);
+}
+
+.gapSummary {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.gapSummaryWarning {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.gapSummaryClear {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.gapList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.gapItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: none;
+  border: 1px solid var(--color-warning-light);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  text-align: left;
+  width: 100%;
+  transition: background-color var(--transition-default);
+}
+
+.gapItem:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.gapBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background-color: var(--color-warning);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  flex-shrink: 0;
+}
+
+.gapMoves {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gapFrequency {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.emptyState {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: var(--space-2);
+}
+
+.loading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: var(--space-2);
+}
