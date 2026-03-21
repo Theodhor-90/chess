@@ -21,6 +21,7 @@ import { PuzzlePage } from "./pages/PuzzlePage.js";
 import { RepertoireListPage } from "./pages/RepertoireListPage.js";
 import { RepertoireBuilderPage } from "./pages/RepertoireBuilderPage.js";
 import { RepertoireTrainingPage } from "./pages/RepertoireTrainingPage.js";
+import { TrainingDashboardPage } from "./pages/TrainingDashboardPage.js";
 
 export function AppRoutes() {
   return (
@@ -57,6 +58,14 @@ export function AppRoutes() {
         />
         <Route
           path="/training"
+          element={
+            <ProtectedRoute>
+              <TrainingDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/training/board"
           element={
             <ProtectedRoute>
               <TrainingPage />
