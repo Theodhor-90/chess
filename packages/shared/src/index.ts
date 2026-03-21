@@ -793,3 +793,103 @@ export interface RepertoireImportResponse {
 export interface RepertoireExportResponse {
   pgn: string;
 }
+
+// ---------------------------------------------------------------------------
+// Training / SRS Types (M19)
+// ---------------------------------------------------------------------------
+
+export enum CardState {
+  New = 0,
+  Learning = 1,
+  Review = 2,
+  Relearning = 3,
+}
+
+export enum ReviewRating {
+  Again = 1,
+  Hard = 2,
+  Good = 3,
+  Easy = 4,
+}
+
+export interface RepertoireCard {
+  id: number;
+  repertoireId: number;
+  positionFen: string;
+  moveSan: string;
+  moveUci: string;
+  resultFen: string;
+  side: "white" | "black";
+  due: number;
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  learningSteps: number;
+  reps: number;
+  lapses: number;
+  state: CardState;
+  lastReview: number | null;
+}
+
+export interface ReviewLogEntry {
+  id: number;
+  cardId: number;
+  rating: ReviewRating;
+  state: CardState;
+  due: number;
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  reviewedAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// Training Endpoint Types (M19 t02)
+// ---------------------------------------------------------------------------
+
+export interface TrainingLineMove {
+  fen: string;
+  san: string | null;
+  uci: string | null;
+  isUserMove: boolean;
+  cardId: number | null;
+  isDue: boolean;
+}
+
+export type TrainingLine = TrainingLineMove[];
+
+export interface TrainingNextResponse {
+  line: TrainingLine | null;
+  dueCount: number;
+  newCount: number;
+}
+
+export interface TrainingReviewRequest {
+  cardId: number;
+  rating: 1 | 2 | 3 | 4;
+}
+
+export interface TrainingReviewResponse {
+  card: RepertoireCard;
+  nextDue: number;
+  interval: number;
+}
+
+// ---------------------------------------------------------------------------
+// Training Stats Types (M19 t03)
+// ---------------------------------------------------------------------------
+
+export interface TrainingStatsResponse {
+  totalCards: number;
+  newCount: number;
+  learningCount: number;
+  reviewCount: number;
+  relearningCount: number;
+  dueToday: number;
+  dueTomorrow: number;
+  averageRetention: number | null;
+  streak: number;
+  totalReviews: number;
+}
