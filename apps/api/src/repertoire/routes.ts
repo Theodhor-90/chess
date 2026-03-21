@@ -1,15 +1,19 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance } from "fastify";
-import { loadOpenings, classifyPosition } from "@chess/shared";
+import { Chess } from "chess.js";
+import { loadOpenings, classifyPosition, normalizeFen } from "@chess/shared";
 import type {
   RepertoireListItem,
   RepertoireTree,
   RepertoireNode,
   CreateRepertoireResponse,
+  AddRepertoireMoveResponse,
+  DeleteRepertoireMoveResponse,
   ErrorResponse,
 } from "@chess/shared";
 import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
+import { reconstructFullFen, getDescendantFens } from "./tree-ops.js";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
@@ -68,6 +72,37 @@ const idParamsSchema = {
   },
 };
 
+const moveIdParamsSchema = {
+  type: "object" as const,
+  required: ["id", "moveId"],
+  properties: {
+    id: { type: "string" as const, pattern: "^\\d+$" },
+    moveId: { type: "string" as const, pattern: "^\\d+$" },
+  },
+};
+
+const addMoveBodySchema = {
+  type: "object" as const,
+  required: ["positionFen", "moveSan"],
+  additionalProperties: false,
+  properties: {
+    positionFen: { type: "string" as const, minLength: 1 },
+    moveSan: { type: "string" as const, minLength: 1, maxLength: 10 },
+    isMainLine: { type: "boolean" as const },
+    comment: { type: "string" as const, maxLength: 1000 },
+  },
+};
+
+const updateMoveBodySchema = {
+  type: "object" as const,
+  additionalProperties: false,
+  properties: {
+    isMainLine: { type: "boolean" as const },
+    comment: { type: "string" as const, maxLength: 1000 },
+    sortOrder: { type: "integer" as const, minimum: 0 },
+  },
+};
+
 interface IdParams {
   id: string;
 }
@@ -81,6 +116,24 @@ interface CreateBody {
 interface UpdateBody {
   name?: string;
   description?: string;
+}
+
+interface MoveIdParams {
+  id: string;
+  moveId: string;
+}
+
+interface AddMoveBody {
+  positionFen: string;
+  moveSan: string;
+  isMainLine?: boolean;
+  comment?: string;
+}
+
+interface UpdateMoveBody {
+  isMainLine?: boolean;
+  comment?: string;
+  sortOrder?: number;
 }
 
 async function repertoireRoutes(app: FastifyInstance) {
@@ -107,6 +160,19 @@ async function repertoireRoutes(app: FastifyInstance) {
     "DELETE FROM repertoire_moves WHERE repertoire_id = ?",
   );
   const deleteRepertoireStmt = sqlite.prepare("DELETE FROM repertoires WHERE id = ?");
+  const getMoveByIdStmt = sqlite.prepare(
+    "SELECT * FROM repertoire_moves WHERE id = ? AND repertoire_id = ?",
+  );
+  const deleteMoveByIdStmt = sqlite.prepare("DELETE FROM repertoire_moves WHERE id = ?");
+  const deleteMovesByPositionStmt = sqlite.prepare(
+    "DELETE FROM repertoire_moves WHERE repertoire_id = ? AND position_fen = ?",
+  );
+  const updateRepertoireTimestampStmt = sqlite.prepare(
+    "UPDATE repertoires SET updated_at = unixepoch() WHERE id = ?",
+  );
+  const unsetSiblingsMainLineStmt = sqlite.prepare(
+    "UPDATE repertoire_moves SET is_main_line = 0 WHERE repertoire_id = ? AND position_fen = ? AND id != ?",
+  );
 
   function buildTree(moves: RepertoireMoveRow[]): RepertoireNode {
     // Build an adjacency map: positionFen -> array of moves from that position
@@ -291,6 +357,205 @@ async function repertoireRoutes(app: FastifyInstance) {
       deleteTransaction();
 
       return reply.code(200).send({ success: true });
+    },
+  );
+
+  app.post<{
+    Params: IdParams;
+    Body: AddMoveBody;
+    Reply: AddRepertoireMoveResponse | ErrorResponse;
+  }>(
+    "/:id/moves",
+    { schema: { params: idParamsSchema, body: addMoveBodySchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const repertoireId = parseInt(request.params.id, 10);
+
+      const row = verifyOwnership(repertoireId, userId);
+      if (!row) {
+        return reply.code(404).send({ error: "Repertoire not found" });
+      }
+
+      const { positionFen, moveSan, isMainLine, comment } = request.body;
+
+      // Reconstruct full FEN for chess.js
+      const fullFen = reconstructFullFen(positionFen);
+
+      // Validate the move
+      let chess: InstanceType<typeof Chess>;
+      try {
+        chess = new Chess(fullFen);
+      } catch {
+        return reply.code(400).send({ error: "Invalid position FEN" });
+      }
+
+      let moveResult;
+      try {
+        moveResult = chess.move(moveSan);
+      } catch {
+        return reply.code(400).send({ error: "Invalid move" });
+      }
+
+      // Compute UCI from the move result
+      const moveUci = moveResult.from + moveResult.to + (moveResult.promotion ?? "");
+
+      // Compute normalized result FEN
+      const resultFen = normalizeFen(chess.fen());
+
+      // Determine isMainLine and sortOrder
+      const isMainLineValue = isMainLine !== undefined ? (isMainLine ? 1 : 0) : 1;
+      const commentValue = comment ?? null;
+
+      // Upsert: INSERT or UPDATE on conflict
+      const upsertStmt = sqlite.prepare(`
+        INSERT INTO repertoire_moves (repertoire_id, position_fen, move_san, move_uci, result_fen, is_main_line, comment, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+        ON CONFLICT (repertoire_id, position_fen, move_san)
+        DO UPDATE SET is_main_line = excluded.is_main_line, comment = excluded.comment
+      `);
+      upsertStmt.run(
+        repertoireId,
+        positionFen,
+        moveSan,
+        moveUci,
+        resultFen,
+        isMainLineValue,
+        commentValue,
+      );
+
+      // Fetch the inserted/updated row
+      const insertedRow = sqlite
+        .prepare(
+          "SELECT * FROM repertoire_moves WHERE repertoire_id = ? AND position_fen = ? AND move_san = ?",
+        )
+        .get(repertoireId, positionFen, moveSan) as RepertoireMoveRow;
+
+      // Update repertoire timestamp
+      updateRepertoireTimestampStmt.run(repertoireId);
+
+      return reply.code(201).send({
+        id: insertedRow.id,
+        positionFen: insertedRow.position_fen,
+        moveSan: insertedRow.move_san,
+        moveUci: insertedRow.move_uci,
+        resultFen: insertedRow.result_fen,
+        isMainLine: insertedRow.is_main_line === 1,
+        comment: insertedRow.comment,
+      });
+    },
+  );
+
+  app.delete<{ Params: MoveIdParams; Reply: DeleteRepertoireMoveResponse | ErrorResponse }>(
+    "/:id/moves/:moveId",
+    { schema: { params: moveIdParamsSchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const repertoireId = parseInt(request.params.id, 10);
+      const moveId = parseInt(request.params.moveId, 10);
+
+      const row = verifyOwnership(repertoireId, userId);
+      if (!row) {
+        return reply.code(404).send({ error: "Repertoire not found" });
+      }
+
+      const moveRow = getMoveByIdStmt.get(moveId, repertoireId) as RepertoireMoveRow | undefined;
+      if (!moveRow) {
+        return reply.code(404).send({ error: "Move not found" });
+      }
+
+      // Collect all descendant FENs from the result position of this move
+      const descendantFens = getDescendantFens(repertoireId, moveRow.result_fen);
+
+      // Delete in a transaction and count total deleted
+      const deleteTransaction = sqlite.transaction(() => {
+        let totalDeleted = 0;
+
+        // Delete the target move itself
+        const info = deleteMoveByIdStmt.run(moveId);
+        totalDeleted += info.changes;
+
+        // Delete direct children (moves whose position_fen equals the deleted move's result_fen)
+        const startInfo = deleteMovesByPositionStmt.run(repertoireId, moveRow.result_fen);
+        totalDeleted += startInfo.changes;
+
+        // Delete all moves at descendant positions
+        for (const fen of descendantFens) {
+          const delInfo = deleteMovesByPositionStmt.run(repertoireId, fen);
+          totalDeleted += delInfo.changes;
+        }
+
+        return totalDeleted;
+      });
+      const deleted = deleteTransaction();
+
+      // Update repertoire timestamp
+      updateRepertoireTimestampStmt.run(repertoireId);
+
+      return reply.code(200).send({ deleted });
+    },
+  );
+
+  app.put<{
+    Params: MoveIdParams;
+    Body: UpdateMoveBody;
+    Reply: AddRepertoireMoveResponse | ErrorResponse;
+  }>(
+    "/:id/moves/:moveId",
+    {
+      schema: { params: moveIdParamsSchema, body: updateMoveBodySchema },
+      preHandler: [requireAuth],
+    },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const repertoireId = parseInt(request.params.id, 10);
+      const moveId = parseInt(request.params.moveId, 10);
+
+      const row = verifyOwnership(repertoireId, userId);
+      if (!row) {
+        return reply.code(404).send({ error: "Repertoire not found" });
+      }
+
+      const moveRow = getMoveByIdStmt.get(moveId, repertoireId) as RepertoireMoveRow | undefined;
+      if (!moveRow) {
+        return reply.code(404).send({ error: "Move not found" });
+      }
+
+      const { isMainLine, comment, sortOrder } = request.body;
+
+      // Build partial update
+      const newIsMainLine = isMainLine !== undefined ? (isMainLine ? 1 : 0) : moveRow.is_main_line;
+      const newComment = comment !== undefined ? comment : moveRow.comment;
+      const newSortOrder = sortOrder !== undefined ? sortOrder : moveRow.sort_order;
+
+      const updateMoveTransaction = sqlite.transaction(() => {
+        // If setting isMainLine = true, unset all siblings at the same position
+        if (isMainLine === true) {
+          unsetSiblingsMainLineStmt.run(repertoireId, moveRow.position_fen, moveId);
+        }
+
+        sqlite
+          .prepare(
+            "UPDATE repertoire_moves SET is_main_line = ?, comment = ?, sort_order = ? WHERE id = ?",
+          )
+          .run(newIsMainLine, newComment, newSortOrder, moveId);
+      });
+      updateMoveTransaction();
+
+      // Update repertoire timestamp
+      updateRepertoireTimestampStmt.run(repertoireId);
+
+      // Fetch and return the updated move
+      const updated = getMoveByIdStmt.get(moveId, repertoireId) as RepertoireMoveRow;
+
+      return reply.code(200).send({
+        id: updated.id,
+        positionFen: updated.position_fen,
+        moveSan: updated.move_san,
+        moveUci: updated.move_uci,
+        resultFen: updated.result_fen,
+        isMainLine: updated.is_main_line === 1,
+        comment: updated.comment,
+      });
     },
   );
 }

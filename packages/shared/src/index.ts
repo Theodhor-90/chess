@@ -770,3 +770,17 @@ export interface CreateRepertoireResponse {
   description: string | null;
   createdAt: number;
 }
+
+export interface AddRepertoireMoveResponse {
+  id: number;
+  positionFen: string;
+  moveSan: string;
+  moveUci: string;
+  resultFen: string;
+  isMainLine: boolean;
+  comment: string | null;
+}
+
+export interface DeleteRepertoireMoveResponse {
+  deleted: number;
+}
