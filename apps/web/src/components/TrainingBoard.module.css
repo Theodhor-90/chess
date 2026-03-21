@@ -1,0 +1,15 @@
+.boardWrapper {
+  position: relative;
+  width: min(400px, calc(100vw - 2rem));
+}
+
+.board {
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+@media (max-width: 768px) {
+  .board {
+    touch-action: pan-y;
+  }
+}

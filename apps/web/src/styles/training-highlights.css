@@ -1,0 +1,12 @@
+/* Training move feedback highlights — applied via Chessground highlight.custom */
+cg-board square.training-correct {
+  background-color: rgba(21, 120, 27, 0.45) !important;
+}
+
+cg-board square.training-incorrect {
+  background-color: rgba(204, 0, 0, 0.45) !important;
+}
+
+cg-board square.training-hint {
+  background-color: rgba(230, 143, 0, 0.4) !important;
+}

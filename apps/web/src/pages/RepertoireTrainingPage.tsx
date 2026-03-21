@@ -1,6 +1,9 @@
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router";
 import { useGetRepertoireQuery } from "../store/apiSlice.js";
 import { useTrainingDrill } from "../hooks/useTrainingDrill.js";
+import { TrainingBoard } from "../components/TrainingBoard.js";
+import { TrainingFeedback } from "../components/TrainingFeedback.js";
 import { Card } from "../components/ui/Card.js";
 import { Button } from "../components/ui/Button.js";
 import { Badge } from "../components/ui/Badge.js";
@@ -18,6 +21,37 @@ export function RepertoireTrainingPage() {
   } = useGetRepertoireQuery(repertoireId, { skip: isNaN(repertoireId) });
 
   const drill = useTrainingDrill(repertoireId);
+
+  // Track response timing for Easy rating ("Excellent!" feedback)
+  const [wasEasyResponse, setWasEasyResponse] = useState(false);
+  const responseTimerRef = useRef<number>(0);
+
+  // Track hint usage per individual move (resets each user_turn)
+  const [hintUsedForCurrentMove, setHintUsedForCurrentMove] = useState(false);
+
+  useEffect(() => {
+    if (drill.phase === "user_turn") {
+      responseTimerRef.current = performance.now();
+      setWasEasyResponse(false);
+      setHintUsedForCurrentMove(false);
+    }
+  }, [drill.phase]);
+
+  const handleBoardMove = useCallback(
+    (from: string, to: string, promotion?: string) => {
+      const elapsed = performance.now() - responseTimerRef.current;
+      if (elapsed < 2000) {
+        setWasEasyResponse(true);
+      }
+      drill.makeMove(from, to, promotion);
+    },
+    [drill],
+  );
+
+  const handleHint = useCallback(() => {
+    setHintUsedForCurrentMove(true);
+    drill.useHint();
+  }, [drill]);
 
   if (isNaN(repertoireId)) {
     return (
@@ -59,12 +93,23 @@ export function RepertoireTrainingPage() {
 
       <div className={styles.layout}>
         <div className={styles.boardColumn}>
-          {/* Board placeholder — t02 will replace with Chessground */}
-          <div className={styles.boardPlaceholder} data-testid="training-board-placeholder">
-            Board — Phase {drill.phase}
-            {drill.currentFen !== "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" && (
-              <br />
-            )}
+          <div className={styles.boardContainer}>
+            <TrainingBoard
+              currentFen={drill.currentFen}
+              userSide={drill.userSide}
+              phase={drill.phase}
+              correctMove={drill.correctMove}
+              feedbackType={drill.feedbackType}
+              hintActive={hintUsedForCurrentMove}
+              onMove={handleBoardMove}
+            />
+            <TrainingFeedback
+              feedbackType={drill.feedbackType}
+              correctMoveSan={drill.correctMove?.san ?? null}
+              isEasyRating={
+                wasEasyResponse && drill.feedbackType === "correct" && !hintUsedForCurrentMove
+              }
+            />
           </div>
 
           {/* Controls */}
@@ -75,12 +120,7 @@ export function RepertoireTrainingPage() {
               </Button>
             )}
             {drill.phase === "user_turn" && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={drill.useHint}
-                data-testid="hint-button"
-              >
+              <Button variant="secondary" size="sm" onClick={handleHint} data-testid="hint-button">
                 Hint (H)
               </Button>
             )}
