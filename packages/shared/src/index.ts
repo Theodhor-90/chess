@@ -844,3 +844,35 @@ export interface ReviewLogEntry {
   scheduledDays: number;
   reviewedAt: number;
 }
+
+// ---------------------------------------------------------------------------
+// Training Endpoint Types (M19 t02)
+// ---------------------------------------------------------------------------
+
+export interface TrainingLineMove {
+  fen: string;
+  san: string | null;
+  uci: string | null;
+  isUserMove: boolean;
+  cardId: number | null;
+  isDue: boolean;
+}
+
+export type TrainingLine = TrainingLineMove[];
+
+export interface TrainingNextResponse {
+  line: TrainingLine | null;
+  dueCount: number;
+  newCount: number;
+}
+
+export interface TrainingReviewRequest {
+  cardId: number;
+  rating: 1 | 2 | 3 | 4;
+}
+
+export interface TrainingReviewResponse {
+  card: RepertoireCard;
+  nextDue: number;
+  interval: number;
+}
