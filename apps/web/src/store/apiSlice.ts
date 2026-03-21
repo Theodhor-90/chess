@@ -43,6 +43,7 @@ import type {
   TrainingReviewRequest,
   TrainingReviewResponse,
   TrainingStatsResponse,
+  TrainingDashboardResponse,
 } from "@chess/shared";
 
 export interface ExplorerMastersArgs {
@@ -113,7 +114,15 @@ export const apiSlice = createApi({
     baseUrl: "/api",
     credentials: "include",
   }),
-  tagTypes: ["Game", "Me", "Repertoires", "Repertoire", "TrainingNext", "TrainingStats"],
+  tagTypes: [
+    "Game",
+    "Me",
+    "Repertoires",
+    "Repertoire",
+    "TrainingNext",
+    "TrainingStats",
+    "TrainingDashboard",
+  ],
   endpoints: (builder) => ({
     // Auth endpoints
     register: builder.mutation<AuthResponse, RegisterRequest>({
@@ -443,6 +452,11 @@ export const apiSlice = createApi({
       query: (id) => `/repertoires/${id}/train/stats`,
       providesTags: (_result, _error, id) => [{ type: "TrainingStats", id }],
     }),
+
+    getTrainingDashboard: builder.query<TrainingDashboardResponse, void>({
+      query: () => "/training/dashboard",
+      providesTags: ["TrainingDashboard"],
+    }),
   }),
 });
 
@@ -488,4 +502,5 @@ export const {
   useLazyGetTrainingNextQuery,
   useSubmitTrainingReviewMutation,
   useGetTrainingStatsQuery,
+  useGetTrainingDashboardQuery,
 } = apiSlice;

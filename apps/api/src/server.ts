@@ -19,6 +19,7 @@ import { puzzleRoutesPlugin } from "./puzzle/routes.js";
 import { explorerRoutesPlugin } from "./explorer/routes.js";
 import { repertoireRoutesPlugin } from "./repertoire/routes.js";
 import { trainingRoutesPlugin } from "./training/routes.js";
+import { dashboardRoutesPlugin } from "./training/dashboard-routes.js";
 import { setupSocketServer, type TypedSocketServer } from "./socket/index.js";
 
 declare module "fastify" {
@@ -57,6 +58,7 @@ export function buildApp(options?: BuildAppOptions): {
   app.register(explorerRoutesPlugin, { prefix: "/api/explorer" });
   app.register(repertoireRoutesPlugin, { prefix: "/api/repertoires" });
   app.register(trainingRoutesPlugin, { prefix: "/api/repertoires" });
+  app.register(dashboardRoutesPlugin, { prefix: "/api/training" });
 
   const isProduction = process.env.NODE_ENV === "production";
 

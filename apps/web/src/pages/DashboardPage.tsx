@@ -50,7 +50,7 @@ export function DashboardPage() {
         <Link to="/play/bot" data-testid="bot-link" className={styles.quickLink}>
           <Button variant="secondary">Play vs Bot</Button>
         </Link>
-        <Link to="/training" data-testid="training-link" className={styles.quickLink}>
+        <Link to="/training/board" data-testid="training-link" className={styles.quickLink}>
           <Button variant="secondary">Training Board</Button>
         </Link>
         <Link to="/history" data-testid="history-link" className={styles.quickLink}>

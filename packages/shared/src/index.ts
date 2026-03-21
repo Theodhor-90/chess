@@ -893,3 +893,40 @@ export interface TrainingStatsResponse {
   streak: number;
   totalReviews: number;
 }
+
+// ---------------------------------------------------------------------------
+// Training Dashboard Types (M19 P03)
+// ---------------------------------------------------------------------------
+
+export interface ReviewHistoryEntry {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
+export interface LearningVelocityEntry {
+  date: string; // YYYY-MM-DD
+  newCardsLearned: number;
+}
+
+export interface RepertoireTrainingSummary {
+  id: number;
+  name: string;
+  color: "white" | "black";
+  totalCards: number;
+  dueToday: number;
+  newCount: number;
+  learningCount: number;
+  reviewCount: number;
+  masteredCount: number;
+  retention: number | null;
+}
+
+export interface TrainingDashboardResponse {
+  totalDueToday: number;
+  totalCards: number;
+  overallRetention: number | null;
+  currentStreak: number;
+  repertoires: RepertoireTrainingSummary[];
+  reviewHistory: ReviewHistoryEntry[];
+  learningVelocity: LearningVelocityEntry[];
+}
