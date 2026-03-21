@@ -208,7 +208,7 @@ export function useTrainingDrill(repertoireId: number): DrillState & DrillAction
   }, [phase]);
 
   const nextLine = useCallback(() => {
-    if (phase !== "line_complete") return;
+    if (phase !== "line_complete" && phase !== "session_complete") return;
     fetchNextLine();
   }, [phase, fetchNextLine]);
 

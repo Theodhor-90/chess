@@ -1,0 +1,35 @@
+.summaryGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.statRow:last-child {
+  border-bottom: none;
+}
+
+.statName {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.statValue {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.footerButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
