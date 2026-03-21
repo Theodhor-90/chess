@@ -207,6 +207,13 @@
   gap: var(--space-4);
 }
 
+/* Charts section */
+.chartsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
 @media (max-width: 768px) {
   .dailySummary {
     flex-direction: column;
@@ -218,6 +225,10 @@
   }
 
   .repStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .chartsRow {
     grid-template-columns: 1fr;
   }
 }

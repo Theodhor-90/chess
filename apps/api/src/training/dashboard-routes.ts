@@ -5,6 +5,7 @@ import type {
   RepertoireTrainingSummary,
   ReviewHistoryEntry,
   LearningVelocityEntry,
+  DifficultPositionsResponse,
   ErrorResponse,
 } from "@chess/shared";
 import { requireAuth } from "../auth/plugin.js";
@@ -51,6 +52,18 @@ interface ReviewDateRow {
 interface VelocityRow {
   review_date: string;
   cnt: number;
+}
+
+interface DifficultCardRow {
+  id: number;
+  repertoire_id: number;
+  repertoire_name: string;
+  position_fen: string;
+  move_san: string;
+  move_uci: string;
+  lapses: number;
+  stability: number;
+  last_review: number | null;
 }
 
 function formatDateUTC(date: Date): string {
@@ -298,6 +311,48 @@ async function dashboardRoutes(app: FastifyInstance) {
         reviewHistory,
         learningVelocity,
       });
+    },
+  );
+
+  app.get<{ Reply: DifficultPositionsResponse | ErrorResponse }>(
+    "/difficult",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+
+      const rows = sqlite
+        .prepare(
+          `SELECT
+             rc.id,
+             rc.repertoire_id,
+             r.name as repertoire_name,
+             rc.position_fen,
+             rc.move_san,
+             rc.move_uci,
+             rc.lapses,
+             rc.stability,
+             rc.last_review
+           FROM repertoire_cards rc
+           JOIN repertoires r ON r.id = rc.repertoire_id
+           WHERE r.user_id = ? AND rc.lapses > 0
+           ORDER BY rc.lapses DESC
+           LIMIT 10`,
+        )
+        .all(userId) as DifficultCardRow[];
+
+      const result: DifficultPositionsResponse = rows.map((row) => ({
+        cardId: row.id,
+        repertoireId: row.repertoire_id,
+        repertoireName: row.repertoire_name,
+        positionFen: row.position_fen,
+        moveSan: row.move_san,
+        moveUci: row.move_uci,
+        lapses: row.lapses,
+        stability: row.stability,
+        lastReview: row.last_review,
+      }));
+
+      return reply.code(200).send(result);
     },
   );
 }

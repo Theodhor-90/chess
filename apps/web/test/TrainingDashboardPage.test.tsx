@@ -63,6 +63,20 @@ let mockQueryReturn: {
 
 vi.mock("../src/store/apiSlice.js", () => ({
   useGetTrainingDashboardQuery: () => mockQueryReturn,
+  useGetDifficultPositionsQuery: () => ({ data: [], isLoading: false }),
+}));
+
+// Mock Chessground — jsdom doesn't support canvas
+vi.mock("chessground", () => ({
+  Chessground: () => ({
+    set: vi.fn(),
+    destroy: vi.fn(),
+  }),
+}));
+
+// Mock BoardThemeProvider
+vi.mock("../src/components/BoardThemeProvider.js", () => ({
+  useBoardTheme: () => ({ boardTheme: "brown", pieceTheme: "cburnett" }),
 }));
 
 afterEach(() => {

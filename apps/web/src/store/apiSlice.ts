@@ -44,6 +44,7 @@ import type {
   TrainingReviewResponse,
   TrainingStatsResponse,
   TrainingDashboardResponse,
+  DifficultPositionsResponse,
 } from "@chess/shared";
 
 export interface ExplorerMastersArgs {
@@ -457,6 +458,11 @@ export const apiSlice = createApi({
       query: () => "/training/dashboard",
       providesTags: ["TrainingDashboard"],
     }),
+
+    getDifficultPositions: builder.query<DifficultPositionsResponse, void>({
+      query: () => "/training/difficult",
+      providesTags: ["TrainingDashboard"],
+    }),
   }),
 });
 
@@ -503,4 +509,5 @@ export const {
   useSubmitTrainingReviewMutation,
   useGetTrainingStatsQuery,
   useGetTrainingDashboardQuery,
+  useGetDifficultPositionsQuery,
 } = apiSlice;

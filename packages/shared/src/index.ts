@@ -930,3 +930,17 @@ export interface TrainingDashboardResponse {
   reviewHistory: ReviewHistoryEntry[];
   learningVelocity: LearningVelocityEntry[];
 }
+
+export interface DifficultPosition {
+  cardId: number;
+  repertoireId: number;
+  repertoireName: string;
+  positionFen: string;
+  moveSan: string;
+  moveUci: string;
+  lapses: number;
+  stability: number;
+  lastReview: number | null;
+}
+
+export type DifficultPositionsResponse = DifficultPosition[];

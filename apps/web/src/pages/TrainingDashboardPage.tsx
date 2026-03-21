@@ -8,6 +8,9 @@ import { Badge } from "../components/ui/Badge.js";
 import { PageSkeleton } from "../components/ui/Skeleton.js";
 import { CalendarHeatmap } from "../components/CalendarHeatmap.js";
 import { RepertoireStatsCard } from "../components/RepertoireStatsCard.js";
+import { DifficultPositionsList } from "../components/DifficultPositionsList.js";
+import { RetentionForecastChart } from "../components/RetentionForecastChart.js";
+import { LearningVelocityChart } from "../components/LearningVelocityChart.js";
 import styles from "./TrainingDashboardPage.module.css";
 
 function formatRetention(retention: number | null): string {
@@ -56,6 +59,22 @@ export function TrainingDashboardPage() {
   const longestStreak = useMemo(() => {
     if (!data) return 0;
     return computeLongestStreak(data.reviewHistory);
+  }, [data]);
+
+  const retentionCards = useMemo(() => {
+    if (!data) return [];
+    const cards: Array<{ stability: number; elapsedDays: number; state: number }> = [];
+    for (const rep of data.repertoires) {
+      if (rep.retention === null || rep.retention <= 0 || rep.retention >= 1) continue;
+      const totalEligible = rep.learningCount + rep.reviewCount + rep.masteredCount;
+      if (totalEligible === 0) continue;
+      // Back-solve effective stability: retention = 0.9^(1/S) → S = ln(0.9)/ln(retention)
+      const stability = Math.log(0.9) / Math.log(rep.retention);
+      for (let i = 0; i < totalEligible; i++) {
+        cards.push({ stability, elapsedDays: 1, state: 2 });
+      }
+    }
+    return cards;
   }, [data]);
 
   if (isLoading) {
@@ -196,6 +215,19 @@ export function TrainingDashboardPage() {
           <RepertoireStatsCard key={rep.id} summary={rep} />
         ))}
       </div>
+
+      {/* Charts Section */}
+      <div className={styles.chartsRow}>
+        <Card>
+          <RetentionForecastChart cards={retentionCards} />
+        </Card>
+        <Card>
+          <LearningVelocityChart data={data.learningVelocity} />
+        </Card>
+      </div>
+
+      {/* Difficult Positions */}
+      <DifficultPositionsList />
     </div>
   );
 }
