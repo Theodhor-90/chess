@@ -233,3 +233,62 @@ export const repertoireMoves = sqliteTable(
     index("repertoire_moves_rep_fen_idx").on(table.repertoireId, table.positionFen),
   ],
 );
+
+export const repertoireCards = sqliteTable(
+  "repertoire_cards",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    repertoireId: integer("repertoire_id")
+      .notNull()
+      .references(() => repertoires.id),
+    positionFen: text("position_fen").notNull(),
+    moveSan: text("move_san").notNull(),
+    moveUci: text("move_uci").notNull(),
+    resultFen: text("result_fen").notNull(),
+    side: text("side").notNull(),
+    due: integer("due")
+      .notNull()
+      .default(sql`(unixepoch())`),
+    stability: real("stability").notNull().default(0),
+    difficulty: real("difficulty").notNull().default(0),
+    elapsedDays: integer("elapsed_days").notNull().default(0),
+    scheduledDays: integer("scheduled_days").notNull().default(0),
+    learningSteps: integer("learning_steps").notNull().default(0),
+    reps: integer("reps").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    state: integer("state").notNull().default(0),
+    lastReview: integer("last_review"),
+  },
+  (table) => [
+    uniqueIndex("repertoire_cards_rep_fen_san_idx").on(
+      table.repertoireId,
+      table.positionFen,
+      table.moveSan,
+    ),
+    index("repertoire_cards_rep_due_idx").on(table.repertoireId, table.due),
+  ],
+);
+
+export const reviewLogs = sqliteTable(
+  "review_logs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    cardId: integer("card_id")
+      .notNull()
+      .references(() => repertoireCards.id),
+    rating: integer("rating").notNull(),
+    state: integer("state").notNull(),
+    due: integer("due").notNull(),
+    stability: real("stability").notNull(),
+    difficulty: real("difficulty").notNull(),
+    elapsedDays: integer("elapsed_days").notNull(),
+    scheduledDays: integer("scheduled_days").notNull(),
+    reviewedAt: integer("reviewed_at")
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => [
+    index("review_logs_card_id_idx").on(table.cardId),
+    index("review_logs_reviewed_at_idx").on(table.reviewedAt),
+  ],
+);

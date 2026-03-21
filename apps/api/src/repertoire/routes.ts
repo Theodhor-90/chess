@@ -17,6 +17,12 @@ import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
 import { reconstructFullFen, getDescendantFens } from "./tree-ops.js";
 import { parsePgnToMoves, treeToMoves } from "./pgn-utils.js";
+import {
+  createCardForMove,
+  deleteCardsForMove,
+  deleteAllCardsForRepertoire,
+  syncCardsForRepertoire,
+} from "../training/card-sync.js";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
@@ -370,6 +376,7 @@ async function repertoireRoutes(app: FastifyInstance) {
       }
 
       const deleteTransaction = sqlite.transaction(() => {
+        deleteAllCardsForRepertoire(repertoireId);
         deleteRepertoireMovesStmt.run(repertoireId);
         deleteRepertoireStmt.run(repertoireId);
       });
@@ -452,6 +459,25 @@ async function repertoireRoutes(app: FastifyInstance) {
       // Update repertoire timestamp
       updateRepertoireTimestampStmt.run(repertoireId);
 
+      // Create SRS card if this is an own-side move
+      const sideToMove = positionFen.split(" ")[1];
+      const repColor = row.color;
+      if (
+        (repColor === "white" && sideToMove === "w") ||
+        (repColor === "black" && sideToMove === "b")
+      ) {
+        createCardForMove(
+          repertoireId,
+          {
+            positionFen,
+            moveSan,
+            moveUci,
+            resultFen,
+          },
+          repColor as "white" | "black",
+        );
+      }
+
       return reply.code(201).send({
         id: insertedRow.id,
         positionFen: insertedRow.position_fen,
@@ -485,6 +511,31 @@ async function repertoireRoutes(app: FastifyInstance) {
       // Collect all descendant FENs from the result position of this move
       const descendantFens = getDescendantFens(repertoireId, moveRow.result_fen);
 
+      // Collect all position/move pairs that will be deleted, for SRS card cleanup
+      const cardDeletePairs: Array<{ positionFen: string; moveSan: string }> = [
+        { positionFen: moveRow.position_fen, moveSan: moveRow.move_san },
+      ];
+      // Direct children at result_fen
+      const childMoves = sqlite
+        .prepare(
+          "SELECT position_fen, move_san FROM repertoire_moves WHERE repertoire_id = ? AND position_fen = ?",
+        )
+        .all(repertoireId, moveRow.result_fen) as { position_fen: string; move_san: string }[];
+      for (const cm of childMoves) {
+        cardDeletePairs.push({ positionFen: cm.position_fen, moveSan: cm.move_san });
+      }
+      // Descendants
+      for (const fen of descendantFens) {
+        const descMoves = sqlite
+          .prepare(
+            "SELECT position_fen, move_san FROM repertoire_moves WHERE repertoire_id = ? AND position_fen = ?",
+          )
+          .all(repertoireId, fen) as { position_fen: string; move_san: string }[];
+        for (const dm of descMoves) {
+          cardDeletePairs.push({ positionFen: dm.position_fen, moveSan: dm.move_san });
+        }
+      }
+
       // Delete in a transaction and count total deleted
       const deleteTransaction = sqlite.transaction(() => {
         let totalDeleted = 0;
@@ -506,6 +557,11 @@ async function repertoireRoutes(app: FastifyInstance) {
         return totalDeleted;
       });
       const deleted = deleteTransaction();
+
+      // Clean up SRS cards for deleted moves
+      for (const pair of cardDeletePairs) {
+        deleteCardsForMove(repertoireId, pair.positionFen, pair.moveSan);
+      }
 
       // Update repertoire timestamp
       updateRepertoireTimestampStmt.run(repertoireId);
@@ -629,6 +685,9 @@ async function repertoireRoutes(app: FastifyInstance) {
       });
 
       const imported = importTransaction();
+
+      // Sync SRS cards after bulk import
+      syncCardsForRepertoire(repertoireId);
 
       // Update repertoire timestamp
       updateRepertoireTimestampStmt.run(repertoireId);

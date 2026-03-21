@@ -253,6 +253,55 @@ function bootstrapSchema(sqliteDb: DatabaseType): void {
   sqliteDb.exec(
     "CREATE INDEX IF NOT EXISTS repertoire_moves_rep_fen_idx ON repertoire_moves(repertoire_id, position_fen)",
   );
+
+  // repertoire_cards table
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS repertoire_cards (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      repertoire_id INTEGER NOT NULL REFERENCES repertoires(id),
+      position_fen TEXT NOT NULL,
+      move_san TEXT NOT NULL,
+      move_uci TEXT NOT NULL,
+      result_fen TEXT NOT NULL,
+      side TEXT NOT NULL,
+      due INTEGER NOT NULL DEFAULT (unixepoch()),
+      stability REAL NOT NULL DEFAULT 0,
+      difficulty REAL NOT NULL DEFAULT 0,
+      elapsed_days INTEGER NOT NULL DEFAULT 0,
+      scheduled_days INTEGER NOT NULL DEFAULT 0,
+      learning_steps INTEGER NOT NULL DEFAULT 0,
+      reps INTEGER NOT NULL DEFAULT 0,
+      lapses INTEGER NOT NULL DEFAULT 0,
+      state INTEGER NOT NULL DEFAULT 0,
+      last_review INTEGER
+    )
+  `);
+  sqliteDb.exec(
+    "CREATE UNIQUE INDEX IF NOT EXISTS repertoire_cards_rep_fen_san_idx ON repertoire_cards(repertoire_id, position_fen, move_san)",
+  );
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS repertoire_cards_rep_due_idx ON repertoire_cards(repertoire_id, due)",
+  );
+
+  // review_logs table
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS review_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_id INTEGER NOT NULL REFERENCES repertoire_cards(id),
+      rating INTEGER NOT NULL,
+      state INTEGER NOT NULL,
+      due INTEGER NOT NULL,
+      stability REAL NOT NULL,
+      difficulty REAL NOT NULL,
+      elapsed_days INTEGER NOT NULL,
+      scheduled_days INTEGER NOT NULL,
+      reviewed_at INTEGER NOT NULL DEFAULT (unixepoch())
+    )
+  `);
+  sqliteDb.exec("CREATE INDEX IF NOT EXISTS review_logs_card_id_idx ON review_logs(card_id)");
+  sqliteDb.exec(
+    "CREATE INDEX IF NOT EXISTS review_logs_reviewed_at_idx ON review_logs(reviewed_at)",
+  );
 }
 
 // Ensure tables exist on startup (safe on existing DB due to IF NOT EXISTS)

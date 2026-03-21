@@ -793,3 +793,54 @@ export interface RepertoireImportResponse {
 export interface RepertoireExportResponse {
   pgn: string;
 }
+
+// ---------------------------------------------------------------------------
+// Training / SRS Types (M19)
+// ---------------------------------------------------------------------------
+
+export enum CardState {
+  New = 0,
+  Learning = 1,
+  Review = 2,
+  Relearning = 3,
+}
+
+export enum ReviewRating {
+  Again = 1,
+  Hard = 2,
+  Good = 3,
+  Easy = 4,
+}
+
+export interface RepertoireCard {
+  id: number;
+  repertoireId: number;
+  positionFen: string;
+  moveSan: string;
+  moveUci: string;
+  resultFen: string;
+  side: "white" | "black";
+  due: number;
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  learningSteps: number;
+  reps: number;
+  lapses: number;
+  state: CardState;
+  lastReview: number | null;
+}
+
+export interface ReviewLogEntry {
+  id: number;
+  cardId: number;
+  rating: ReviewRating;
+  state: CardState;
+  due: number;
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  reviewedAt: number;
+}
