@@ -1,0 +1,108 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.name {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Card breakdown bar (stacked horizontal bar) */
+.breakdownBar {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  width: 100%;
+}
+
+.barNew {
+  background-color: var(--color-primary);
+}
+
+.barLearning {
+  background-color: var(--color-warning);
+}
+
+.barReview {
+  background-color: var(--color-success);
+}
+
+.barMastered {
+  background-color: #1b5e20;
+}
+
+:global([data-theme="dark"]) .barMastered {
+  background-color: #2e7d32;
+}
+
+.breakdownLabels {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+.breakdownLabel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breakdownDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Key stats row */
+.statsRow {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 50px;
+}
+
+.statValue {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.statLabel {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-secondary);
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}

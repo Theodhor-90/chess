@@ -1,10 +1,13 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useGetTrainingDashboardQuery } from "../store/apiSlice.js";
-import type { RepertoireTrainingSummary } from "@chess/shared";
+import type { RepertoireTrainingSummary, ReviewHistoryEntry } from "@chess/shared";
 import { Card } from "../components/ui/Card.js";
 import { Button } from "../components/ui/Button.js";
 import { Badge } from "../components/ui/Badge.js";
 import { PageSkeleton } from "../components/ui/Skeleton.js";
+import { CalendarHeatmap } from "../components/CalendarHeatmap.js";
+import { RepertoireStatsCard } from "../components/RepertoireStatsCard.js";
 import styles from "./TrainingDashboardPage.module.css";
 
 function formatRetention(retention: number | null): string {
@@ -12,9 +15,48 @@ function formatRetention(retention: number | null): string {
   return `${Math.round(retention * 100)}%`;
 }
 
+/**
+ * Compute the longest streak of consecutive days with reviews.
+ * The reviewHistory array contains only dates with reviews (non-zero counts).
+ * We find the longest run of consecutive calendar days in the array.
+ */
+function computeLongestStreak(reviewHistory: ReviewHistoryEntry[]): number {
+  if (reviewHistory.length === 0) return 0;
+
+  // Sort dates ascending (they should already be sorted, but be safe)
+  const dates = reviewHistory.map((e) => e.date).sort();
+
+  let longest = 1;
+  let current = 1;
+
+  for (let i = 1; i < dates.length; i++) {
+    // Parse dates and check if consecutive
+    const prev = new Date(dates[i - 1] + "T00:00:00Z");
+    const curr = new Date(dates[i] + "T00:00:00Z");
+    const diffMs = curr.getTime() - prev.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (diffDays === 1) {
+      current++;
+      if (current > longest) {
+        longest = current;
+      }
+    } else {
+      current = 1;
+    }
+  }
+
+  return longest;
+}
+
 export function TrainingDashboardPage() {
   const { data, isLoading, isError } = useGetTrainingDashboardQuery();
   const navigate = useNavigate();
+
+  const longestStreak = useMemo(() => {
+    if (!data) return 0;
+    return computeLongestStreak(data.reviewHistory);
+  }, [data]);
 
   if (isLoading) {
     return <PageSkeleton testId="training-dashboard-loading" />;
@@ -84,10 +126,16 @@ export function TrainingDashboardPage() {
           </div>
 
           <div className={styles.streakDisplay}>
+            {data.currentStreak > 0 && <span className={styles.flameIcon} aria-hidden="true" />}
             <span className={styles.streakCount} data-testid="current-streak">
               {data.currentStreak}
             </span>
             <span className={styles.streakLabel}>day streak</span>
+            {longestStreak > 0 && (
+              <span className={styles.longestStreak} data-testid="longest-streak">
+                Longest: {longestStreak} days
+              </span>
+            )}
           </div>
         </div>
 
@@ -117,6 +165,14 @@ export function TrainingDashboardPage() {
         )}
       </Card>
 
+      {/* Calendar Heatmap */}
+      <Card>
+        <div className={styles.heatmapSection}>
+          <h2 className={styles.sectionTitle}>Review Activity</h2>
+          <CalendarHeatmap data={data.reviewHistory} months={6} />
+        </div>
+      </Card>
+
       {/* Overview stats row */}
       <div className={styles.overviewRow}>
         <div className={styles.statBox}>
@@ -135,55 +191,9 @@ export function TrainingDashboardPage() {
 
       {/* Per-repertoire stats cards */}
       <h2 className={styles.sectionTitle}>Repertoires</h2>
-      <div className={styles.repGrid} data-testid="repertoire-stats">
+      <div className={styles.repStatsGrid} data-testid="repertoire-stats">
         {data.repertoires.map((rep) => (
-          <div key={rep.id} className={styles.repCard}>
-            <div className={styles.repCardHeader}>
-              <span className={styles.repCardName}>{rep.name}</span>
-              <Badge variant={rep.color === "white" ? "neutral" : "info"} size="sm">
-                {rep.color === "white" ? "White" : "Black"}
-              </Badge>
-            </div>
-            <div className={styles.repCardStats}>
-              <div className={styles.repStat}>
-                <span className={styles.repStatValue}>{rep.totalCards}</span>
-                <span className={styles.repStatLabel}>Total</span>
-              </div>
-              <div className={styles.repStat}>
-                <span className={styles.repStatValue}>{rep.masteredCount}</span>
-                <span className={styles.repStatLabel}>Mastered</span>
-              </div>
-              <div className={styles.repStat}>
-                <span className={styles.repStatValue}>{rep.learningCount}</span>
-                <span className={styles.repStatLabel}>Learning</span>
-              </div>
-              <div className={styles.repStat}>
-                <span className={styles.repStatValue}>{rep.newCount}</span>
-                <span className={styles.repStatLabel}>New</span>
-              </div>
-              <div className={styles.repStat}>
-                <span className={styles.repStatValue}>{rep.dueToday}</span>
-                <span className={styles.repStatLabel}>Due</span>
-              </div>
-              <div className={styles.repStat}>
-                <span className={styles.repStatValue}>{formatRetention(rep.retention)}</span>
-                <span className={styles.repStatLabel}>Retention</span>
-              </div>
-            </div>
-            <div className={styles.repCardActions}>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => navigate(`/repertoires/${rep.id}/train`)}
-                disabled={rep.dueToday === 0 && rep.newCount === 0}
-              >
-                Train ({rep.dueToday})
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => navigate(`/repertoires/${rep.id}`)}>
-                Builder
-              </Button>
-            </div>
-          </div>
+          <RepertoireStatsCard key={rep.id} summary={rep} />
         ))}
       </div>
     </div>

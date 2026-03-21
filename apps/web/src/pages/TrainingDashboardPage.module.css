@@ -153,67 +153,58 @@
   letter-spacing: 0.05em;
 }
 
-/* Per-repertoire stats grid */
-.repGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: var(--space-4);
+/* Flame icon — CSS-only fire indicator for active streak */
+.flameIcon {
+  display: inline-block;
+  width: 20px;
+  height: 24px;
+  position: relative;
 }
 
-.repCard {
+.flameIcon::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 20px;
+  background: linear-gradient(to top, #ff6b00, #ff9500, #ffcc00);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  clip-path: ellipse(50% 50% at 50% 60%);
+}
+
+.flameIcon::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 12px;
+  background: linear-gradient(to top, #ff4500, #ff6b00);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  clip-path: ellipse(50% 50% at 50% 60%);
+}
+
+.longestStreak {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Heatmap section */
+.heatmapSection {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
 }
 
-.repCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.repCardName {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.repCardStats {
+/* Per-repertoire stats grid */
+.repStatsGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-}
-
-.repStat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.repStatValue {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-}
-
-.repStatLabel {
-  font-size: var(--font-size-xs, 0.75rem);
-  color: var(--color-text-secondary);
-}
-
-.repCardActions {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
 }
 
 @media (max-width: 768px) {
@@ -226,7 +217,7 @@
     flex-direction: column;
   }
 
-  .repGrid {
+  .repStatsGrid {
     grid-template-columns: 1fr;
   }
 }
