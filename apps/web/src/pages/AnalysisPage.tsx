@@ -11,6 +11,8 @@ import { treeToPositions } from "../services/analysisSerializer.js";
 import { AnalysisMoveList } from "../components/AnalysisMoveList.js";
 import { EvalBar } from "../components/EvalBar.js";
 import { EngineLinesPanel } from "../components/EngineLinesPanel.js";
+import { ExplorerPanel } from "../components/ExplorerPanel.js";
+import { EXPLORER_BRUSHES } from "../utils/explorerArrows.js";
 import { Card } from "../components/ui/Card.js";
 import { Button } from "../components/ui/Button.js";
 import { Badge } from "../components/ui/Badge.js";
@@ -108,6 +110,14 @@ function AnalysisContent({ game }: { game: GameResponse }) {
   const [totalPositions, setTotalPositions] = useState<number | null>(null);
   const analyzingGameIdRef = useRef<number | null>(null);
   const boardAreaRef = useRef<HTMLDivElement>(null);
+  const [explorerVisible, setExplorerVisible] = useState(() => {
+    try {
+      return localStorage.getItem("explorer-visible") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [explorerArrows, setExplorerArrows] = useState<DrawShape[]>([]);
 
   const {
     data: storedAnalysis,
@@ -133,6 +143,34 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     }
     return { moves: history, fens: fenList };
   }, [game.pgn]);
+
+  const handleExplorerToggle = useCallback(() => {
+    setExplorerVisible((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("explorer-visible", String(next));
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  }, []);
+
+  const handleExplorerMoveClick = useCallback(
+    (san: string, _uci: string) => {
+      if (currentMoveIndex < moves.length && moves[currentMoveIndex] === san) {
+        setVariation(null);
+        setCurrentMoveIndex((prev) => prev + 1);
+      }
+    },
+    [currentMoveIndex, moves],
+  );
+
+  const handleExplorerHoverMove = useCallback((_uci: string | null) => {}, []);
+
+  const handleExplorerArrowsChange = useCallback((shapes: DrawShape[]) => {
+    setExplorerArrows(shapes);
+  }, []);
 
   // Socket.io analysis listeners
   useEffect(() => {
@@ -258,8 +296,9 @@ function AnalysisContent({ game }: { game: GameResponse }) {
     : positions?.[currentMoveIndex]?.evaluation.engineLines;
   const arrowShapes = useMemo(() => {
     if (variation) return [];
+    if (explorerVisible && explorerArrows.length > 0) return explorerArrows;
     return computeArrowShapes(currentEngineLines, currentFen);
-  }, [variation, currentEngineLines, currentFen]);
+  }, [variation, currentEngineLines, currentFen, explorerVisible, explorerArrows]);
 
   const classifications: (MoveClassification | null)[] | undefined = positions
     ? positions.map((p) => p.classification)
@@ -342,6 +381,9 @@ function AnalysisContent({ game }: { game: GameResponse }) {
       orientation: "white",
       viewOnly: true,
       animation: { enabled: true, duration: 200 },
+      drawable: {
+        brushes: EXPLORER_BRUSHES,
+      },
     });
     return () => {
       apiRef.current?.destroy();
@@ -398,9 +440,31 @@ function AnalysisContent({ game }: { game: GameResponse }) {
           </div>
         </div>
         <div className={styles.sidePanel}>
-          <Card header="Engine Lines">
-            <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
-          </Card>
+          <button
+            type="button"
+            className={styles.explorerToggle}
+            onClick={handleExplorerToggle}
+            aria-label={explorerVisible ? "Close opening explorer" : "Open opening explorer"}
+            aria-pressed={explorerVisible}
+            data-testid="explorer-toggle"
+          >
+            <span className={styles.explorerToggleIcon} aria-hidden="true">
+              &#x1F4D6;
+            </span>
+            {explorerVisible ? "Close Explorer" : "Opening Explorer"}
+          </button>
+          {explorerVisible ? (
+            <ExplorerPanel
+              fen={currentFen}
+              onMoveClick={handleExplorerMoveClick}
+              onHoverMove={handleExplorerHoverMove}
+              onArrowsChange={handleExplorerArrowsChange}
+            />
+          ) : (
+            <Card header="Engine Lines">
+              <EngineLinesPanel engineLines={currentEngineLines} onLineSelect={handleLineSelect} />
+            </Card>
+          )}
           {variation && (
             <div data-testid="variation-indicator" className={styles.variationIndicator}>
               <span className={styles.variationLabel}>Viewing engine line</span>

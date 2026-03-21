@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ChangeEvent } from "react";
 import type { DrawShape } from "chessground/draw";
-import type { ExplorerMove } from "@chess/shared";
+import type { ExplorerMove, ExplorerTopGame } from "@chess/shared";
 import {
   useGetExplorerMastersQuery,
   useGetExplorerPlatformQuery,
@@ -9,6 +9,8 @@ import {
 } from "../store/apiSlice.js";
 import { ExplorerMoveTable } from "./ExplorerMoveTable.js";
 import { ExplorerOpeningName } from "./ExplorerOpeningName.js";
+import { ExplorerTopGames } from "./ExplorerTopGames.js";
+import type { ExplorerSource } from "./ExplorerTopGames.js";
 import { ExplorerMastersFilters } from "./ExplorerMastersFilters.js";
 import type { MastersFilterState } from "./ExplorerMastersFilters.js";
 import {
@@ -22,6 +24,46 @@ import { Button } from "./ui/Button.js";
 import { Skeleton } from "./ui/Skeleton.js";
 import { buildExplorerArrows, buildHoverArrow } from "../utils/explorerArrows.js";
 import styles from "./ExplorerPanel.module.css";
+
+const LS_EXPLORER_TAB = "explorer-tab";
+const LS_EXPLORER_MASTERS_FILTERS = "explorer-masters-filters";
+const LS_EXPLORER_PLATFORM_FILTERS = "explorer-platform-filters";
+
+function readLsString(key: string, fallback: string): string {
+  try {
+    const val = localStorage.getItem(key);
+    if (val !== null) return val;
+  } catch {
+    /* noop */
+  }
+  return fallback;
+}
+
+function readLsJson<T>(key: string, fallback: T): T {
+  try {
+    const val = localStorage.getItem(key);
+    if (val !== null) return JSON.parse(val) as T;
+  } catch {
+    /* noop */
+  }
+  return fallback;
+}
+
+function writeLs(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* noop */
+  }
+}
+
+function writeLsJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* noop */
+  }
+}
 
 type ExplorerTab = "masters" | "platform" | "engine";
 
@@ -60,7 +102,11 @@ interface MastersTabContentProps {
   filters: MastersFilterState;
   onMoveClick: (san: string, uci: string) => void;
   onHoverMove: (uci: string | null) => void;
-  onMovesLoaded: (moves: ExplorerMove[], opening: { eco: string; name: string } | null) => void;
+  onMovesLoaded: (
+    moves: ExplorerMove[],
+    opening: { eco: string; name: string } | null,
+    topGames: ExplorerTopGame[],
+  ) => void;
 }
 
 function MastersTabContent({
@@ -84,13 +130,13 @@ function MastersTabContent({
   useEffect(() => {
     if (data && data !== prevDataRef.current) {
       prevDataRef.current = data;
-      onMovesLoaded(data.moves, data.opening);
+      onMovesLoaded(data.moves, data.opening, data.topGames);
     }
   }, [data, onMovesLoaded]);
 
   useEffect(() => {
     if (!data && !isLoading) {
-      onMovesLoaded([], null);
+      onMovesLoaded([], null, []);
     }
   }, [data, isLoading, onMovesLoaded]);
 
@@ -127,7 +173,11 @@ interface PlatformTabContentProps {
   filters: PlatformFilterState;
   onMoveClick: (san: string, uci: string) => void;
   onHoverMove: (uci: string | null) => void;
-  onMovesLoaded: (moves: ExplorerMove[], opening: { eco: string; name: string } | null) => void;
+  onMovesLoaded: (
+    moves: ExplorerMove[],
+    opening: { eco: string; name: string } | null,
+    topGames: ExplorerTopGame[],
+  ) => void;
 }
 
 function PlatformTabContent({
@@ -153,13 +203,13 @@ function PlatformTabContent({
   useEffect(() => {
     if (data && data !== prevDataRef.current) {
       prevDataRef.current = data;
-      onMovesLoaded(data.moves, data.opening);
+      onMovesLoaded(data.moves, data.opening, data.topGames);
     }
   }, [data, onMovesLoaded]);
 
   useEffect(() => {
     if (!data && !isLoading) {
-      onMovesLoaded([], null);
+      onMovesLoaded([], null, []);
     }
   }, [data, isLoading, onMovesLoaded]);
 
@@ -178,7 +228,10 @@ function PlatformTabContent({
 
   if (!data || data.moves.length === 0) {
     return (
-      <div className={styles.emptyState}>No games found on the platform for this position.</div>
+      <div className={styles.emptyState}>
+        <p className={styles.emptyText}>No games found on the platform for this position.</p>
+        <p className={styles.emptyHint}>Try adjusting your filters.</p>
+      </div>
     );
   }
 
@@ -196,52 +249,49 @@ interface EngineTabContentProps {
 
 function EngineTabContent({ fen, depth }: EngineTabContentProps) {
   const [evaluate, { data, isLoading, isError }] = usePostExplorerEngineMutation();
-  const [lastEvaluatedFen, setLastEvaluatedFen] = useState<string | null>(null);
+  const lastEvaluatedFenRef = useRef<string | null>(null);
+  const lastEvaluatedDepthRef = useRef<number | null>(null);
 
-  const handleEvaluate = useCallback(() => {
+  // Auto-evaluate when fen or depth changes
+  useEffect(() => {
     if (!fen) return;
+    if (fen === lastEvaluatedFenRef.current && depth === lastEvaluatedDepthRef.current) return;
+    lastEvaluatedFenRef.current = fen;
+    lastEvaluatedDepthRef.current = depth;
     evaluate({ fen, depth });
-    setLastEvaluatedFen(fen);
   }, [fen, depth, evaluate]);
 
-  const needsEvaluation = fen !== lastEvaluatedFen;
-
-  if (!lastEvaluatedFen) {
+  if (isLoading) {
     return (
       <div className={styles.enginePrompt}>
-        <p className={styles.enginePromptText}>Click to evaluate this position with the engine.</p>
-        <Button variant="primary" size="sm" onClick={handleEvaluate} loading={isLoading}>
-          Evaluate
-        </Button>
+        <p className={styles.enginePromptText}>Evaluating...</p>
+        <MoveTableSkeleton />
       </div>
     );
   }
 
-  if (isLoading) return <MoveTableSkeleton />;
-
   if (isError) {
     return (
       <div className={styles.errorState}>
-        <p className={styles.errorText}>Engine evaluation failed.</p>
-        <Button variant="secondary" size="sm" onClick={handleEvaluate}>
+        <p className={styles.errorText}>Engine not available. Try again later.</p>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            if (fen) {
+              lastEvaluatedFenRef.current = fen;
+              lastEvaluatedDepthRef.current = depth;
+              evaluate({ fen, depth });
+            }
+          }}
+        >
           Retry
         </Button>
       </div>
     );
   }
 
-  if (needsEvaluation) {
-    return (
-      <div className={styles.enginePrompt}>
-        <p className={styles.enginePromptText}>Position changed. Click to re-evaluate.</p>
-        <Button variant="primary" size="sm" onClick={handleEvaluate} loading={isLoading}>
-          Evaluate
-        </Button>
-      </div>
-    );
-  }
-
-  if (!data) return null;
+  if (!data) return <MoveTableSkeleton />;
 
   return (
     <div className={styles.engineResults}>
@@ -257,30 +307,53 @@ function EngineTabContent({ fen, depth }: EngineTabContentProps) {
 // --- Main Explorer Panel ---
 
 function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: ExplorerPanelProps) {
-  const [activeTab, setActiveTab] = useState<ExplorerTab>("masters");
+  const [activeTab, setActiveTab] = useState<ExplorerTab>(() => {
+    const stored = readLsString(LS_EXPLORER_TAB, "masters");
+    if (stored === "masters" || stored === "platform" || stored === "engine") return stored;
+    return "masters";
+  });
   const [hoveredUci, setHoveredUci] = useState<string | null>(null);
 
   // Filter state
-  const [mastersFilters, setMastersFilters] = useState<MastersFilterState>({
-    since: "",
-    until: "",
-  });
-  const [platformFilters, setPlatformFilters] = useState<PlatformFilterState>({
-    ratings: [...ALL_RATING_BRACKETS],
-    speeds: [...ALL_SPEED_CATEGORIES],
-    since: "",
-    until: "",
-  });
+  const [mastersFilters, setMastersFilters] = useState<MastersFilterState>(() =>
+    readLsJson(LS_EXPLORER_MASTERS_FILTERS, { since: "", until: "" }),
+  );
+  const [platformFilters, setPlatformFilters] = useState<PlatformFilterState>(() =>
+    readLsJson(LS_EXPLORER_PLATFORM_FILTERS, {
+      ratings: [...ALL_RATING_BRACKETS],
+      speeds: [...ALL_SPEED_CATEGORIES],
+      since: "",
+      until: "",
+    }),
+  );
   const [engineDepth, setEngineDepth] = useState(20);
+
+  useEffect(() => {
+    writeLs(LS_EXPLORER_TAB, activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    writeLsJson(LS_EXPLORER_MASTERS_FILTERS, mastersFilters);
+  }, [mastersFilters]);
+
+  useEffect(() => {
+    writeLsJson(LS_EXPLORER_PLATFORM_FILTERS, platformFilters);
+  }, [platformFilters]);
 
   // Current explorer moves (for arrow computation)
   const [currentMoves, setCurrentMoves] = useState<ExplorerMove[]>([]);
   const [currentOpening, setCurrentOpening] = useState<{ eco: string; name: string } | null>(null);
+  const [currentTopGames, setCurrentTopGames] = useState<ExplorerTopGame[]>([]);
 
   const handleMovesLoaded = useCallback(
-    (moves: ExplorerMove[], opening: { eco: string; name: string } | null) => {
+    (
+      moves: ExplorerMove[],
+      opening: { eco: string; name: string } | null,
+      topGames: ExplorerTopGame[],
+    ) => {
       setCurrentMoves(moves);
       setCurrentOpening(opening);
+      setCurrentTopGames(topGames);
     },
     [],
   );
@@ -311,6 +384,7 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
   useEffect(() => {
     setCurrentMoves([]);
     setCurrentOpening(null);
+    setCurrentTopGames([]);
     setHoveredUci(null);
   }, [activeTab]);
 
@@ -406,6 +480,9 @@ function ExplorerPanel({ fen, onMoveClick, onHoverMove, onArrowsChange }: Explor
           />
         )}
         {activeTab === "engine" && <EngineTabContent fen={fen} depth={engineDepth} />}
+        {activeTab !== "engine" && currentTopGames.length > 0 && (
+          <ExplorerTopGames games={currentTopGames} source={activeTab as ExplorerSource} />
+        )}
       </div>
     </div>
   );

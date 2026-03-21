@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
@@ -7,6 +7,10 @@ import { ExplorerPanel } from "../src/components/ExplorerPanel.js";
 
 afterEach(() => {
   cleanup();
+});
+
+beforeEach(() => {
+  localStorage.clear();
 });
 
 function createTestStore() {
@@ -79,5 +83,34 @@ describe("ExplorerPanel", () => {
     );
 
     expect(screen.getByTestId("explorer-panel")).toBeInTheDocument();
+  });
+
+  it("persists active tab to localStorage on switch", () => {
+    renderWithStore(
+      <ExplorerPanel
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        onMoveClick={vi.fn()}
+        onHoverMove={vi.fn()}
+        onArrowsChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Platform" }));
+    expect(localStorage.getItem("explorer-tab")).toBe("platform");
+  });
+
+  it("restores active tab from localStorage on mount", () => {
+    localStorage.setItem("explorer-tab", "engine");
+
+    renderWithStore(
+      <ExplorerPanel
+        fen="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+        onMoveClick={vi.fn()}
+        onHoverMove={vi.fn()}
+        onArrowsChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("tab", { name: "Engine" })).toHaveAttribute("aria-selected", "true");
   });
 });

@@ -1,4 +1,4 @@
-import type { DrawShape, DrawBrush } from "chessground/draw";
+import type { DrawShape, DrawBrushes } from "chessground/draw";
 import type { ExplorerMove } from "@chess/shared";
 
 function parseUci(uci: string): { orig: string; dest: string } {
@@ -8,7 +8,11 @@ function parseUci(uci: string): { orig: string; dest: string } {
   };
 }
 
-const EXPLORER_BRUSHES: Record<string, DrawBrush> = {
+const EXPLORER_BRUSHES: DrawBrushes = {
+  green: { key: "green", color: "#15781B", opacity: 1, lineWidth: 10 },
+  red: { key: "red", color: "#882020", opacity: 1, lineWidth: 10 },
+  blue: { key: "blue", color: "#003088", opacity: 1, lineWidth: 10 },
+  yellow: { key: "yellow", color: "#e68f00", opacity: 1, lineWidth: 10 },
   explorerGood: { key: "explorerGood", color: "#66bb6a", opacity: 0.6, lineWidth: 10 },
   explorerNeutral: { key: "explorerNeutral", color: "#42a5f5", opacity: 0.5, lineWidth: 10 },
   explorerPoor: { key: "explorerPoor", color: "#ef5350", opacity: 0.5, lineWidth: 10 },

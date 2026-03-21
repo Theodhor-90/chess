@@ -143,3 +143,16 @@
   outline-offset: -1px;
   border-color: var(--color-primary);
 }
+
+.emptyText {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
