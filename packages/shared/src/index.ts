@@ -876,3 +876,20 @@ export interface TrainingReviewResponse {
   nextDue: number;
   interval: number;
 }
+
+// ---------------------------------------------------------------------------
+// Training Stats Types (M19 t03)
+// ---------------------------------------------------------------------------
+
+export interface TrainingStatsResponse {
+  totalCards: number;
+  newCount: number;
+  learningCount: number;
+  reviewCount: number;
+  relearningCount: number;
+  dueToday: number;
+  dueTomorrow: number;
+  averageRetention: number | null;
+  streak: number;
+  totalReviews: number;
+}

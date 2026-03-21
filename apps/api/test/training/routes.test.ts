@@ -7,6 +7,7 @@ import type {
   CreateRepertoireResponse,
   TrainingNextResponse,
   TrainingReviewResponse,
+  TrainingStatsResponse,
 } from "@chess/shared";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
@@ -468,5 +469,371 @@ describe("POST /api/repertoires/:id/train/review", () => {
       payload: { cardId: 1, rating: 5 },
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("GET /api/repertoires/:id/train/stats", () => {
+  let app: ReturnType<typeof buildApp>["app"];
+
+  beforeEach(() => {
+    ({ app } = buildApp());
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it("returns 401 without auth", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/repertoires/1/train/stats",
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("returns 404 for non-existent repertoire", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-404"));
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/repertoires/99999/train/stats",
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("returns zero counts for empty repertoire", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-empty"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "Empty Stats Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as TrainingStatsResponse;
+    expect(body.totalCards).toBe(0);
+    expect(body.newCount).toBe(0);
+    expect(body.learningCount).toBe(0);
+    expect(body.reviewCount).toBe(0);
+    expect(body.relearningCount).toBe(0);
+    expect(body.dueToday).toBe(0);
+    expect(body.dueTomorrow).toBe(0);
+    expect(body.averageRetention).toBeNull();
+    expect(body.streak).toBe(0);
+    expect(body.totalReviews).toBe(0);
+  });
+
+  it("returns correct counts after card creation", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-counts"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "Stats Count Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Add two white-side moves (creates 2 cards in New state)
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "d4" },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as TrainingStatsResponse;
+
+    expect(body.totalCards).toBe(2);
+    expect(body.newCount).toBe(2);
+    expect(body.learningCount).toBe(0);
+    expect(body.reviewCount).toBe(0);
+    expect(body.relearningCount).toBe(0);
+    // New cards are always due
+    expect(body.dueToday).toBe(2);
+    expect(body.dueTomorrow).toBe(2);
+    // No reviews yet
+    expect(body.averageRetention).toBeNull();
+    expect(body.streak).toBe(0);
+    expect(body.totalReviews).toBe(0);
+  });
+
+  it("adding a user-side move automatically creates a card (reflected in stats)", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-auto-card"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "Auto Card Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Stats before adding any move
+    const resBefore = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    expect((resBefore.json() as TrainingStatsResponse).totalCards).toBe(0);
+
+    // Add e4 (white's move from starting position, white to move => own-side => card created)
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+
+    // Stats after adding the move
+    const resAfter = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    expect((resAfter.json() as TrainingStatsResponse).totalCards).toBe(1);
+    expect((resAfter.json() as TrainingStatsResponse).newCount).toBe(1);
+  });
+
+  it("deleting a move removes the associated card (reflected in stats)", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-del-card"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "Del Card Stats Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Add e4 (creates a card)
+    const addRes = await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+    const moveId = (addRes.json() as AddRepertoireMoveResponse).id;
+
+    // Verify card exists via stats
+    const resBefore = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    expect((resBefore.json() as TrainingStatsResponse).totalCards).toBe(1);
+
+    // Delete the move
+    await app.inject({
+      method: "DELETE",
+      url: `/api/repertoires/${repId}/moves/${moveId}`,
+      headers: { cookie },
+    });
+
+    // Card should be gone
+    const resAfter = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    expect((resAfter.json() as TrainingStatsResponse).totalCards).toBe(0);
+  });
+
+  it("streak calculation works correctly", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-streak"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "Streak Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Add a move and review it to create a review log
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+
+    const cardRow = sqlite
+      .prepare("SELECT id FROM repertoire_cards WHERE repertoire_id = ?")
+      .get(repId) as { id: number };
+
+    // Review the card (creates a review log with today's date)
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/train/review`,
+      headers: { cookie },
+      payload: { cardId: cardRow.id, rating: 3 },
+    });
+
+    // Check stats — streak should be 1 (reviewed today)
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    const body = res.json() as TrainingStatsResponse;
+    expect(body.streak).toBe(1);
+    expect(body.totalReviews).toBe(1);
+
+    // Also manually insert a review log for yesterday to test multi-day streak
+    const yesterdayUnix = Math.floor(Date.now() / 1000) - 86400;
+    sqlite
+      .prepare(
+        "INSERT INTO review_logs (card_id, rating, state, due, stability, difficulty, elapsed_days, scheduled_days, reviewed_at) VALUES (?, 3, 0, ?, 1.0, 5.0, 0, 1, ?)",
+      )
+      .run(cardRow.id, yesterdayUnix, yesterdayUnix);
+
+    const res2 = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    const body2 = res2.json() as TrainingStatsResponse;
+    expect(body2.streak).toBe(2);
+    expect(body2.totalReviews).toBe(2);
+  });
+
+  it("average retention is null when no reviews exist", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-no-retention"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "No Retention Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Add a move (card in New state, stability=0)
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    const body = res.json() as TrainingStatsResponse;
+    // New card has stability=0 and state=0, so averageRetention should be null
+    expect(body.averageRetention).toBeNull();
+  });
+
+  it("average retention is computed correctly after reviews", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-retention"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "Retention Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Add a move
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+
+    const cardRow = sqlite
+      .prepare("SELECT id FROM repertoire_cards WHERE repertoire_id = ?")
+      .get(repId) as { id: number };
+
+    // Review the card to move it out of New state
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/train/review`,
+      headers: { cookie },
+      payload: { cardId: cardRow.id, rating: 3 },
+    });
+
+    // Now the card should have state >= 1 and stability > 0
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    const body = res.json() as TrainingStatsResponse;
+    // averageRetention should now be a number (not null)
+    expect(body.averageRetention).not.toBeNull();
+    expect(typeof body.averageRetention).toBe("number");
+    // Retention should be between 0 and 1 (it was just reviewed, so should be close to 1)
+    expect(body.averageRetention!).toBeGreaterThan(0);
+    expect(body.averageRetention!).toBeLessThanOrEqual(1);
+  });
+
+  it("state counts reflect reviewed cards correctly", async () => {
+    const { cookie } = await registerAndLogin(app, uniqueEmail("stats-state-counts"));
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/repertoires",
+      headers: { cookie },
+      payload: { name: "State Count Rep", color: "white" },
+    });
+    const repId = (createRes.json() as CreateRepertoireResponse).id;
+
+    // Add two moves (creates 2 New cards)
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "e4" },
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/moves`,
+      headers: { cookie },
+      payload: { positionFen: STARTING_FEN, moveSan: "d4" },
+    });
+
+    // Review one card with Good
+    const card1 = sqlite
+      .prepare("SELECT id FROM repertoire_cards WHERE repertoire_id = ? AND move_san = 'e4'")
+      .get(repId) as { id: number };
+
+    await app.inject({
+      method: "POST",
+      url: `/api/repertoires/${repId}/train/review`,
+      headers: { cookie },
+      payload: { cardId: card1.id, rating: 3 },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/repertoires/${repId}/train/stats`,
+      headers: { cookie },
+    });
+    const body = res.json() as TrainingStatsResponse;
+
+    expect(body.totalCards).toBe(2);
+    // One card was reviewed (no longer New), one is still New
+    expect(body.newCount).toBe(1);
+    // The reviewed card should be in Learning or Review state
+    expect(body.learningCount + body.reviewCount + body.relearningCount).toBe(1);
   });
 });

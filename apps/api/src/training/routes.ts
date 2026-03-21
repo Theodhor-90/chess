@@ -6,6 +6,7 @@ import type {
   TrainingNextResponse,
   TrainingReviewRequest,
   TrainingReviewResponse,
+  TrainingStatsResponse,
   ErrorResponse,
   RepertoireNode,
 } from "@chess/shared";
@@ -13,6 +14,7 @@ import { requireAuth } from "../auth/plugin.js";
 import { sqlite } from "../db/index.js";
 import { selectTrainingLine, countDueCards } from "./line-selection.js";
 import { reviewCard, type CardDbRow } from "./fsrs.js";
+import { getTrainingStats } from "./stats.js";
 import type { Grade } from "ts-fsrs";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
@@ -297,6 +299,25 @@ async function trainingRoutes(app: FastifyInstance) {
         nextDue: result.card.due,
         interval: result.card.scheduledDays,
       });
+    },
+  );
+
+  // GET /api/repertoires/:id/train/stats
+  app.get<{ Params: IdParams; Reply: TrainingStatsResponse | ErrorResponse }>(
+    "/:id/train/stats",
+    { schema: { params: idParamsSchema }, preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = request.userId!;
+      const repertoireId = parseInt(request.params.id, 10);
+
+      const row = verifyOwnership(repertoireId, userId);
+      if (!row) {
+        return reply.code(404).send({ error: "Repertoire not found" });
+      }
+
+      const stats = getTrainingStats(repertoireId);
+
+      return reply.code(200).send(stats);
     },
   );
 }
